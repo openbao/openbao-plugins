@@ -70,9 +70,30 @@ TTL will be set to the value of this parameter.`,
 	}
 }
 
+type roleEntry struct {
+	// Policies that are to be required by the token to access this role
+	Policies []string `json:"policies" structs:"policies" mapstructure:"policies"`
+
+	// TokenNumUses defines the number of allowed uses of the token issued
+	NumUses int `json:"num_uses" mapstructure:"num_uses" structs:"num_uses"`
+
+	// Duration before which an issued token must be renewed
+	TTL time.Duration `json:"ttl" structs:"ttl" mapstructure:"ttl"`
+
+	// Duration after which an issued token should not be allowed to be renewed
+	MaxTTL time.Duration `json:"max_ttl" structs:"max_ttl" mapstructure:"max_ttl"`
+
+	// Period, if set, indicates that the token generated using this role
+	// should never expire. The token should be renewed within the duration
+	// specified by this value. The renewal duration will be fixed if the
+	// value is not modified on the role. If the `Period` in the role is modified,
+	// a token will pick up the new value during its next renewal.
+	Period time.Duration `json:"period" mapstructure:"period" structs:"period"`
+}
+
 // role takes a storage backend and the name and returns the role's storage
 // entryÍ
-func (b *azureAuthBackend) role(s logical.Storage, name string) (*roleStorageEntry, error) {
+func (b *azureAuthBackend) role(s logical.Storage, name string) (*roleEntry, error) {
 	raw, err := s.Get("role/" + strings.ToLower(name))
 	if err != nil {
 		return nil, err
@@ -81,7 +102,7 @@ func (b *azureAuthBackend) role(s logical.Storage, name string) (*roleStorageEnt
 		return nil, nil
 	}
 
-	role := &roleStorageEntry{}
+	role := &roleEntry{}
 	if err := json.Unmarshal(raw.Value, role); err != nil {
 		return nil, err
 	}
@@ -145,7 +166,7 @@ func (b *azureAuthBackend) pathRoleRead(ctx context.Context, req *logical.Reques
 func (b *azureAuthBackend) pathRoleDelete(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	roleName := data.Get("name").(string)
 	if roleName == "" {
-		return logical.ErrorResponse("missing role name"), nil
+		return logical.ErrorResponse("role name required"), nil
 	}
 
 	// Delete the role itself
@@ -172,7 +193,7 @@ func (b *azureAuthBackend) pathRoleCreateUpdate(ctx context.Context, req *logica
 
 	// Create a new entry object if this is a CreateOperation
 	if role == nil && req.Operation == logical.CreateOperation {
-		role = &roleStorageEntry{}
+		role = &roleEntry{}
 	} else if role == nil {
 		return nil, fmt.Errorf("role entry not found during update operation")
 	}
@@ -241,27 +262,6 @@ func (b *azureAuthBackend) pathRoleCreateUpdate(ctx context.Context, req *logica
 }
 
 // roleStorageEntry stores all the options that are set on an role
-type roleStorageEntry struct {
-	// Policies that are to be required by the token to access this role
-	Policies []string `json:"policies" structs:"policies" mapstructure:"policies"`
-
-	// TokenNumUses defines the number of allowed uses of the token issued
-	NumUses int `json:"num_uses" mapstructure:"num_uses" structs:"num_uses"`
-
-	// Duration before which an issued token must be renewed
-	TTL time.Duration `json:"ttl" structs:"ttl" mapstructure:"ttl"`
-
-	// Duration after which an issued token should not be allowed to be renewed
-	MaxTTL time.Duration `json:"max_ttl" structs:"max_ttl" mapstructure:"max_ttl"`
-
-	// Period, if set, indicates that the token generated using this role
-	// should never expire. The token should be renewed within the duration
-	// specified by this value. The renewal duration will be fixed if the
-	// value is not modified on the role. If the `Period` in the role is modified,
-	// a token will pick up the new value during its next renewal.
-	Period time.Duration `json:"period" mapstructure:"period" structs:"period"`
-}
-
 var roleHelp = map[string][2]string{
 	"role-list": {
 		"Lists all the roles registered with the backend.",

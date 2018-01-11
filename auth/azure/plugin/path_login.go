@@ -17,7 +17,7 @@ func pathLogin(b *azureAuthBackend) *framework.Path {
 		Fields: map[string]*framework.FieldSchema{
 			"role": &framework.FieldSchema{
 				Type:        framework.TypeString,
-				Description: `The token role to login in use.`,
+				Description: `The token role.`,
 			},
 			"jwt": &framework.FieldSchema{
 				Type:        framework.TypeString,
@@ -61,7 +61,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 		return logical.ErrorResponse(fmt.Sprintf("invalid role name %q", roleName)), nil
 	}
 
-	// Set the client id for aud claim verification
+	// Set the client id for 'aud' claim verification
 	verifierConfig := &oidc.Config{
 		ClientID: config.Resource,
 	}
@@ -71,12 +71,13 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	}
 
 	// The OIDC verifier verifies the signature and checks the 'aud' and 'iss'
-	//claims and expiration time
+	// claims and expiration time
 	idToken, err := verifier.Verify(ctx, signedJwt.(string))
 	if err != nil {
 		return nil, err
 	}
 
+	// Check additional claims in token
 	if err := verifyClaims(verifierConfig, idToken); err != nil {
 		return nil, err
 	}
@@ -123,4 +124,31 @@ func verifyClaims(config *oidc.Config, idToken *oidc.IDToken) error {
 		return fmt.Errorf("token is not yet valid (Token Not Before: %v)", notBefore)
 	}
 	return nil
+}
+
+func (b *azureAuthBackend) pathLoginRenew(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	roleName := req.Auth.InternalData["role"].(string)
+	if roleName == "" {
+		return nil, fmt.Errorf("failed to fetch role_name during renewal")
+	}
+
+	// Ensure that the Role still exists.
+	role, err := b.role(req.Storage, roleName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate role %s during renewal:%s", roleName, err)
+	}
+	if role == nil {
+		return nil, fmt.Errorf("role %s does not exist during renewal", roleName)
+	}
+
+	// If 'Period' is set on the Role, the token should never expire.
+	// Replenish the TTL with 'Period's value.
+	if role.Period > time.Duration(0) {
+		// If 'Period' was updated after the token was issued,
+		// token will bear the updated 'Period' value as its TTL.
+		req.Auth.TTL = role.Period
+		return &logical.Response{Auth: req.Auth}, nil
+	}
+
+	return framework.LeaseExtend(role.TTL, role.MaxTTL, b.System())(ctx, req, data)
 }

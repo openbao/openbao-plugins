@@ -49,7 +49,7 @@ func Backend(c *logical.BackendConfig) *azureAuthBackend {
 	b := new(azureAuthBackend)
 
 	b.Backend = &framework.Backend{
-		//AuthRenew:   b.pathLoginRenew,
+		AuthRenew:   b.pathLoginRenew,
 		BackendType: logical.TypeCredential,
 		Invalidate:  b.invalidate,
 		Help:        backendHelp,
@@ -97,6 +97,8 @@ func (b *azureAuthBackend) getOIDCVerifier(verifierConfig *oidc.Config, config *
 		return b.oidcProvider.Verifier(verifierConfig), nil
 	}
 
+	// If tenant id is found in the config, use that.  Otherwise lookup the
+	// tenant id from instance metadata.
 	tenantID := config.TenantID
 	if tenantID == "" {
 		var err error
@@ -164,7 +166,7 @@ func (b *azureAuthBackend) getInstanceMetadata() (*instanceMetadata, error) {
 
 // getTenantID retrieves the tenant id using instance metadata. The tenant id
 // is used to match to the issuer claim in the signed jwt. Due to the current
-// shortcoming of instance metadata, the tenant id must be derived by making a
+// limitation of instance metadata, the tenant id must be derived by making a
 // failing call using the subscription id to the resource manager endpoint
 // to determine the authorization uri which contains the tenant id. Microsoft
 // informs us that this should be available in an upcoming update to the

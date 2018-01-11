@@ -25,6 +25,7 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 			logical.CreateOperation: b.pathConfigWrite,
 			logical.UpdateOperation: b.pathConfigWrite,
 		},
+		ExistenceCheck: b.pathConfigExistenceCheck,
 
 		//HelpSynopsis:    confHelpSyn,
 		//HelpDescription: confHelpDesc,
@@ -34,6 +35,30 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 type azureConfig struct {
 	TenantID string `json:"tenant_id"`
 	Resource string `json:"resource"`
+}
+
+func (b *azureAuthBackend) config(s logical.Storage) (*azureConfig, error) {
+	entry, err := s.Get("config")
+	if err != nil {
+		return nil, err
+	}
+	if entry == nil {
+		return nil, nil
+	}
+
+	config := new(azureConfig)
+	if err := entry.DecodeJSON(config); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+func (b *azureAuthBackend) pathConfigExistenceCheck(ctx context.Context, req *logical.Request, data *framework.FieldData) (bool, error) {
+	config, err := b.config(req.Storage)
+	if err != nil {
+		return false, err
+	}
+	return config != nil, nil
 }
 
 func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
@@ -87,20 +112,4 @@ func (b *azureAuthBackend) pathConfigRead(ctx context.Context, req *logical.Requ
 		},
 	}
 	return resp, nil
-}
-
-func (b *azureAuthBackend) config(s logical.Storage) (*azureConfig, error) {
-	entry, err := s.Get("config")
-	if err != nil {
-		return nil, err
-	}
-	if entry == nil {
-		return nil, nil
-	}
-
-	config := new(azureConfig)
-	if err := entry.DecodeJSON(config); err != nil {
-		return nil, err
-	}
-	return config, nil
 }

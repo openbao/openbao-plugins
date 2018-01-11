@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// This is copied from github.com/coreos/go-oidc
+// Using the same time parsing logic from https://github.com/coreos/go-oidc
 type jsonTime time.Time
 
 func (j *jsonTime) UnmarshalJSON(b []byte) error {
