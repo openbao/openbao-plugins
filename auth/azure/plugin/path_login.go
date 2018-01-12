@@ -62,10 +62,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	}
 
 	// Set the client id for 'aud' claim verification
-	verifierConfig := &oidc.Config{
-		ClientID: config.Resource,
-	}
-	verifier, err := b.getOIDCVerifier(verifierConfig, config)
+	verifier, err := b.getOIDCVerifier(config)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +75,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	}
 
 	// Check additional claims in token
-	if err := verifyClaims(verifierConfig, idToken); err != nil {
+	if err := verifyClaims(idToken); err != nil {
 		return nil, err
 	}
 
@@ -106,7 +103,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	return resp, nil
 }
 
-func verifyClaims(config *oidc.Config, idToken *oidc.IDToken) error {
+func verifyClaims(idToken *oidc.IDToken) error {
 	var claims struct {
 		NotBefore jsonTime `json:"nbf"`
 	}
@@ -114,13 +111,8 @@ func verifyClaims(config *oidc.Config, idToken *oidc.IDToken) error {
 		return err
 	}
 
-	now := time.Now
-	if config.Now != nil {
-		now = config.Now
-	}
-
 	notBefore := time.Time(claims.NotBefore)
-	if notBefore.After(now()) {
+	if notBefore.After(time.Now()) {
 		return fmt.Errorf("token is not yet valid (Token Not Before: %v)", notBefore)
 	}
 	return nil

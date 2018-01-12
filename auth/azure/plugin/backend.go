@@ -78,7 +78,20 @@ func (b *azureAuthBackend) invalidate(key string) {
 	}
 }
 
-func (b *azureAuthBackend) getOIDCVerifier(verifierConfig *oidc.Config, config *azureConfig) (*oidc.IDTokenVerifier, error) {
+// Wrapping the IDTokenVerifier in a token
+// type verifier interface {
+// 	Verifier(context.Context, string) (*oidc.IDToken, error)
+// }
+
+// type provider interface {
+// 	Verifier(*oidc.Config) *oidc.IDToken
+// }
+
+func (b *azureAuthBackend) getOIDCVerifier(config *azureConfig) (*oidc.IDTokenVerifier, error) {
+	verifierConfig := &oidc.Config{
+		ClientID: config.Resource,
+	}
+
 	b.l.RLock()
 	unlockFunc := b.l.RUnlock
 	defer func() { unlockFunc() }()

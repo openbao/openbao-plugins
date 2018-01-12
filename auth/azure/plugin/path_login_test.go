@@ -13,11 +13,11 @@ import (
 	oidc "github.com/coreos/go-oidc"
 )
 
-// testKeySet is a key set that does not verify the signature and just returns
-// the payload
-type testKeySet struct{}
+// mockKeySet is used in tests to bypass signature validation and return only
+// the jwt payload
+type mockKeySet struct{}
 
-func (s *testKeySet) VerifySignature(ctx context.Context, idToken string) ([]byte, error) {
+func (s *mockKeySet) VerifySignature(ctx context.Context, idToken string) ([]byte, error) {
 	parts := strings.Split(idToken, ".")
 	if len(parts) != 3 {
 		return nil, errors.New("invalid jwt")
@@ -29,12 +29,21 @@ func (s *testKeySet) VerifySignature(ctx context.Context, idToken string) ([]byt
 	return payload, nil
 }
 
-func TestVerifyClaims(t *testing.T) {
+func newMockVerifier() *oidc.IDTokenVerifier {
 	config := &oidc.Config{
 		SkipClientIDCheck: true,
 		SkipExpiryCheck:   true,
 	}
-	v := testOIDCVerifier(config)
+	ks := new(mockKeySet)
+	return oidc.NewVerifier("", ks, config)
+}
+
+func TestVerifyLogin(t *testing.T) {
+
+}
+
+func TestVerifyClaims(t *testing.T) {
+	v := newMockVerifier()
 
 	payload := map[string]interface{}{
 		"nbf": time.Now().Add(-10 * time.Second).Unix(),
@@ -44,7 +53,7 @@ func TestVerifyClaims(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = verifyClaims(config, idToken)
+	err = verifyClaims(idToken)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -55,15 +64,10 @@ func TestVerifyClaims(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = verifyClaims(config, idToken)
+	err = verifyClaims(idToken)
 	if err == nil {
 		t.Fatal("expected claim verification error")
 	}
-}
-
-func testOIDCVerifier(config *oidc.Config) *oidc.IDTokenVerifier {
-	ks := new(testKeySet)
-	return oidc.NewVerifier("", ks, config)
 }
 
 func testJWT(t *testing.T, payload map[string]interface{}) string {
