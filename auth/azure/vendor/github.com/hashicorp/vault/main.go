@@ -3,9 +3,9 @@ package main // import "github.com/hashicorp/vault"
 import (
 	"os"
 
-	"github.com/hashicorp/vault/command"
+	"github.com/hashicorp/vault/cli"
 )
 
 func main() {
-	os.Exit(command.Run(os.Args[1:]))
+	os.Exit(cli.Run(os.Args[1:]))
 }

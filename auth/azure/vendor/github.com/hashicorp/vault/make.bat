@@ -76,7 +76,7 @@ REM any common errors.
 
 	go tool vet 2>nul
 	if %ERRORLEVEL% equ 3 go get golang.org/x/tools/cmd/vet
-
+	
 	set _vetExitCode=0
 	set _VAULT_PKG_DIRS=%TEMP%\vault-pkg-dirs.txt
 

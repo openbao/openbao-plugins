@@ -35,3 +35,4 @@ if m != "foo" {
     panic("should be foo")
 }
 ```
+

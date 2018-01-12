@@ -120,8 +120,8 @@ func TestRejectUnprotectedJWSNonce(t *testing.T) {
 	// Full JSON
 	input = `{
 		"payload": "does-not-matter",
-		"signatures": [{
-			"header": { "nonce": "should-cause-an-error" },
+ 		"signatures": [{
+ 			"header": { "nonce": "should-cause-an-error" },
 			"signature": "does-not-matter"
 		}]
 	}`

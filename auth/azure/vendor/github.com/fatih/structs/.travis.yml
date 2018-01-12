@@ -1,5 +1,5 @@
 language: go
-go:
+go: 
  - 1.7.x
  - tip
 sudo: false
