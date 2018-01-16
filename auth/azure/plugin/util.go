@@ -6,6 +6,7 @@ import (
 )
 
 // Using the same time parsing logic from https://github.com/coreos/go-oidc
+// This code is licensed under the Apache 2.0 license
 type jsonTime time.Time
 
 func (j *jsonTime) UnmarshalJSON(b []byte) error {
