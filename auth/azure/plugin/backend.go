@@ -41,6 +41,7 @@ type azureAuthBackend struct {
 
 	l sync.RWMutex
 
+	oidcProvider *oidc.Provider
 	oidcVerifier tokenVerifier
 	httpClient   *http.Client
 }
@@ -123,6 +124,7 @@ func (b *azureAuthBackend) getOIDCVerifier(config *azureConfig) (tokenVerifier, 
 		return nil, err
 	}
 
+	b.oidcProvider = provider
 	b.oidcVerifier = provider.Verifier(verifierConfig)
 	return b.oidcVerifier, nil
 }
@@ -131,6 +133,7 @@ func (b *azureAuthBackend) reset() {
 	b.l.Lock()
 	defer b.l.Unlock()
 
+	b.oidcProvider = nil
 	b.oidcVerifier = nil
 }
 
