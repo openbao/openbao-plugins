@@ -41,7 +41,7 @@ type azureAuthBackend struct {
 
 	l sync.RWMutex
 
-	oidcProvider *oidc.Provider
+	oidcVerifier tokenVerifier
 	httpClient   *http.Client
 }
 
@@ -78,16 +78,12 @@ func (b *azureAuthBackend) invalidate(key string) {
 	}
 }
 
-// Wrapping the IDTokenVerifier in a token
-// type verifier interface {
-// 	Verifier(context.Context, string) (*oidc.IDToken, error)
-// }
+// Wrapping the IDTokenVerifier to replace in tests
+type tokenVerifier interface {
+	Verify(context.Context, string) (*oidc.IDToken, error)
+}
 
-// type provider interface {
-// 	Verifier(*oidc.Config) *oidc.IDToken
-// }
-
-func (b *azureAuthBackend) getOIDCVerifier(config *azureConfig) (*oidc.IDTokenVerifier, error) {
+func (b *azureAuthBackend) getOIDCVerifier(config *azureConfig) (tokenVerifier, error) {
 	verifierConfig := &oidc.Config{
 		ClientID: config.Resource,
 	}
@@ -96,8 +92,8 @@ func (b *azureAuthBackend) getOIDCVerifier(config *azureConfig) (*oidc.IDTokenVe
 	unlockFunc := b.l.RUnlock
 	defer func() { unlockFunc() }()
 
-	if b.oidcProvider != nil {
-		return b.oidcProvider.Verifier(verifierConfig), nil
+	if b.oidcVerifier != nil {
+		return b.oidcVerifier, nil
 	}
 
 	// Upgrade lock
@@ -106,8 +102,8 @@ func (b *azureAuthBackend) getOIDCVerifier(config *azureConfig) (*oidc.IDTokenVe
 	unlockFunc = b.l.Unlock
 
 	// Check again
-	if b.oidcProvider != nil {
-		return b.oidcProvider.Verifier(verifierConfig), nil
+	if b.oidcVerifier != nil {
+		return b.oidcVerifier, nil
 	}
 
 	// If tenant id is found in the config, use that.  Otherwise lookup the
@@ -127,15 +123,15 @@ func (b *azureAuthBackend) getOIDCVerifier(config *azureConfig) (*oidc.IDTokenVe
 		return nil, err
 	}
 
-	b.oidcProvider = provider
-	return b.oidcProvider.Verifier(verifierConfig), nil
+	b.oidcVerifier = provider.Verifier(verifierConfig)
+	return b.oidcVerifier, nil
 }
 
 func (b *azureAuthBackend) reset() {
 	b.l.Lock()
 	defer b.l.Unlock()
 
-	b.oidcProvider = nil
+	b.oidcVerifier = nil
 }
 
 type instanceMetadata struct {

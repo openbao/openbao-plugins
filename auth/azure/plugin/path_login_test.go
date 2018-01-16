@@ -4,42 +4,57 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
-	oidc "github.com/coreos/go-oidc"
+	"github.com/hashicorp/vault/helper/policyutil"
+	"github.com/hashicorp/vault/logical"
 )
 
-// mockKeySet is used in tests to bypass signature validation and return only
-// the jwt payload
-type mockKeySet struct{}
+func TestLogin(t *testing.T) {
+	b, s := getTestBackend(t)
 
-func (s *mockKeySet) VerifySignature(ctx context.Context, idToken string) ([]byte, error) {
-	parts := strings.Split(idToken, ".")
-	if len(parts) != 3 {
-		return nil, errors.New("invalid jwt")
+	configData := map[string]interface{}{
+		"tenant_id": "test-tenant-id",
+		"resource":  "https://vault.hashicorp.com",
 	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	testConfigCreate(t, b, s, configData)
+
+	roleName := "testrole"
+	roleData := map[string]interface{}{
+		"name":     roleName,
+		"policies": []string{"dev", "prod"},
+	}
+	testRoleCreate(t, b, s, roleData)
+
+	claims := map[string]interface{}{
+		"exp": time.Now().Add(30 * time.Second).Unix(),
+		"nbf": time.Now().Add(-30 * time.Second).Unix(),
+	}
+
+	loginData := map[string]interface{}{
+		"role": roleName,
+		"jwt":  testJWT(t, claims),
+	}
+
+	resp, err := b.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "login",
+		Data:      loginData,
+		Storage:   s,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("error decoding payload: %v", err)
+		t.Fatalf("err: %v", err)
 	}
-	return payload, nil
-}
-
-func newMockVerifier() *oidc.IDTokenVerifier {
-	config := &oidc.Config{
-		SkipClientIDCheck: true,
-		SkipExpiryCheck:   true,
+	t.Logf("%#v\n", resp)
+	if resp.Auth == nil {
+		t.Fatal("received nil auth data")
 	}
-	ks := new(mockKeySet)
-	return oidc.NewVerifier("", ks, config)
-}
 
-func TestVerifyLogin(t *testing.T) {
-
+	if !policyutil.EquivalentPolicies(resp.Auth.Policies, roleData["policies"].([]string)) {
+		t.Fatalf("policy mismatch, expected %v but got %v", roleData["policies"].([]string), resp.Auth.Policies)
+	}
 }
 
 func TestVerifyClaims(t *testing.T) {

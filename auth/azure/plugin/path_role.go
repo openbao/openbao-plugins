@@ -70,7 +70,7 @@ TTL will be set to the value of this parameter.`,
 	}
 }
 
-type roleEntry struct {
+type azureRole struct {
 	// Policies that are to be required by the token to access this role
 	Policies []string `json:"policies" structs:"policies" mapstructure:"policies"`
 
@@ -93,7 +93,7 @@ type roleEntry struct {
 
 // role takes a storage backend and the name and returns the role's storage
 // entryÍ
-func (b *azureAuthBackend) role(s logical.Storage, name string) (*roleEntry, error) {
+func (b *azureAuthBackend) role(s logical.Storage, name string) (*azureRole, error) {
 	raw, err := s.Get("role/" + strings.ToLower(name))
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func (b *azureAuthBackend) role(s logical.Storage, name string) (*roleEntry, err
 		return nil, nil
 	}
 
-	role := &roleEntry{}
+	role := new(azureRole)
 	if err := json.Unmarshal(raw.Value, role); err != nil {
 		return nil, err
 	}
@@ -192,10 +192,11 @@ func (b *azureAuthBackend) pathRoleCreateUpdate(ctx context.Context, req *logica
 	}
 
 	// Create a new entry object if this is a CreateOperation
-	if role == nil && req.Operation == logical.CreateOperation {
-		role = &roleEntry{}
-	} else if role == nil {
-		return nil, fmt.Errorf("role entry not found during update operation")
+	if role == nil {
+		if req.Operation == logical.UpdateOperation {
+			return nil, fmt.Errorf("role entry not found during update operation")
+		}
+		role = new(azureRole)
 	}
 
 	if policiesRaw, ok := data.GetOk("policies"); ok {
