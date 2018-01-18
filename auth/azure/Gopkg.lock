@@ -17,7 +17,7 @@
   branch = "v2"
   name = "github.com/coreos/go-oidc"
   packages = ["."]
-  revision = "5c72298dbabcb77267f45d8648c889e598822495"
+  revision = "065b426bd41667456c1a924468f507673629c46b"
 
 [[projects]]
   name = "github.com/fatih/structs"
@@ -62,10 +62,10 @@
   revision = "b7773ae218740a7be65057fc60b366a49b538a44"
 
 [[projects]]
-  branch = "grpc-broker"
+  branch = "master"
   name = "github.com/hashicorp/go-plugin"
   packages = ["."]
-  revision = "03f57c8dc7088d100d13209c928fe739c1a859dd"
+  revision = "4b3b29102a1e16e60f22e79904ef3490f210f58d"
 
 [[projects]]
   branch = "master"
@@ -86,10 +86,10 @@
   revision = "23c074d0eceb2b8a5bfdbb271ab780cde70f05a8"
 
 [[projects]]
-  branch = "grpc-backends"
+  branch = "master"
   name = "github.com/hashicorp/vault"
-  packages = ["api","helper/certutil","helper/compressutil","helper/consts","helper/errutil","helper/jsonutil","helper/logbridge","helper/logformat","helper/mlock","helper/parseutil","helper/pluginutil","helper/policyutil","helper/salt","helper/strutil","helper/wrapping","logical","logical/framework","logical/plugin","logical/plugin/pb"]
-  revision = "bfe102227cbc52381f7bcaacbe30d62c4b750fd5"
+  packages = ["api","helper/certutil","helper/compressutil","helper/consts","helper/errutil","helper/jsonutil","helper/logformat","helper/mlock","helper/parseutil","helper/pluginutil","helper/policyutil","helper/salt","helper/strutil","helper/wrapping","logical","logical/framework","logical/plugin"]
+  revision = "c60f00869f44348a9730722eb1da6b761e383338"
 
 [[projects]]
   branch = "master"
@@ -179,13 +179,13 @@
   branch = "master"
   name = "golang.org/x/oauth2"
   packages = [".","internal"]
-  revision = "30785a2c434e431ef7c507b54617d6a951d5f2b4"
+  revision = "b28fcf2b08a19742b43084fb40ab78ac6c3d8067"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "810d7000345868fc619eb81f46307107118f4ae1"
+  revision = "2c42eef0765b9837fbdab12011af7830f55f88f0"
 
 [[projects]]
   branch = "master"
@@ -220,6 +220,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "79498e2052b239d75379ae7ce9a7b55ba7413e1d6fcca209cabc4f50181b33b1"
+  inputs-digest = "427b6c0aec6075aa5e9a9d096b9231656df35df9085ac718d6e24a4696b481bd"
   solver-name = "gps-cdcl"
   solver-version = 1

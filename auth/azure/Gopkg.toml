@@ -34,9 +34,5 @@
   name = "github.com/hashicorp/go-cleanhttp"
 
 [[constraint]]
-  branch = "grpc-backends"
+  branch = "master"
   name = "github.com/hashicorp/vault"
-
-[[override]]
-  branch = "grpc-broker"
-  name = "github.com/hashicorp/go-plugin"

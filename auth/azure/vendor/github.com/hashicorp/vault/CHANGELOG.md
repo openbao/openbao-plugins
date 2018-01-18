@@ -1,9 +1,55 @@
 ## 0.9.2 (Unreleased)
 
+DEPRECATIONS/CHANGES:
+
+ * `sys/health` DR Secondary Reporting: The `replication_dr_secondary` bool
+   returned by `sys/health` could be misleading since it would be `false` both
+   when a cluster was not a DR secondary but also when the node is a standby in
+   the cluster and has not yet fully received state from the active node. This
+   could cause health checks on LBs to decide that the node was acceptable for
+   traffic even though DR secondaries cannot handle normal Vault traffic. (In
+   other words, the bool could only convey "yes" or "no" but not "not sure
+   yet".) This has been replaced by `replication_dr_mode` and
+   `replication_perf_mode` which are string values that convey the current
+   state of the node; a value of `disabled` indicates that replication is
+   disabled or the state is still being discovered. As a result, an LB check
+   can positively verify that the node is both not `disabled` and is not a DR
+   secondary, and avoid sending traffic to it if either is true.
+ * PKI Secret Backend Roles parameter types: For `ou` and `organization` 
+   in role definitions in the PKI secret backend, input can now be a 
+   comma-separated string or an array of strings. Reading a role will 
+   now return arrays for these parameters.
+
+FEATURES:
+
+ * **Brand New CLI**: Vault has a brand new CLI interface that is significantly
+   streamlined, supports autocomplete, and is almost entirely backwards
+   compatible.
+
 IMPROVEMENTS:
 
+ * auth/aws: Handle IAM headers produced by clients that formulate numbers as
+   ints rather than strings [GH-3763]
+ * auth/okta: Support JSON lists when specifying groups and policies [GH-3801]
+ * autoseal/hsm: Attempt reconnecting to the HSM on certain kinds of errors
+   (Enterprise)
+ * core: Report replication status in `sys/health` [GH-3810]
  * physical/s3: Allow using paths with S3 for non-AWS deployments [GH-3730]
  * physical/s3: Add ability to disable SSL for non-AWS deployments [GH-3730]
+ * plugins: Args for plugins can now be specified separately from the command,
+   allowing the same output format and input format for plugin information
+   [GH-3778]
+ * secret/pki: `ou` and `organization` can now be specified as a 
+   comma-separated string or an array of strings [GH-3804]
+
+BUG FIXES:
+
+ * identity: Delete group alias when an external group is deleted [GH-3773]
+ * secret/database: Fix a location where a lock could potentially not be
+   released, leading to deadlock [GH-3774]
+ * secret/(all databases) Fix behavior where if a max TTL was specified but no
+   default TTL was specified the system/mount default TTL would be used but not
+   be capped by the local max TTL [GH-3814]
 
 ## 0.9.1 (December 21st, 2017)
 
@@ -291,14 +337,14 @@ IMPROVEMENTS:
    (PID) in a file [GH-3321]
  * mfa (Enterprise): Add the ability to use identity metadata in username format
  * mfa/okta (Enterprise): Add support for configuring base_url for API calls
- * secret/pki: `sign-intermediate` will now allow specifying a `ttl` value 
+ * secret/pki: `sign-intermediate` will now allow specifying a `ttl` value
    longer than the signing CA certificate's NotAfter value. [GH-3325]
  * sys/raw: Raw storage access is now disabled by default [GH-3329]
 
 BUG FIXES:
 
  * auth/okta: Fix regression that removed the ability to set base_url [GH-3313]
- * core: Fix panic while loading leases at startup on ARM processors 
+ * core: Fix panic while loading leases at startup on ARM processors
    [GH-3314]
  * secret/pki: Fix `sign-self-issued` encoding the wrong subject public key
    [GH-3325]
@@ -348,7 +394,7 @@ IMPROVEMENTS:
  * auth/okta: Compare groups case-insensitively since Okta is only
    case-preserving [GH-3240]
  * auth/okta: Standardize Okta configuration APIs across backends [GH-3245]
- * cli: Add subcommand autocompletion that can be enabled with 
+ * cli: Add subcommand autocompletion that can be enabled with
    `vault -autocomplete-install` [GH-3223]
  * cli: Add ability to handle wrapped responses when using `vault auth`. What
    is output depends on the other given flags; see the help output for that

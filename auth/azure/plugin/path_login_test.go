@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	oidc "github.com/coreos/go-oidc"
 	"github.com/hashicorp/vault/helper/policyutil"
 	"github.com/hashicorp/vault/logical"
 )
@@ -47,7 +48,6 @@ func TestLogin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	t.Logf("%#v\n", resp)
 	if resp.Auth == nil {
 		t.Fatal("received nil auth data")
 	}
@@ -86,12 +86,20 @@ func TestVerifyClaims(t *testing.T) {
 }
 
 func testJWT(t *testing.T, payload map[string]interface{}) string {
+	headers := map[string]interface{}{
+		"alg": oidc.RS256,
+	}
+	headersJSON, err := json.Marshal(headers)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
 	payloadJSON, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	fixedHeader := base64.RawURLEncoding.EncodeToString([]byte("{}"))
+	fixedHeader := base64.RawURLEncoding.EncodeToString([]byte(headersJSON))
 	encodedPayload := base64.RawURLEncoding.EncodeToString(payloadJSON)
 	fixedSignature := base64.RawURLEncoding.EncodeToString([]byte("signature"))
 
