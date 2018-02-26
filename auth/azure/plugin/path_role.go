@@ -56,6 +56,22 @@ should never expire. The token should be renewed within the
 duration specified by this value. At each renewal, the token's
 TTL will be set to the value of this parameter.`,
 				},
+				"bound_subscription_ids": &framework.FieldSchema{
+					Type:        framework.TypeCommaStringSlice,
+					Description: ``,
+				},
+				"bound_resource_groups": &framework.FieldSchema{
+					Type:        framework.TypeCommaStringSlice,
+					Description: ``,
+				},
+				"bound_group_ids": &framework.FieldSchema{
+					Type:        framework.TypeCommaStringSlice,
+					Description: ``,
+				},
+				"bound_ids": &framework.FieldSchema{
+					Type:        framework.TypeCommaStringSlice,
+					Description: ``,
+				},
 			},
 			ExistenceCheck: b.pathRoleExistenceCheck,
 			Callbacks: map[logical.Operation]framework.OperationFunc{
