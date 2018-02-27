@@ -19,6 +19,14 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 				Type: framework.TypeString,
 				//Description: "",
 			},
+			"client_id": &framework.FieldSchema{
+				Type: framework.TypeString,
+				//Description: "",
+			},
+			"client_secret": &framework.FieldSchema{
+				Type: framework.TypeString,
+				//Description: "",
+			},
 		},
 		Callbacks: map[logical.Operation]framework.OperationFunc{
 			logical.ReadOperation:   b.pathConfigRead,
@@ -33,8 +41,10 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 }
 
 type azureConfig struct {
-	TenantID string `json:"tenant_id"`
-	Resource string `json:"resource"`
+	TenantID     string `json:"tenant_id"`
+	Resource     string `json:"resource"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
 }
 
 func (b *azureAuthBackend) config(s logical.Storage) (*azureConfig, error) {
@@ -82,6 +92,16 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 		return logical.ErrorResponse("resource is required"), logical.ErrInvalidRequest
 	}
 
+	clientID, ok := data.GetOk("client_id")
+	if ok {
+		config.ClientID = clientID.(string)
+	}
+
+	clientSecret, ok := data.GetOk("client_secret")
+	if ok {
+		config.ClientSecret = clientSecret.(string)
+	}
+
 	entry, err := logical.StorageEntryJSON("config", config)
 	if err != nil {
 		return nil, err
@@ -107,8 +127,10 @@ func (b *azureAuthBackend) pathConfigRead(ctx context.Context, req *logical.Requ
 
 	resp := &logical.Response{
 		Data: map[string]interface{}{
-			"tenant_id": config.TenantID,
-			"resource":  config.Resource,
+			"tenant_id":     config.TenantID,
+			"resource":      config.Resource,
+			"client_id":     config.ClientID,
+			"client_secret": config.ClientSecret,
 		},
 	}
 	return resp, nil

@@ -75,7 +75,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	}
 
 	// Check additional claims in token
-	if err := verifyClaims(idToken); err != nil {
+	if err := verifyClaims(idToken, role); err != nil {
 		return nil, err
 	}
 
@@ -103,9 +103,11 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	return resp, nil
 }
 
-func verifyClaims(idToken *oidc.IDToken) error {
+func verifyClaims(idToken *oidc.IDToken, role *azureRole) error {
 	var claims struct {
 		NotBefore jsonTime `json:"nbf"`
+		ObjectID  string   `json:"oid"`
+		GroupIDs  []string `json:"groups"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
 		return err

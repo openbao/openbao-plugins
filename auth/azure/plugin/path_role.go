@@ -88,23 +88,29 @@ TTL will be set to the value of this parameter.`,
 
 type azureRole struct {
 	// Policies that are to be required by the token to access this role
-	Policies []string `json:"policies" structs:"policies" mapstructure:"policies"`
+	Policies []string `json:"policies"`
 
 	// TokenNumUses defines the number of allowed uses of the token issued
-	NumUses int `json:"num_uses" mapstructure:"num_uses" structs:"num_uses"`
+	NumUses int `json:"num_uses"`
 
 	// Duration before which an issued token must be renewed
-	TTL time.Duration `json:"ttl" structs:"ttl" mapstructure:"ttl"`
+	TTL time.Duration `json:"ttl"`
 
 	// Duration after which an issued token should not be allowed to be renewed
-	MaxTTL time.Duration `json:"max_ttl" structs:"max_ttl" mapstructure:"max_ttl"`
+	MaxTTL time.Duration `json:"max_ttl"`
 
 	// Period, if set, indicates that the token generated using this role
 	// should never expire. The token should be renewed within the duration
 	// specified by this value. The renewal duration will be fixed if the
 	// value is not modified on the role. If the `Period` in the role is modified,
 	// a token will pick up the new value during its next renewal.
-	Period time.Duration `json:"period" mapstructure:"period" structs:"period"`
+	Period time.Duration `json:"period"`
+
+	// Role binding properties
+	BoundObjectIDs        []string `json:"bound_ids"`
+	BoundGroupIDs         []string `json:"bound_group_ids"`
+	BoundResourceGroups   []string `json:"bound_resource_groups"`
+	BoundSubscriptionsIDs []string `json:"bound_subscription_ids"`
 }
 
 // role takes a storage backend and the name and returns the role's storage
@@ -167,11 +173,15 @@ func (b *azureAuthBackend) pathRoleRead(ctx context.Context, req *logical.Reques
 	// Create a map of data to be returned
 	resp := &logical.Response{
 		Data: map[string]interface{}{
-			"max_ttl":  role.MaxTTL,
-			"num_uses": role.NumUses,
-			"policies": role.Policies,
-			"period":   role.Period,
-			"ttl":      role.TTL,
+			"max_ttl":                role.MaxTTL,
+			"num_uses":               role.NumUses,
+			"policies":               role.Policies,
+			"period":                 role.Period,
+			"ttl":                    role.TTL,
+			"bound_ids":              role.BoundObjectIDs,
+			"bound_group_ids":        role.BoundGroupIDs,
+			"bound_subscription_ids": role.BoundSubscriptionsIDs,
+			"bound_resource_groups":  role.BoundResourceGroups,
 		},
 	}
 
@@ -248,6 +258,30 @@ func (b *azureAuthBackend) pathRoleCreateUpdate(ctx context.Context, req *logica
 		role.MaxTTL = time.Second * time.Duration(tokenMaxTTLRaw.(int))
 	} else if req.Operation == logical.CreateOperation {
 		role.MaxTTL = time.Second * time.Duration(data.Get("max_ttl").(int))
+	}
+
+	if boundSubscriptionsIDs, ok := data.GetOk("bound_subscription_ids"); ok {
+		role.BoundSubscriptionsIDs = boundSubscriptionsIDs.([]string)
+	} else if req.Operation == logical.CreateOperation {
+		role.BoundSubscriptionsIDs = boundSubscriptionsIDs.([]string)
+	}
+
+	if boundResourceGroups, ok := data.GetOk("bound_resource_groups"); ok {
+		role.BoundResourceGroups = boundResourceGroups.([]string)
+	} else if req.Operation == logical.CreateOperation {
+		role.BoundResourceGroups = boundResourceGroups.([]string)
+	}
+
+	if boundIds, ok := data.GetOk("bound_ids"); ok {
+		role.BoundObjectIDs = boundIds.([]string)
+	} else if req.Operation == logical.CreateOperation {
+		role.BoundObjectIDs = boundIds.([]string)
+	}
+
+	if boundGroupIDs, ok := data.GetOk("bound_resource_groups"); ok {
+		role.BoundGroupIDs = boundGroupIDs.([]string)
+	} else if req.Operation == logical.CreateOperation {
+		role.BoundGroupIDs = boundGroupIDs.([]string)
 	}
 
 	// Check that the TTL value provided is less than the MaxTTL.
