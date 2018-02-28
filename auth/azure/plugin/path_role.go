@@ -173,15 +173,15 @@ func (b *azureAuthBackend) pathRoleRead(ctx context.Context, req *logical.Reques
 	// Create a map of data to be returned
 	resp := &logical.Response{
 		Data: map[string]interface{}{
-			"max_ttl":                role.MaxTTL,
-			"num_uses":               role.NumUses,
-			"policies":               role.Policies,
-			"period":                 role.Period,
-			"ttl":                    role.TTL,
-			"bound_ids":              role.BoundObjectIDs,
-			"bound_group_ids":        role.BoundGroupIDs,
-			"bound_subscription_ids": role.BoundSubscriptionsIDs,
-			"bound_resource_groups":  role.BoundResourceGroups,
+			"max_ttl":  role.MaxTTL,
+			"num_uses": role.NumUses,
+			"policies": role.Policies,
+			"period":   role.Period,
+			"ttl":      role.TTL,
+			"bound_service_principal_ids": role.BoundServicePrincipalIDs,
+			"bound_group_ids":             role.BoundGroupIDs,
+			"bound_subscription_ids":      role.BoundSubscriptionsIDs,
+			"bound_resource_groups":       role.BoundResourceGroups,
 		},
 	}
 
@@ -272,10 +272,10 @@ func (b *azureAuthBackend) pathRoleCreateUpdate(ctx context.Context, req *logica
 		role.BoundResourceGroups = boundResourceGroups.([]string)
 	}
 
-	if boundIds, ok := data.GetOk("bound_ids"); ok {
-		role.BoundObjectIDs = boundIds.([]string)
+	if boundServicePrincipalIDs, ok := data.GetOk("bound_service_principal_ids"); ok {
+		role.BoundServicePrincipalIDs = boundServicePrincipalIDs.([]string)
 	} else if req.Operation == logical.CreateOperation {
-		role.BoundObjectIDs = boundIds.([]string)
+		role.BoundServicePrincipalIDs = boundServicePrincipalIDs.([]string)
 	}
 
 	if boundGroupIDs, ok := data.GetOk("bound_resource_groups"); ok {
