@@ -68,7 +68,7 @@ TTL will be set to the value of this parameter.`,
 					Type:        framework.TypeCommaStringSlice,
 					Description: ``,
 				},
-				"bound_ids": &framework.FieldSchema{
+				"bound_service_principal_ids": &framework.FieldSchema{
 					Type:        framework.TypeCommaStringSlice,
 					Description: ``,
 				},
@@ -107,10 +107,10 @@ type azureRole struct {
 	Period time.Duration `json:"period"`
 
 	// Role binding properties
-	BoundObjectIDs        []string `json:"bound_ids"`
-	BoundGroupIDs         []string `json:"bound_group_ids"`
-	BoundResourceGroups   []string `json:"bound_resource_groups"`
-	BoundSubscriptionsIDs []string `json:"bound_subscription_ids"`
+	BoundServicePrincipalIDs []string `json:"bound_service_principal_ids"`
+	BoundGroupIDs            []string `json:"bound_group_ids"`
+	BoundResourceGroups      []string `json:"bound_resource_groups"`
+	BoundSubscriptionsIDs    []string `json:"bound_subscription_ids"`
 }
 
 // role takes a storage backend and the name and returns the role's storage

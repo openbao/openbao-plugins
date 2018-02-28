@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/vault/helper/strutil"
+
 	oidc "github.com/coreos/go-oidc"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/logical"
@@ -117,6 +119,26 @@ func verifyClaims(idToken *oidc.IDToken, role *azureRole) error {
 	if notBefore.After(time.Now()) {
 		return fmt.Errorf("token is not yet valid (Token Not Before: %v)", notBefore)
 	}
+
+	if len(role.BoundServicePrincipalIDs) > 0 {
+		if !strutil.StrListContains(role.BoundServicePrincipalIDs, claims.ObjectID) {
+			return fmt.Errorf("service principal not authorized: %s", claims.ObjectID)
+		}
+	}
+
+	if len(role.BoundServicePrincipalIDs) > 0 {
+		var found bool
+		for _, group := range claims.GroupIDs {
+			if !strutil.StrListContains(role.BoundServicePrincipalIDs, group) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("group not authorized: %v", claims.GroupIDs)
+		}
+	}
+
 	return nil
 }
 
