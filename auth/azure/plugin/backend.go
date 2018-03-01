@@ -93,34 +93,7 @@ type tokenVerifier interface {
 	Verify(context.Context, string) (*oidc.IDToken, error)
 }
 
-func (b *azureAuthBackend) getAuthorizer(config *azureConfig) (autorest.Authorizer, error) {
-	b.l.RLock()
-	unlockFunc := b.l.RUnlock
-	defer func() { unlockFunc() }()
-
-	if b.authorizer != nil {
-		return b.authorizer, nil
-	}
-
-	// Upgrade lock
-	b.l.RUnlock()
-	b.l.Lock()
-	unlockFunc = b.l.Unlock
-
-	// Check again
-	if b.authorizer != nil {
-		return b.authorizer, nil
-	}
-
-	authorizer, err := NewAuthorizer(config)
-	if err != nil {
-		return nil, err
-	}
-	b.authorizer = authorizer
-	return b.authorizer, nil
-}
-
-func (b *azureAuthBackend) getOIDCVerifier(config *azureConfig) (tokenVerifier, error) {
+func (b *azureAuthBackend) getAuthorizers(config *azureConfig) (tokenVerifier, autorest.Authorizer, error) {
 	verifierConfig := &oidc.Config{
 		ClientID: config.Resource,
 	}
@@ -129,8 +102,8 @@ func (b *azureAuthBackend) getOIDCVerifier(config *azureConfig) (tokenVerifier, 
 	unlockFunc := b.l.RUnlock
 	defer func() { unlockFunc() }()
 
-	if b.oidcVerifier != nil {
-		return b.oidcVerifier, nil
+	if b.oidcVerifier != nil && b.authorizer != nil {
+		return b.oidcVerifier, b.authorizer, nil
 	}
 
 	// Upgrade lock
@@ -139,8 +112,8 @@ func (b *azureAuthBackend) getOIDCVerifier(config *azureConfig) (tokenVerifier, 
 	unlockFunc = b.l.Unlock
 
 	// Check again
-	if b.oidcVerifier != nil {
-		return b.oidcVerifier, nil
+	if b.oidcVerifier != nil && b.authorizer != nil {
+		return b.oidcVerifier, b.authorizer, nil
 	}
 
 	// If tenant id is found in the config, use that.  Otherwise lookup the
@@ -150,19 +123,26 @@ func (b *azureAuthBackend) getOIDCVerifier(config *azureConfig) (tokenVerifier, 
 		var err error
 		tenantID, err = b.getTentantID()
 		if err != nil {
-			return nil, errwrap.Wrapf("unable to determine tenant id: {{err}}", err)
+			return nil, nil, errwrap.Wrapf("unable to determine tenant id: {{err}}", err)
 		}
 	}
 
 	issuer := fmt.Sprintf("%s/%s/", issuerBaseURI, tenantID)
 	provider, err := oidc.NewProvider(context.Background(), issuer)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+
+	authorizer, err := NewAuthorizer(config)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	b.oidcProvider = provider
 	b.oidcVerifier = provider.Verifier(verifierConfig)
-	return b.oidcVerifier, nil
+	b.authorizer = authorizer
+
+	return b.oidcVerifier, b.authorizer, nil
 }
 
 func (b *azureAuthBackend) reset() {

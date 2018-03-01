@@ -3,12 +3,14 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
-	"github.com/hashicorp/vault/helper/strutil"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2017-12-01/compute"
+	"github.com/Azure/go-autorest/autorest"
 
-	oidc "github.com/coreos/go-oidc"
 	"github.com/hashicorp/errwrap"
+	"github.com/hashicorp/vault/helper/strutil"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
 )
@@ -38,7 +40,7 @@ func pathLogin(b *azureAuthBackend) *framework.Path {
 }
 
 func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	signedJwt := data.Get("jwt")
+	signedJwt := data.Get("jwt").(string)
 	if signedJwt == "" {
 		return logical.ErrorResponse("jwt is required"), nil
 	}
@@ -46,6 +48,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	if roleName == "" {
 		return logical.ErrorResponse("role is required"), nil
 	}
+	resourceID := data.Get("resourceID").(string)
 
 	config, err := b.config(req.Storage)
 	if err != nil {
@@ -64,20 +67,29 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	}
 
 	// Set the client id for 'aud' claim verification
-	verifier, err := b.getOIDCVerifier(config)
+	verifier, authorizer, err := b.getAuthorizers(config)
 	if err != nil {
 		return nil, err
 	}
 
 	// The OIDC verifier verifies the signature and checks the 'aud' and 'iss'
 	// claims and expiration time
-	idToken, err := verifier.Verify(ctx, signedJwt.(string))
+	idToken, err := verifier.Verify(ctx, signedJwt)
 	if err != nil {
 		return nil, err
 	}
 
+	claims := new(additionalClaims)
+	if err := idToken.Claims(claims); err != nil {
+		return nil, err
+	}
+
 	// Check additional claims in token
-	if err := verifyClaims(idToken, role); err != nil {
+	if err := verifyClaims(claims, role); err != nil {
+		return nil, err
+	}
+
+	if err := verifyResourceID(ctx, resourceID, authorizer, claims, role); err != nil {
 		return nil, err
 	}
 
@@ -105,16 +117,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	return resp, nil
 }
 
-func verifyClaims(idToken *oidc.IDToken, role *azureRole) error {
-	var claims struct {
-		NotBefore jsonTime `json:"nbf"`
-		ObjectID  string   `json:"oid"`
-		GroupIDs  []string `json:"groups"`
-	}
-	if err := idToken.Claims(&claims); err != nil {
-		return err
-	}
-
+func verifyClaims(claims *additionalClaims, role *azureRole) error {
 	notBefore := time.Time(claims.NotBefore)
 	if notBefore.After(time.Now()) {
 		return fmt.Errorf("token is not yet valid (Token Not Before: %v)", notBefore)
@@ -129,7 +132,7 @@ func verifyClaims(idToken *oidc.IDToken, role *azureRole) error {
 	if len(role.BoundServicePrincipalIDs) > 0 {
 		var found bool
 		for _, group := range claims.GroupIDs {
-			if !strutil.StrListContains(role.BoundServicePrincipalIDs, group) {
+			if !strutil.StrListContains(role.BoundGroupIDs, group) {
 				found = true
 				break
 			}
@@ -137,6 +140,52 @@ func verifyClaims(idToken *oidc.IDToken, role *azureRole) error {
 		if !found {
 			return fmt.Errorf("group not authorized: %v", claims.GroupIDs)
 		}
+	}
+
+	return nil
+}
+
+func verifyResourceID(ctx context.Context, resourceID string, authorizer autorest.Authorizer, claims *additionalClaims, role *azureRole) error {
+	// If not checking anythign with the resource id, exit early
+	if len(role.BoundResourceGroups) == 0 && len(role.BoundSubscriptionsIDs) == 0 {
+		return nil
+	}
+
+	if resourceID == "" {
+		return fmt.Errorf("resource_id must be provided for given role")
+	}
+
+	parsedResourceID, err := parseAzureResourceID(resourceID)
+	if err != nil {
+		return err
+	}
+
+	if strings.ToLower(parsedResourceID.Provider) != "microsoft.compute" {
+		return fmt.Errorf("only Microsoft.Compute providers are supported, got %s", parsedResourceID.Provider)
+	}
+
+	vmName, ok := parsedResourceID.Path["virtualMachines"]
+	if !ok {
+		return fmt.Errorf("virtual machine name not provided")
+	}
+
+	client := compute.NewVirtualMachinesClient(parsedResourceID.SubscriptionID)
+	client.Authorizer = authorizer
+	vm, err := client.Get(ctx, parsedResourceID.ResourceGroup, vmName, compute.InstanceView)
+	if err != nil {
+		return errwrap.Wrapf("unable to retrieve virtual machine metadata: {{err}}", err)
+	}
+
+	if *vm.Identity.PrincipalID != claims.ObjectID {
+		return fmt.Errorf("token object id does not match virtual machine principal id")
+	}
+
+	if !strutil.StrListContains(role.BoundResourceGroups, parsedResourceID.ResourceGroup) {
+		return fmt.Errorf("resource group not authoirzed")
+	}
+
+	if !strutil.StrListContains(role.BoundSubscriptionsIDs, parsedResourceID.SubscriptionID) {
+		return fmt.Errorf("subscription not authoirzed")
 	}
 
 	return nil
@@ -167,4 +216,10 @@ func (b *azureAuthBackend) pathLoginRenew(ctx context.Context, req *logical.Requ
 	}
 
 	return framework.LeaseExtend(role.TTL, role.MaxTTL, b.System())(ctx, req, data)
+}
+
+type additionalClaims struct {
+	NotBefore jsonTime `json:"nbf"`
+	ObjectID  string   `json:"oid"`
+	GroupIDs  []string `json:"groups"`
 }

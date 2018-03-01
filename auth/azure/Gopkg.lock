@@ -2,13 +2,24 @@
 
 
 [[projects]]
+  name = "github.com/Azure/azure-sdk-for-go"
+  packages = [
+    "services/compute/mgmt/2017-12-01/compute",
+    "version"
+  ]
+  revision = "1e334c402ea1460704b0263e5d188f28ad946ce1"
+  version = "v14.1.1"
+
+[[projects]]
   name = "github.com/Azure/go-autorest"
   packages = [
     "autorest",
     "autorest/adal",
     "autorest/azure",
     "autorest/azure/auth",
-    "autorest/date"
+    "autorest/date",
+    "autorest/to",
+    "autorest/validation"
   ]
   revision = "1e3943ee722538420f21945f4bc820347abe433d"
   version = "v10.1.2"
@@ -355,6 +366,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d94195409824d9b40bfdd34a91b5545e97fe75ffac22d819095bab773bc954bb"
+  inputs-digest = "c98f1200147a16a7c465919500ce9b047a430b8dbf41c43b25e8415f85186575"
   solver-name = "gps-cdcl"
   solver-version = 1
