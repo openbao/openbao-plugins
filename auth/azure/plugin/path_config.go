@@ -110,7 +110,7 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 		return nil, err
 	}
 
-	// Reset OIDC Provider
+	// Reset backend
 	b.reset()
 
 	return nil, nil

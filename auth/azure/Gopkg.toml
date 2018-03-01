@@ -36,3 +36,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/hashicorp/vault"
+
+[[constraint]]
+  name = "github.com/Azure/go-autorest"
+  version = "10.1.2"

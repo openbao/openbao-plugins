@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Azure/go-autorest/autorest"
+
 	oidc "github.com/coreos/go-oidc"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
@@ -43,7 +45,11 @@ type azureAuthBackend struct {
 
 	oidcProvider *oidc.Provider
 	oidcVerifier tokenVerifier
-	httpClient   *http.Client
+
+	// Oauth2 authorizer for connections to Azure cloud
+	authorizer autorest.Authorizer
+
+	httpClient *http.Client
 }
 
 func Backend(c *logical.BackendConfig) *azureAuthBackend {
@@ -57,6 +63,9 @@ func Backend(c *logical.BackendConfig) *azureAuthBackend {
 		PathsSpecial: &logical.Paths{
 			Unauthenticated: []string{
 				"login",
+			},
+			SealWrapStorage: []string{
+				"config",
 			},
 		},
 		Paths: framework.PathAppend(
@@ -82,6 +91,33 @@ func (b *azureAuthBackend) invalidate(key string) {
 // Wrapping the IDTokenVerifier to replace in tests
 type tokenVerifier interface {
 	Verify(context.Context, string) (*oidc.IDToken, error)
+}
+
+func (b *azureAuthBackend) getAuthorizer(config *azureConfig) (autorest.Authorizer, error) {
+	b.l.RLock()
+	unlockFunc := b.l.RUnlock
+	defer func() { unlockFunc() }()
+
+	if b.authorizer != nil {
+		return b.authorizer, nil
+	}
+
+	// Upgrade lock
+	b.l.RUnlock()
+	b.l.Lock()
+	unlockFunc = b.l.Unlock
+
+	// Check again
+	if b.authorizer != nil {
+		return b.authorizer, nil
+	}
+
+	authorizer, err := NewAuthorizer(config)
+	if err != nil {
+		return nil, err
+	}
+	b.authorizer = authorizer
+	return b.authorizer, nil
 }
 
 func (b *azureAuthBackend) getOIDCVerifier(config *azureConfig) (tokenVerifier, error) {
@@ -135,6 +171,7 @@ func (b *azureAuthBackend) reset() {
 
 	b.oidcProvider = nil
 	b.oidcVerifier = nil
+	b.authorizer = nil
 }
 
 type instanceMetadata struct {
