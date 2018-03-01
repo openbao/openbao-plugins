@@ -51,6 +51,5 @@ fmt:
 deps:
 	@echo "==> Updating deps for ${TOOL}"
 	@dep ensure -update
-	@dep prune
 
 .PHONY: bin default generate test bootstrap fmt deps
