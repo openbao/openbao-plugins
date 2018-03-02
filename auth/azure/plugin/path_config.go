@@ -47,8 +47,8 @@ type azureConfig struct {
 	ClientSecret string `json:"client_secret"`
 }
 
-func (b *azureAuthBackend) config(s logical.Storage) (*azureConfig, error) {
-	entry, err := s.Get("config")
+func (b *azureAuthBackend) config(ctx context.Context, s logical.Storage) (*azureConfig, error) {
+	entry, err := s.Get(ctx, "config")
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (b *azureAuthBackend) config(s logical.Storage) (*azureConfig, error) {
 }
 
 func (b *azureAuthBackend) pathConfigExistenceCheck(ctx context.Context, req *logical.Request, data *framework.FieldData) (bool, error) {
-	config, err := b.config(req.Storage)
+	config, err := b.config(ctx, req.Storage)
 	if err != nil {
 		return false, err
 	}
@@ -72,7 +72,7 @@ func (b *azureAuthBackend) pathConfigExistenceCheck(ctx context.Context, req *lo
 }
 
 func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	config, err := b.config(req.Storage)
+	config, err := b.config(ctx, req.Storage)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 	if err != nil {
 		return nil, err
 	}
-	if err := req.Storage.Put(entry); err != nil {
+	if err := req.Storage.Put(ctx, entry); err != nil {
 		return nil, err
 	}
 
@@ -117,7 +117,7 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 }
 
 func (b *azureAuthBackend) pathConfigRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	config, err := b.config(req.Storage)
+	config, err := b.config(ctx, req.Storage)
 	if err != nil {
 		return nil, err
 	}

@@ -30,9 +30,9 @@ const (
 	issuerBaseURI        = "https://sts.windows.net"
 )
 
-func Factory(c *logical.BackendConfig) (logical.Backend, error) {
+func Factory(ctx context.Context, c *logical.BackendConfig) (logical.Backend, error) {
 	b := Backend(c)
-	if err := b.Setup(c); err != nil {
+	if err := b.Setup(ctx, c); err != nil {
 		return nil, err
 	}
 	return b, nil
@@ -81,7 +81,7 @@ func Backend(c *logical.BackendConfig) *azureAuthBackend {
 	return b
 }
 
-func (b *azureAuthBackend) invalidate(key string) {
+func (b *azureAuthBackend) invalidate(ctx context.Context, key string) {
 	switch key {
 	case "config":
 		b.reset()

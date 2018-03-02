@@ -115,8 +115,8 @@ type azureRole struct {
 
 // role takes a storage backend and the name and returns the role's storage
 // entryÍ
-func (b *azureAuthBackend) role(s logical.Storage, name string) (*azureRole, error) {
-	raw, err := s.Get("role/" + strings.ToLower(name))
+func (b *azureAuthBackend) role(ctx context.Context, s logical.Storage, name string) (*azureRole, error) {
+	raw, err := s.Get(ctx, "role/"+strings.ToLower(name))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (b *azureAuthBackend) role(s logical.Storage, name string) (*azureRole, err
 
 // pathRoleExistenceCheck returns whether the role with the given name exists or not.
 func (b *azureAuthBackend) pathRoleExistenceCheck(ctx context.Context, req *logical.Request, data *framework.FieldData) (bool, error) {
-	role, err := b.role(req.Storage, data.Get("name").(string))
+	role, err := b.role(ctx, req.Storage, data.Get("name").(string))
 	if err != nil {
 		return false, err
 	}
@@ -143,7 +143,7 @@ func (b *azureAuthBackend) pathRoleExistenceCheck(ctx context.Context, req *logi
 
 // pathRoleList is used to list all the Roles registered with the backend.
 func (b *azureAuthBackend) pathRoleList(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	roles, err := req.Storage.List("role/")
+	roles, err := req.Storage.List(ctx, "role/")
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func (b *azureAuthBackend) pathRoleRead(ctx context.Context, req *logical.Reques
 		return logical.ErrorResponse("missing name"), nil
 	}
 
-	role, err := b.role(req.Storage, roleName)
+	role, err := b.role(ctx, req.Storage, roleName)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (b *azureAuthBackend) pathRoleDelete(ctx context.Context, req *logical.Requ
 	}
 
 	// Delete the role itself
-	if err := req.Storage.Delete("role/" + strings.ToLower(roleName)); err != nil {
+	if err := req.Storage.Delete(ctx, "role/"+strings.ToLower(roleName)); err != nil {
 		return nil, err
 	}
 
@@ -212,7 +212,7 @@ func (b *azureAuthBackend) pathRoleCreateUpdate(ctx context.Context, req *logica
 	}
 
 	// Check if the role already exists
-	role, err := b.role(req.Storage, roleName)
+	role, err := b.role(ctx, req.Storage, roleName)
 	if err != nil {
 		return nil, err
 	}
@@ -262,25 +262,17 @@ func (b *azureAuthBackend) pathRoleCreateUpdate(ctx context.Context, req *logica
 
 	if boundSubscriptionsIDs, ok := data.GetOk("bound_subscription_ids"); ok {
 		role.BoundSubscriptionsIDs = boundSubscriptionsIDs.([]string)
-	} else if req.Operation == logical.CreateOperation {
-		role.BoundSubscriptionsIDs = boundSubscriptionsIDs.([]string)
 	}
 
 	if boundResourceGroups, ok := data.GetOk("bound_resource_groups"); ok {
-		role.BoundResourceGroups = boundResourceGroups.([]string)
-	} else if req.Operation == logical.CreateOperation {
 		role.BoundResourceGroups = boundResourceGroups.([]string)
 	}
 
 	if boundServicePrincipalIDs, ok := data.GetOk("bound_service_principal_ids"); ok {
 		role.BoundServicePrincipalIDs = boundServicePrincipalIDs.([]string)
-	} else if req.Operation == logical.CreateOperation {
-		role.BoundServicePrincipalIDs = boundServicePrincipalIDs.([]string)
 	}
 
 	if boundGroupIDs, ok := data.GetOk("bound_resource_groups"); ok {
-		role.BoundGroupIDs = boundGroupIDs.([]string)
-	} else if req.Operation == logical.CreateOperation {
 		role.BoundGroupIDs = boundGroupIDs.([]string)
 	}
 
@@ -305,7 +297,7 @@ func (b *azureAuthBackend) pathRoleCreateUpdate(ctx context.Context, req *logica
 	if entry == nil {
 		return nil, fmt.Errorf("failed to create storage entry for role %s", roleName)
 	}
-	if err = req.Storage.Put(entry); err != nil {
+	if err = req.Storage.Put(ctx, entry); err != nil {
 		return nil, err
 	}
 

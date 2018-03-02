@@ -49,7 +49,7 @@ func getTestBackend(t *testing.T) (*azureAuthBackend, logical.Storage) {
 		StorageView: &logical.InmemStorage{},
 	}
 	b := Backend(config)
-	err := b.Setup(config)
+	err := b.Setup(context.Background(), config)
 	if err != nil {
 		t.Fatalf("unable to create backend: %v", err)
 	}

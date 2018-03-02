@@ -68,18 +68,18 @@ func TestVerifyClaims(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = verifyClaims(idToken)
+	claims := new(additionalClaims)
+	if err := idToken.Claims(claims); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	err = verifyClaims(claims, new(azureRole))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	payload["nbf"] = time.Now().Add(10 * time.Second).Unix()
-	idToken, err = v.Verify(context.Background(), testJWT(t, payload))
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	err = verifyClaims(idToken)
+	claims.NotBefore = jsonTime(time.Now().Add(10 * time.Second))
+	err = verifyClaims(claims, new(azureRole))
 	if err == nil {
 		t.Fatal("expected claim verification error")
 	}

@@ -27,6 +27,10 @@ func pathLogin(b *azureAuthBackend) *framework.Path {
 				Type:        framework.TypeString,
 				Description: `A signed JWT`,
 			},
+			"resource_id": &framework.FieldSchema{
+				Type:        framework.TypeString,
+				Description: `The resource id for the instance logging in`,
+			},
 		},
 
 		Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -48,9 +52,9 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	if roleName == "" {
 		return logical.ErrorResponse("role is required"), nil
 	}
-	resourceID := data.Get("resourceID").(string)
+	resourceID := data.Get("resource_id").(string)
 
-	config, err := b.config(req.Storage)
+	config, err := b.config(ctx, req.Storage)
 	if err != nil {
 		return nil, errwrap.Wrapf("unable to retrieve backend configuration: {{err}}", err)
 	}
@@ -58,7 +62,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 		return logical.ErrorResponse("backend not configured"), nil
 	}
 
-	role, err := b.role(req.Storage, roleName)
+	role, err := b.role(ctx, req.Storage, roleName)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +202,7 @@ func (b *azureAuthBackend) pathLoginRenew(ctx context.Context, req *logical.Requ
 	}
 
 	// Ensure that the Role still exists.
-	role, err := b.role(req.Storage, roleName)
+	role, err := b.role(ctx, req.Storage, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate role %s during renewal:%s", roleName, err)
 	}
