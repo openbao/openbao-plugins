@@ -1,57 +1,82 @@
 package plugin
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
-	"github.com/hashicorp/errwrap"
+	oidc "github.com/coreos/go-oidc"
 )
 
-func NewAuthorizer(azureConfig *azureConfig) (autorest.Authorizer, error) {
-	tenantID := os.Getenv("AZURE_TENANT_ID")
-	clientID := os.Getenv("AZURE_CLIENT_ID")
-	clientSecret := os.Getenv("AZURE_CLIENT_SECRET")
-	envName := os.Getenv("AZURE_ENVIRONMENT")
-	resource := os.Getenv("AZURE_AD_RESOURCE")
+type tokenVerifier interface {
+	Verify(ctx context.Context, token string) (*oidc.IDToken, error)
+}
 
-	var env azure.Environment
-	if envName == "" {
-		env = azure.PublicCloud
-	} else {
-		var err error
-		env, err = azure.EnvironmentFromName(envName)
+type Client interface {
+	Verifier() tokenVerifier
+	Authorizer() autorest.Authorizer
+}
+
+var _ Client = &azureClient{}
+
+type azureClient struct {
+	settings     *azureSettings
+	oidcProvider *oidc.Provider
+	authorizer   autorest.Authorizer
+}
+
+func NewAzureClient(config *azureConfig) (*azureClient, error) {
+	settings, err := getAzureSettings(config)
+	if err != nil {
+		return nil, err
+	}
+
+	issuer := fmt.Sprintf("%s/%s/", issuerBaseURI, settings.tenantID)
+	provider, err := oidc.NewProvider(context.Background(), issuer)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &azureClient{
+		settings:     settings,
+		oidcProvider: provider,
+	}
+
+	switch {
+	// Use environment/config first
+	case settings.clientSecret != "":
+		config := auth.NewClientCredentialsConfig(settings.clientID, settings.clientSecret, settings.tenantID)
+		config.AADEndpoint = settings.environment.ActiveDirectoryEndpoint
+		config.Resource = settings.resource
+		client.authorizer, err = config.Authorizer()
+		if err != nil {
+			return nil, err
+		}
+	// By default use MSI
+	default:
+		config := auth.NewMSIConfig()
+		config.Resource = settings.resource
+		client.authorizer, err = config.Authorizer()
 		if err != nil {
 			return nil, err
 		}
 	}
+	return client, err
+}
 
-	if resource == "" {
-		resource = env.ResourceManagerEndpoint
+func (c *azureClient) Verifier() tokenVerifier {
+	verifierConfig := &oidc.Config{
+		ClientID: c.settings.resource,
 	}
+	return c.oidcProvider.Verifier(verifierConfig)
+}
 
-	// Use environment first
-	if clientSecret != "" {
-		config := auth.NewClientCredentialsConfig(clientID, clientSecret, tenantID)
-		config.AADEndpoint = env.ActiveDirectoryEndpoint
-		config.Resource = resource
-		return config.Authorizer()
-	}
-
-	// Stored config next
-	if azureConfig.ClientSecret != "" {
-		config := auth.NewClientCredentialsConfig(azureConfig.ClientID, azureConfig.ClientSecret, azureConfig.TenantID)
-		config.AADEndpoint = env.ActiveDirectoryEndpoint
-		config.Resource = resource
-		return config.Authorizer()
-	}
-
-	// By default use MSI
-	config := auth.NewMSIConfig()
-	config.Resource = resource
-
-	return config.Authorizer()
+func (c *azureClient) Authorizer() autorest.Authorizer {
+	return c.authorizer
 }
 
 type azureSettings struct {
@@ -62,7 +87,7 @@ type azureSettings struct {
 	resource     string
 }
 
-func (b *azureAuthBackend) getAzureSettings(config *azureConfig) (*azureSettings, error) {
+func getAzureSettings(config *azureConfig) (*azureSettings, error) {
 	settings := new(azureSettings)
 
 	envTenantID := os.Getenv("AZURE_TENANT_ID")
@@ -72,11 +97,7 @@ func (b *azureAuthBackend) getAzureSettings(config *azureConfig) (*azureSettings
 	case config.TenantID != "":
 		settings.tenantID = config.TenantID
 	default:
-		var err error
-		settings.tenantID, err = b.getTentantID()
-		if err != nil {
-			return nil, errwrap.Wrapf("unable to determine tenant id: {{err}}", err)
-		}
+		return nil, errors.New("tenant id is required")
 	}
 
 	clientID := os.Getenv("AZURE_CLIENT_ID")

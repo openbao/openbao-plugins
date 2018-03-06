@@ -78,7 +78,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 
 	// The OIDC verifier verifies the signature and checks the 'aud' and 'iss'
 	// claims and expiration time
-	idToken, err := client.Verify(ctx, signedJwt)
+	idToken, err := client.Verifier().Verify(ctx, signedJwt)
 	if err != nil {
 		return nil, err
 	}
