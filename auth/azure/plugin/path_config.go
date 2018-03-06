@@ -19,6 +19,10 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 				Type: framework.TypeString,
 				//Description: "",
 			},
+			"environment": &framework.FieldSchema{
+				Type: framework.TypeString,
+				//Description: "",
+			},
 			"client_id": &framework.FieldSchema{
 				Type: framework.TypeString,
 				//Description: "",
@@ -43,6 +47,7 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 type azureConfig struct {
 	TenantID     string `json:"tenant_id"`
 	Resource     string `json:"resource"`
+	Environment  string `json:"environment"`
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 }

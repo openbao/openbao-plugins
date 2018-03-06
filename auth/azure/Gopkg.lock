@@ -7,8 +7,8 @@
     "services/compute/mgmt/2017-12-01/compute",
     "version"
   ]
-  revision = "1e334c402ea1460704b0263e5d188f28ad946ce1"
-  version = "v14.1.1"
+  revision = "b7fadebe0e7f5c5720986080a01495bd8d27be37"
+  version = "v14.2.0"
 
 [[projects]]
   name = "github.com/Azure/go-autorest"

@@ -94,10 +94,6 @@ type tokenVerifier interface {
 }
 
 func (b *azureAuthBackend) getAuthorizers(config *azureConfig) (tokenVerifier, autorest.Authorizer, error) {
-	verifierConfig := &oidc.Config{
-		ClientID: config.Resource,
-	}
-
 	b.l.RLock()
 	unlockFunc := b.l.RUnlock
 	defer func() { unlockFunc() }()
@@ -138,6 +134,9 @@ func (b *azureAuthBackend) getAuthorizers(config *azureConfig) (tokenVerifier, a
 		return nil, nil, err
 	}
 
+	verifierConfig := &oidc.Config{
+		ClientID: config.Resource,
+	}
 	b.oidcProvider = provider
 	b.oidcVerifier = provider.Verifier(verifierConfig)
 	b.authorizer = authorizer
