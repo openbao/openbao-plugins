@@ -71,14 +71,14 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	}
 
 	// Set the client id for 'aud' claim verification
-	verifier, authorizer, err := b.getAuthorizers(config)
+	client, err := b.getClient(config)
 	if err != nil {
 		return nil, err
 	}
 
 	// The OIDC verifier verifies the signature and checks the 'aud' and 'iss'
 	// claims and expiration time
-	idToken, err := verifier.Verify(ctx, signedJwt)
+	idToken, err := client.Verify(ctx, signedJwt)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 		return nil, err
 	}
 
-	if err := verifyResourceID(ctx, resourceID, authorizer, claims, role); err != nil {
+	if err := verifyResourceID(ctx, resourceID, client.authorizer, claims, role); err != nil {
 		return nil, err
 	}
 

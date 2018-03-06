@@ -43,12 +43,7 @@ type azureAuthBackend struct {
 
 	l sync.RWMutex
 
-	oidcProvider *oidc.Provider
-	oidcVerifier tokenVerifier
-
-	// Oauth2 authorizer for connections to Azure cloud
-	authorizer autorest.Authorizer
-
+	client     *azureClient
 	httpClient *http.Client
 }
 
@@ -88,18 +83,32 @@ func (b *azureAuthBackend) invalidate(ctx context.Context, key string) {
 	}
 }
 
-// Wrapping the IDTokenVerifier to replace in tests
 type tokenVerifier interface {
-	Verify(context.Context, string) (*oidc.IDToken, error)
+	Verify(ctx context.Context, token string)
 }
 
-func (b *azureAuthBackend) getAuthorizers(config *azureConfig) (tokenVerifier, autorest.Authorizer, error) {
+type azureClient struct {
+	config   *azureConfig
+	settings *azureSettings
+
+	authorizer   autorest.Authorizer
+	oidcProvider *oidc.Provider
+}
+
+func (c *azureClient) Verify(ctx context.Context, token string) (*oidc.IDToken, error) {
+	verifierConfig := &oidc.Config{
+		ClientID: c.config.Resource,
+	}
+	return c.oidcProvider.Verifier(verifierConfig).Verify(ctx, token)
+}
+
+func (b *azureAuthBackend) getClient(config *azureConfig) (*azureClient, error) {
 	b.l.RLock()
 	unlockFunc := b.l.RUnlock
 	defer func() { unlockFunc() }()
 
-	if b.oidcVerifier != nil && b.authorizer != nil {
-		return b.oidcVerifier, b.authorizer, nil
+	if b.client != nil {
+		return b.client, nil
 	}
 
 	// Upgrade lock
@@ -107,50 +116,41 @@ func (b *azureAuthBackend) getAuthorizers(config *azureConfig) (tokenVerifier, a
 	b.l.Lock()
 	unlockFunc = b.l.Unlock
 
-	// Check again
-	if b.oidcVerifier != nil && b.authorizer != nil {
-		return b.oidcVerifier, b.authorizer, nil
+	if b.client != nil {
+		return b.client, nil
 	}
 
-	// If tenant id is found in the config, use that.  Otherwise lookup the
-	// tenant id from instance metadata.
-	tenantID := config.TenantID
-	if tenantID == "" {
-		var err error
-		tenantID, err = b.getTentantID()
-		if err != nil {
-			return nil, nil, errwrap.Wrapf("unable to determine tenant id: {{err}}", err)
-		}
+	settings, err := b.getAzureSettings(config)
+	if err != nil {
+		return nil, err
 	}
 
-	issuer := fmt.Sprintf("%s/%s/", issuerBaseURI, tenantID)
+	issuer := fmt.Sprintf("%s/%s/", issuerBaseURI, settings.tenantID)
 	provider, err := oidc.NewProvider(context.Background(), issuer)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	authorizer, err := NewAuthorizer(config)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	verifierConfig := &oidc.Config{
-		ClientID: config.Resource,
+	b.client = &azureClient{
+		settings:     settings,
+		config:       config,
+		oidcProvider: provider,
+		authorizer:   authorizer,
 	}
-	b.oidcProvider = provider
-	b.oidcVerifier = provider.Verifier(verifierConfig)
-	b.authorizer = authorizer
 
-	return b.oidcVerifier, b.authorizer, nil
+	return b.client, nil
 }
 
 func (b *azureAuthBackend) reset() {
 	b.l.Lock()
 	defer b.l.Unlock()
 
-	b.oidcProvider = nil
-	b.oidcVerifier = nil
-	b.authorizer = nil
+	b.client = nil
 }
 
 type instanceMetadata struct {

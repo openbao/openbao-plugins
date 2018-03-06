@@ -20,6 +20,9 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
+[prune]
+go-tests = true
+unused-packages = true
 
 [[constraint]]
   branch = "v2"
@@ -40,3 +43,7 @@
 [[constraint]]
   name = "github.com/Azure/go-autorest"
   version = "10.1.2"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/Azure/azure-sdk-for-go"
