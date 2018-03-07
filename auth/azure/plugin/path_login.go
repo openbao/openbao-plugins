@@ -98,7 +98,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	}
 
 	// Check additional claims in token
-	if err := verifyClaims(claims, role); err != nil {
+	if err := b.verifyClaims(claims, role); err != nil {
 		return nil, err
 	}
 
@@ -130,7 +130,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	return resp, nil
 }
 
-func verifyClaims(claims *additionalClaims, role *azureRole) error {
+func (b *azureAuthBackend) verifyClaims(claims *additionalClaims, role *azureRole) error {
 	notBefore := time.Time(claims.NotBefore)
 	if notBefore.After(time.Now()) {
 		return fmt.Errorf("token is not yet valid (Token Not Before: %v)", notBefore)
@@ -174,6 +174,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		return errwrap.Wrapf("unable to retrieve virtual machine metadata: {{err}}", err)
 	}
 
+	// Ensure the principal id for the VM matches the verified token OID
 	if vm.Identity == nil {
 		return fmt.Errorf("vm client did not return identity information")
 	}
@@ -184,14 +185,17 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		return fmt.Errorf("token object id does not match virtual machine principal id")
 	}
 
-	if len(role.BoundResourceGroups) > 0 && !strutil.StrListContains(role.BoundResourceGroups, resourceGroupName) {
-		return fmt.Errorf("resource group not authoirzed")
-	}
-
+	// Check bound subsriptions
 	if len(role.BoundSubscriptionsIDs) > 0 && !strutil.StrListContains(role.BoundSubscriptionsIDs, subscriptionID) {
 		return fmt.Errorf("subscription not authoirzed")
 	}
 
+	// Check bound resource groups
+	if len(role.BoundResourceGroups) > 0 && !strutil.StrListContains(role.BoundResourceGroups, resourceGroupName) {
+		return fmt.Errorf("resource group not authoirzed")
+	}
+
+	// Check bound locations
 	if len(role.BoundLocations) > 0 {
 		if vm.Location == nil {
 			return fmt.Errorf("vm location is empty")

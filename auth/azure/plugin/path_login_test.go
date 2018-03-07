@@ -61,12 +61,12 @@ func TestLogin(t *testing.T) {
 }
 
 func TestVerifyClaims(t *testing.T) {
-	v := newMockVerifier()
+	b, _ := getTestBackend(t)
 
 	payload := map[string]interface{}{
 		"nbf": time.Now().Add(-10 * time.Second).Unix(),
 	}
-	idToken, err := v.Verify(context.Background(), testJWT(t, payload))
+	idToken, err := b.provider.Verifier().Verify(context.Background(), testJWT(t, payload))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -76,13 +76,13 @@ func TestVerifyClaims(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	err = verifyClaims(claims, new(azureRole))
+	err = b.verifyClaims(claims, new(azureRole))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	claims.NotBefore = jsonTime(time.Now().Add(10 * time.Second))
-	err = verifyClaims(claims, new(azureRole))
+	err = b.verifyClaims(claims, new(azureRole))
 	if err == nil {
 		t.Fatal("expected claim verification error")
 	}

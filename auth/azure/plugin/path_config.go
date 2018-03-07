@@ -93,8 +93,6 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 	resource, ok := data.GetOk("resource")
 	if ok {
 		config.Resource = resource.(string)
-	} else if req.Operation == logical.CreateOperation {
-		return logical.ErrorResponse("resource is required"), logical.ErrInvalidRequest
 	}
 
 	environment, ok := data.GetOk("environment")
@@ -110,6 +108,12 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 	clientSecret, ok := data.GetOk("client_secret")
 	if ok {
 		config.ClientSecret = clientSecret.(string)
+	}
+
+	// Create a settings object to validate all required settings
+	// are available
+	if _, err := getAzureSettings(config); err != nil {
+		return nil, err
 	}
 
 	entry, err := logical.StorageEntryJSON("config", config)

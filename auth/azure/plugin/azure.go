@@ -44,7 +44,7 @@ func NewAzureProvider(config *azureConfig) (*azureProvider, error) {
 		return nil, err
 	}
 
-	issuer := fmt.Sprintf("%s/%s/", issuerBaseURI, settings.tenantID)
+	issuer := fmt.Sprintf("%s/%s/", issuerBaseURI, settings.TenantID)
 	oidcProvider, err := oidc.NewProvider(context.Background(), issuer)
 	if err != nil {
 		return nil, err
@@ -58,10 +58,10 @@ func NewAzureProvider(config *azureConfig) (*azureProvider, error) {
 	// OAuth2 client for querying VM data
 	switch {
 	// Use environment/config first
-	case settings.clientSecret != "":
-		config := auth.NewClientCredentialsConfig(settings.clientID, settings.clientSecret, settings.tenantID)
-		config.AADEndpoint = settings.environment.ActiveDirectoryEndpoint
-		config.Resource = settings.environment.ResourceManagerEndpoint
+	case settings.ClientSecret != "":
+		config := auth.NewClientCredentialsConfig(settings.ClientID, settings.ClientSecret, settings.TenantID)
+		config.AADEndpoint = settings.Environment.ActiveDirectoryEndpoint
+		config.Resource = settings.Environment.ResourceManagerEndpoint
 		provider.authorizer, err = config.Authorizer()
 		if err != nil {
 			return nil, err
@@ -69,7 +69,7 @@ func NewAzureProvider(config *azureConfig) (*azureProvider, error) {
 	// By default use MSI
 	default:
 		config := auth.NewMSIConfig()
-		config.Resource = settings.environment.ResourceManagerEndpoint
+		config.Resource = settings.Environment.ResourceManagerEndpoint
 		provider.authorizer, err = config.Authorizer()
 		if err != nil {
 			return nil, err
@@ -80,7 +80,7 @@ func NewAzureProvider(config *azureConfig) (*azureProvider, error) {
 
 func (p *azureProvider) Verifier() tokenVerifier {
 	verifierConfig := &oidc.Config{
-		ClientID: p.settings.resource,
+		ClientID: p.settings.Resource,
 	}
 	return p.oidcProvider.Verifier(verifierConfig)
 }
@@ -92,11 +92,11 @@ func (p *azureProvider) ComputeClient(subscriptionID string) computeClient {
 }
 
 type azureSettings struct {
-	tenantID     string
-	clientID     string
-	clientSecret string
-	environment  azure.Environment
-	resource     string
+	TenantID     string
+	ClientID     string
+	ClientSecret string
+	Environment  azure.Environment
+	Resource     string
 }
 
 func getAzureSettings(config *azureConfig) (*azureSettings, error) {
@@ -105,46 +105,48 @@ func getAzureSettings(config *azureConfig) (*azureSettings, error) {
 	envTenantID := os.Getenv("AZURE_TENANT_ID")
 	switch {
 	case envTenantID != "":
-		settings.tenantID = envTenantID
+		settings.TenantID = envTenantID
 	case config.TenantID != "":
-		settings.tenantID = config.TenantID
+		settings.TenantID = config.TenantID
 	default:
 		return nil, errors.New("tenant id is required")
+	}
+
+	envResource := os.Getenv("AZURE_AD_RESOURCE")
+	switch {
+	case envResource != "":
+		settings.Resource = envResource
+	case config.Resource != "":
+		settings.Resource = config.Resource
+	default:
+		return nil, errors.New("resource is required")
 	}
 
 	clientID := os.Getenv("AZURE_CLIENT_ID")
 	if clientID == "" {
 		clientID = config.ClientID
 	}
-	settings.clientID = clientID
+	settings.ClientID = clientID
 
 	clientSecret := os.Getenv("AZURE_CLIENT_ID")
 	if clientSecret == "" {
 		clientSecret = config.ClientSecret
 	}
-	settings.clientSecret = clientSecret
+	settings.ClientSecret = clientSecret
 
 	envName := os.Getenv("AZURE_ENVIRONMENT")
 	if envName == "" {
 		envName = config.Environment
 	}
 	if envName == "" {
-		settings.environment = azure.PublicCloud
+		settings.Environment = azure.PublicCloud
 	} else {
 		var err error
-		settings.environment, err = azure.EnvironmentFromName(envName)
+		settings.Environment, err = azure.EnvironmentFromName(envName)
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	resource := os.Getenv("AZURE_AD_RESOURCE")
-	if resource == "" && config.Resource != "" {
-		resource = config.Resource
-	} else {
-		resource = settings.environment.ResourceManagerEndpoint
-	}
-	settings.resource = resource
 
 	return settings, nil
 }
