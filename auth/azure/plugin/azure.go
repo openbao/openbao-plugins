@@ -109,7 +109,7 @@ func getAzureSettings(config *azureConfig) (*azureSettings, error) {
 	case config.TenantID != "":
 		settings.TenantID = config.TenantID
 	default:
-		return nil, errors.New("tenant id is required")
+		return nil, errors.New("tenant_id is required")
 	}
 
 	envResource := os.Getenv("AZURE_AD_RESOURCE")
@@ -128,7 +128,7 @@ func getAzureSettings(config *azureConfig) (*azureSettings, error) {
 	}
 	settings.ClientID = clientID
 
-	clientSecret := os.Getenv("AZURE_CLIENT_ID")
+	clientSecret := os.Getenv("AZURE_CLIENT_SECRET")
 	if clientSecret == "" {
 		clientSecret = config.ClientSecret
 	}

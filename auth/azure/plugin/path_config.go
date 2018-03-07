@@ -13,23 +13,28 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 		Fields: map[string]*framework.FieldSchema{
 			"tenant_id": &framework.FieldSchema{
 				Type: framework.TypeString,
-				//Description: "",
+				Description: `The Azure Active Directory origanizational.  This value can also
+				be provided with the AZURE_TENANT_ID environment variable.`,
 			},
 			"resource": &framework.FieldSchema{
 				Type: framework.TypeString,
-				//Description: "",
+				Description: `The resource URL for the vault application in Azure Active Directory.
+				This value can also be provided with the AZURE_AD_RESOURCE environment variable.`,
 			},
 			"environment": &framework.FieldSchema{
 				Type: framework.TypeString,
-				//Description: "",
+				Description: `The Azure environment name. If not provided, AzurePublicCloud is used.
+				This value can also be provided with the AZURE_ENVIRONMENT environment variable.`,
 			},
 			"client_id": &framework.FieldSchema{
 				Type: framework.TypeString,
-				//Description: "",
+				Description: `The OAuth2 client id to connection to Azure.
+				This value can also be provided with the AZURE_CLIENT_ID environment variable.`,
 			},
 			"client_secret": &framework.FieldSchema{
 				Type: framework.TypeString,
-				//Description: "",
+				Description: `The OAuth2 client secret to connection to Azure.
+				This value can also be provided with the AZURE_CLIENT_SECRET environment variable.`,
 			},
 		},
 		Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -39,8 +44,8 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 		},
 		ExistenceCheck: b.pathConfigExistenceCheck,
 
-		//HelpSynopsis:    confHelpSyn,
-		//HelpDescription: confHelpDesc,
+		HelpSynopsis:    confHelpSyn,
+		HelpDescription: confHelpDesc,
 	}
 }
 
@@ -150,3 +155,12 @@ func (b *azureAuthBackend) pathConfigRead(ctx context.Context, req *logical.Requ
 	}
 	return resp, nil
 }
+
+const confHelpSyn = `Configures the Azure authentication backend.`
+const confHelpDesc = `
+The Azure authentication backend validates the login JWTs using the
+configured credentials.  In order to validate machine information, the
+OAuth2 client id and secret are used to query the Azure API.  The OAuth2
+credentials require Microsoft.Compute/virtualMachines/read permission on
+the resource requesting credentials.
+`

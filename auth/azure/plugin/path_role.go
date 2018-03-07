@@ -323,7 +323,7 @@ var roleHelp = map[string][2]string{
 	"role": {
 		"Register an role with the backend.",
 		`A role is required to authenticate with this backend. The role binds
-		azure instance metadata with token policies and settings.
+		Azure instance metadata with token policies and settings.
 		The bindings, token polices and token settings can all be configured
 		using this endpoint`,
 	},

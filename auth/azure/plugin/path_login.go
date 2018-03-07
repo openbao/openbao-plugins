@@ -44,8 +44,8 @@ func pathLogin(b *azureAuthBackend) *framework.Path {
 			logical.AliasLookaheadOperation: b.pathLogin,
 		},
 
-		//HelpSynopsis:    pathLoginHelpSyn,
-		//HelpDescription: pathLoginHelpDesc,
+		HelpSynopsis:    pathLoginHelpSyn,
+		HelpDescription: pathLoginHelpDesc,
 	}
 }
 
@@ -236,3 +236,8 @@ type additionalClaims struct {
 	ObjectID  string   `json:"oid"`
 	GroupIDs  []string `json:"groups"`
 }
+
+const pathLoginHelpSyn = `Authenticates Azure Managed Service Identities with Vault.`
+const pathLoginHelpDesc = `
+Authenticate Azure Managed Service Identities.
+`
