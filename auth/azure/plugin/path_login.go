@@ -182,11 +182,11 @@ func (b *azureAuthBackend) verifyResourceID(ctx context.Context, resourceID stri
 		return fmt.Errorf("token object id does not match virtual machine principal id")
 	}
 
-	if !strutil.StrListContains(role.BoundResourceGroups, parsedResourceID.ResourceGroup) {
+	if len(role.BoundResourceGroups) > 0 && !strutil.StrListContains(role.BoundResourceGroups, parsedResourceID.ResourceGroup) {
 		return fmt.Errorf("resource group not authoirzed")
 	}
 
-	if !strutil.StrListContains(role.BoundSubscriptionsIDs, parsedResourceID.SubscriptionID) {
+	if len(role.BoundSubscriptionsIDs) > 0 && !strutil.StrListContains(role.BoundSubscriptionsIDs, parsedResourceID.SubscriptionID) {
 		return fmt.Errorf("subscription not authoirzed")
 	}
 

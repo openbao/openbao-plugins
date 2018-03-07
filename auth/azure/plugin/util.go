@@ -114,5 +114,7 @@ func parseAzureResourceID(id string) (*ResourceID, error) {
 		delete(componentMap, "providers")
 	}
 
+	resourceID.Path = componentMap
+
 	return resourceID, nil
 }

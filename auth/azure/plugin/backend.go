@@ -10,11 +10,6 @@ import (
 	"github.com/hashicorp/vault/logical/framework"
 )
 
-const (
-	authorizationBaseURI = "https://login.windows.net"
-	issuerBaseURI        = "https://sts.windows.net"
-)
-
 func Factory(ctx context.Context, c *logical.BackendConfig) (logical.Backend, error) {
 	b := Backend(c)
 	if err := b.Setup(ctx, c); err != nil {

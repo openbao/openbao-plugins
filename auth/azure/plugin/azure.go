@@ -13,6 +13,10 @@ import (
 	oidc "github.com/coreos/go-oidc"
 )
 
+const (
+	issuerBaseURI = "https://sts.windows.net"
+)
+
 type computeClient interface {
 	Get(ctx context.Context, resourceGroup, vmName string, instanceView compute.InstanceViewTypes) (compute.VirtualMachine, error)
 }
@@ -51,12 +55,13 @@ func NewAzureProvider(config *azureConfig) (*azureProvider, error) {
 		oidcProvider: oidcProvider,
 	}
 
+	// OAuth2 client for querying VM data
 	switch {
 	// Use environment/config first
 	case settings.clientSecret != "":
 		config := auth.NewClientCredentialsConfig(settings.clientID, settings.clientSecret, settings.tenantID)
 		config.AADEndpoint = settings.environment.ActiveDirectoryEndpoint
-		config.Resource = settings.resource
+		config.Resource = settings.environment.ResourceManagerEndpoint
 		provider.authorizer, err = config.Authorizer()
 		if err != nil {
 			return nil, err
@@ -64,7 +69,7 @@ func NewAzureProvider(config *azureConfig) (*azureProvider, error) {
 	// By default use MSI
 	default:
 		config := auth.NewMSIConfig()
-		config.Resource = settings.resource
+		config.Resource = settings.environment.ResourceManagerEndpoint
 		provider.authorizer, err = config.Authorizer()
 		if err != nil {
 			return nil, err
@@ -139,6 +144,7 @@ func getAzureSettings(config *azureConfig) (*azureSettings, error) {
 	} else {
 		resource = settings.environment.ResourceManagerEndpoint
 	}
+	settings.resource = resource
 
 	return settings, nil
 }

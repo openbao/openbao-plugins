@@ -97,6 +97,11 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 		return logical.ErrorResponse("resource is required"), logical.ErrInvalidRequest
 	}
 
+	environment, ok := data.GetOk("environment")
+	if ok {
+		config.Environment = environment.(string)
+	}
+
 	clientID, ok := data.GetOk("client_id")
 	if ok {
 		config.ClientID = clientID.(string)
@@ -134,6 +139,7 @@ func (b *azureAuthBackend) pathConfigRead(ctx context.Context, req *logical.Requ
 		Data: map[string]interface{}{
 			"tenant_id":     config.TenantID,
 			"resource":      config.Resource,
+			"environment":   config.Environment,
 			"client_id":     config.ClientID,
 			"client_secret": config.ClientSecret,
 		},
