@@ -26,6 +26,6 @@ func getTestBackend(t *testing.T) (*azureAuthBackend, logical.Storage) {
 	if err != nil {
 		t.Fatalf("unable to create backend: %v", err)
 	}
-	b.client = new(mockClient)
+	b.provider = new(mockProvider)
 	return b, config.StorageView
 }

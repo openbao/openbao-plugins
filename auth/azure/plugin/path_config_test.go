@@ -21,5 +21,5 @@ func testConfigCreate(t *testing.T, b *azureAuthBackend, s logical.Storage, d ma
 	if resp != nil && resp.IsError() {
 		t.Fatal(resp.Error())
 	}
-	b.client = new(mockClient)
+	b.provider = new(mockProvider)
 }

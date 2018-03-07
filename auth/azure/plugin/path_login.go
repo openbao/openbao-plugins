@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2017-12-01/compute"
-	"github.com/Azure/go-autorest/autorest"
 
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/helper/strutil"
@@ -71,14 +70,14 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	}
 
 	// Set the client id for 'aud' claim verification
-	client, err := b.getClient(config)
+	provider, err := b.getProvider(config)
 	if err != nil {
 		return nil, err
 	}
 
 	// The OIDC verifier verifies the signature and checks the 'aud' and 'iss'
 	// claims and expiration time
-	idToken, err := client.Verifier().Verify(ctx, signedJwt)
+	idToken, err := provider.Verifier().Verify(ctx, signedJwt)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +92,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 		return nil, err
 	}
 
-	if err := verifyResourceID(ctx, resourceID, client.Authorizer(), claims, role); err != nil {
+	if err := b.verifyResourceID(ctx, resourceID, claims, role); err != nil {
 		return nil, err
 	}
 
@@ -149,7 +148,7 @@ func verifyClaims(claims *additionalClaims, role *azureRole) error {
 	return nil
 }
 
-func verifyResourceID(ctx context.Context, resourceID string, authorizer autorest.Authorizer, claims *additionalClaims, role *azureRole) error {
+func (b *azureAuthBackend) verifyResourceID(ctx context.Context, resourceID string, claims *additionalClaims, role *azureRole) error {
 	// If not checking anythign with the resource id, exit early
 	if len(role.BoundResourceGroups) == 0 && len(role.BoundSubscriptionsIDs) == 0 {
 		return nil
@@ -173,8 +172,7 @@ func verifyResourceID(ctx context.Context, resourceID string, authorizer autores
 		return fmt.Errorf("virtual machine name not provided")
 	}
 
-	client := compute.NewVirtualMachinesClient(parsedResourceID.SubscriptionID)
-	client.Authorizer = authorizer
+	client := b.provider.ComputeClient(parsedResourceID.SubscriptionID)
 	vm, err := client.Get(ctx, parsedResourceID.ResourceGroup, vmName, compute.InstanceView)
 	if err != nil {
 		return errwrap.Wrapf("unable to retrieve virtual machine metadata: {{err}}", err)

@@ -28,7 +28,7 @@ type azureAuthBackend struct {
 
 	l sync.RWMutex
 
-	client     Client
+	provider   provider
 	httpClient *http.Client
 }
 
@@ -68,13 +68,13 @@ func (b *azureAuthBackend) invalidate(ctx context.Context, key string) {
 	}
 }
 
-func (b *azureAuthBackend) getClient(config *azureConfig) (Client, error) {
+func (b *azureAuthBackend) getProvider(config *azureConfig) (provider, error) {
 	b.l.RLock()
 	unlockFunc := b.l.RUnlock
 	defer func() { unlockFunc() }()
 
-	if b.client != nil {
-		return b.client, nil
+	if b.provider != nil {
+		return b.provider, nil
 	}
 
 	// Upgrade lock
@@ -82,24 +82,24 @@ func (b *azureAuthBackend) getClient(config *azureConfig) (Client, error) {
 	b.l.Lock()
 	unlockFunc = b.l.Unlock
 
-	if b.client != nil {
-		return b.client, nil
+	if b.provider != nil {
+		return b.provider, nil
 	}
 
-	client, err := NewAzureClient(config)
+	provider, err := NewAzureProvider(config)
 	if err != nil {
 		return nil, err
 	}
 
-	b.client = client
-	return b.client, nil
+	b.provider = provider
+	return b.provider, nil
 }
 
 func (b *azureAuthBackend) reset() {
 	b.l.Lock()
 	defer b.l.Unlock()
 
-	b.client = nil
+	b.provider = nil
 }
 
 const backendHelp = `

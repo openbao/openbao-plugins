@@ -6,44 +6,49 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2017-12-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	oidc "github.com/coreos/go-oidc"
 )
 
+type computeClient interface {
+	Get(ctx context.Context, resourceGroup, vmName string, instanceView compute.InstanceViewTypes) (compute.VirtualMachine, error)
+}
+
 type tokenVerifier interface {
 	Verify(ctx context.Context, token string) (*oidc.IDToken, error)
 }
 
-type Client interface {
+type provider interface {
 	Verifier() tokenVerifier
-	Authorizer() autorest.Authorizer
+	ComputeClient(subscriptionID string) computeClient
 }
 
-var _ Client = &azureClient{}
+var _ provider = &azureProvider{}
 
-type azureClient struct {
+type azureProvider struct {
 	settings     *azureSettings
 	oidcProvider *oidc.Provider
 	authorizer   autorest.Authorizer
 }
 
-func NewAzureClient(config *azureConfig) (*azureClient, error) {
+func NewAzureProvider(config *azureConfig) (*azureProvider, error) {
 	settings, err := getAzureSettings(config)
 	if err != nil {
 		return nil, err
 	}
 
 	issuer := fmt.Sprintf("%s/%s/", issuerBaseURI, settings.tenantID)
-	provider, err := oidc.NewProvider(context.Background(), issuer)
+	oidcProvider, err := oidc.NewProvider(context.Background(), issuer)
 	if err != nil {
 		return nil, err
 	}
 
-	client := &azureClient{
+	provider := &azureProvider{
 		settings:     settings,
-		oidcProvider: provider,
+		oidcProvider: oidcProvider,
 	}
 
 	switch {
@@ -52,7 +57,7 @@ func NewAzureClient(config *azureConfig) (*azureClient, error) {
 		config := auth.NewClientCredentialsConfig(settings.clientID, settings.clientSecret, settings.tenantID)
 		config.AADEndpoint = settings.environment.ActiveDirectoryEndpoint
 		config.Resource = settings.resource
-		client.authorizer, err = config.Authorizer()
+		provider.authorizer, err = config.Authorizer()
 		if err != nil {
 			return nil, err
 		}
@@ -60,23 +65,25 @@ func NewAzureClient(config *azureConfig) (*azureClient, error) {
 	default:
 		config := auth.NewMSIConfig()
 		config.Resource = settings.resource
-		client.authorizer, err = config.Authorizer()
+		provider.authorizer, err = config.Authorizer()
 		if err != nil {
 			return nil, err
 		}
 	}
-	return client, err
+	return provider, err
 }
 
-func (c *azureClient) Verifier() tokenVerifier {
+func (p *azureProvider) Verifier() tokenVerifier {
 	verifierConfig := &oidc.Config{
-		ClientID: c.settings.resource,
+		ClientID: p.settings.resource,
 	}
-	return c.oidcProvider.Verifier(verifierConfig)
+	return p.oidcProvider.Verifier(verifierConfig)
 }
 
-func (c *azureClient) Authorizer() autorest.Authorizer {
-	return c.authorizer
+func (p *azureProvider) ComputeClient(subscriptionID string) computeClient {
+	client := compute.NewVirtualMachinesClient(subscriptionID)
+	client.Authorizer = p.authorizer
+	return client
 }
 
 type azureSettings struct {

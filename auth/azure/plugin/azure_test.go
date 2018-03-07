@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Azure/go-autorest/autorest"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2017-12-01/compute"
 	oidc "github.com/coreos/go-oidc"
 )
 
@@ -36,12 +36,18 @@ func newMockVerifier() tokenVerifier {
 	return oidc.NewVerifier("", ks, config)
 }
 
-type mockClient struct{}
+type mockComputeClient struct{}
 
-func (*mockClient) Verifier() tokenVerifier {
+func (*mockComputeClient) Get(ctx context.Context, resourceGroup, vmName string, instanceView compute.InstanceViewTypes) (compute.VirtualMachine, error) {
+	return compute.VirtualMachine{}, nil
+}
+
+type mockProvider struct{}
+
+func (*mockProvider) Verifier() tokenVerifier {
 	return newMockVerifier()
 }
 
-func (*mockClient) Authorizer() autorest.Authorizer {
-	return autorest.NullAuthorizer{}
+func (*mockProvider) ComputeClient(string) computeClient {
+	return &mockComputeClient{}
 }
