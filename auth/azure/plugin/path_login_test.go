@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2017-12-01/compute"
 	oidc "github.com/coreos/go-oidc"
 	"github.com/hashicorp/vault/helper/policyutil"
 	"github.com/hashicorp/vault/logical"
@@ -30,18 +31,15 @@ func TestLogin(t *testing.T) {
 
 	loginData := map[string]interface{}{
 		"role": roleName,
-		"jwt":  testJWT(t, claims),
 	}
-	testLoginSuccess(t, b, s, loginData, roleData)
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
 
 	claims["nbf"] = time.Now().Add(60 * time.Second).Unix()
-	loginData["jwt"] = testJWT(t, claims)
-	testLoginFailure(t, b, s, loginData, roleData)
+	testLoginFailure(t, b, s, loginData, claims, roleData)
 
 	claims["nbf"] = time.Now().Add(-60 * time.Second).Unix()
 	claims["exp"] = time.Now().Add(-60 * time.Second).Unix()
-	loginData["jwt"] = testJWT(t, claims)
-	testLoginFailure(t, b, s, loginData, roleData)
+	testLoginFailure(t, b, s, loginData, claims, roleData)
 }
 
 func TestLogin_BoundServicePrincipalID(t *testing.T) {
@@ -63,13 +61,11 @@ func TestLogin_BoundServicePrincipalID(t *testing.T) {
 
 	loginData := map[string]interface{}{
 		"role": roleName,
-		"jwt":  testJWT(t, claims),
 	}
-	testLoginSuccess(t, b, s, loginData, roleData)
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
 
 	claims["oid"] = "bad id"
-	loginData["jwt"] = testJWT(t, claims)
-	testLoginFailure(t, b, s, loginData, roleData)
+	testLoginFailure(t, b, s, loginData, claims, roleData)
 }
 
 func TestLogin_BoundGroupID(t *testing.T) {
@@ -91,35 +87,175 @@ func TestLogin_BoundGroupID(t *testing.T) {
 
 	loginData := map[string]interface{}{
 		"role": roleName,
-		"jwt":  testJWT(t, claims),
 	}
-	testLoginSuccess(t, b, s, loginData, roleData)
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
 
 	claims["groups"] = []string{"bad grp"}
-	loginData["jwt"] = testJWT(t, claims)
-	testLoginFailure(t, b, s, loginData, roleData)
+	testLoginFailure(t, b, s, loginData, claims, roleData)
 
 	delete(claims, "groups")
-	loginData["jwt"] = testJWT(t, claims)
-	testLoginFailure(t, b, s, loginData, roleData)
+	testLoginFailure(t, b, s, loginData, claims, roleData)
 }
 
-func testLoginSuccess(t *testing.T, b *azureAuthBackend, s logical.Storage, loginData, roleData map[string]interface{}) {
+func TestLogin_BoundSubscriptionID(t *testing.T) {
+	principalID := "prinID"
+	f := func(vmName string) (compute.VirtualMachine, error) {
+		id := compute.VirtualMachineIdentity{
+			PrincipalID: &principalID,
+		}
+		return compute.VirtualMachine{
+			Identity: &id,
+		}, nil
+	}
+	b, s := getTestBackendWithComputeClient(t, f)
+
+	roleName := "testrole"
+	subID := "subID"
+	roleData := map[string]interface{}{
+		"name":                   roleName,
+		"policies":               []string{"dev", "prod"},
+		"bound_subscription_ids": []string{subID},
+	}
+	testRoleCreate(t, b, s, roleData)
+
+	claims := map[string]interface{}{
+		"exp": time.Now().Add(60 * time.Second).Unix(),
+		"nbf": time.Now().Add(-60 * time.Second).Unix(),
+		"oid": principalID,
+	}
+
+	loginData := map[string]interface{}{
+		"role": roleName,
+	}
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+
+	loginData["subscription_id"] = subID
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+
+	loginData["resource_group_name"] = "rg"
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+
+	loginData["vm_name"] = "vm"
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
+
+	loginData["subscription_id"] = "bad sub"
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+}
+
+func TestLogin_BoundResourceGroup(t *testing.T) {
+	principalID := "prinID"
+	f := func(vmName string) (compute.VirtualMachine, error) {
+		id := compute.VirtualMachineIdentity{
+			PrincipalID: &principalID,
+		}
+		return compute.VirtualMachine{
+			Identity: &id,
+		}, nil
+	}
+	b, s := getTestBackendWithComputeClient(t, f)
+
+	roleName := "testrole"
+	rg := "rg"
+	roleData := map[string]interface{}{
+		"name":                  roleName,
+		"policies":              []string{"dev", "prod"},
+		"bound_resource_groups": []string{rg},
+	}
+	testRoleCreate(t, b, s, roleData)
+
+	claims := map[string]interface{}{
+		"exp": time.Now().Add(60 * time.Second).Unix(),
+		"nbf": time.Now().Add(-60 * time.Second).Unix(),
+		"oid": principalID,
+	}
+
+	loginData := map[string]interface{}{
+		"role": roleName,
+	}
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+
+	loginData["subscription_id"] = "sub"
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+
+	loginData["resource_group_name"] = rg
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+
+	loginData["vm_name"] = "vm"
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
+
+	loginData["resource_group_name"] = "bad rg"
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+}
+
+func TestLogin_BoundLocation(t *testing.T) {
+	principalID := "prinID"
+	location := "loc"
+	f := func(vmName string) (compute.VirtualMachine, error) {
+		id := compute.VirtualMachineIdentity{
+			PrincipalID: &principalID,
+		}
+		switch vmName {
+		case "good":
+			return compute.VirtualMachine{
+				Identity: &id,
+				Location: &location,
+			}, nil
+		case "bad":
+			badLoc := "bad"
+			return compute.VirtualMachine{
+				Identity: &id,
+				Location: &badLoc,
+			}, nil
+		}
+		return compute.VirtualMachine{}, nil
+	}
+	b, s := getTestBackendWithComputeClient(t, f)
+
+	roleName := "testrole"
+	roleData := map[string]interface{}{
+		"name":            roleName,
+		"policies":        []string{"dev", "prod"},
+		"bound_locations": []string{location},
+	}
+	testRoleCreate(t, b, s, roleData)
+
+	claims := map[string]interface{}{
+		"exp": time.Now().Add(60 * time.Second).Unix(),
+		"nbf": time.Now().Add(-60 * time.Second).Unix(),
+		"oid": principalID,
+	}
+
+	loginData := map[string]interface{}{
+		"role": roleName,
+	}
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+
+	loginData["subscription_id"] = "sub"
+	loginData["resource_group_name"] = "rg"
+	loginData["vm_name"] = "good"
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
+
+	loginData["vm_name"] = "bad"
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+}
+
+func testLoginSuccess(t *testing.T, b *azureAuthBackend, s logical.Storage, loginData, claims, roleData map[string]interface{}) {
 	t.Helper()
-	if err := testLogin(t, b, s, loginData, roleData); err != nil {
+	if err := testLogin(t, b, s, loginData, claims, roleData); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func testLoginFailure(t *testing.T, b *azureAuthBackend, s logical.Storage, loginData, roleData map[string]interface{}) {
+func testLoginFailure(t *testing.T, b *azureAuthBackend, s logical.Storage, loginData, claims, roleData map[string]interface{}) {
 	t.Helper()
-	if err := testLogin(t, b, s, loginData, roleData); err == nil {
+	if err := testLogin(t, b, s, loginData, claims, roleData); err == nil {
 		t.Fatal("no error thown when expected")
 	}
 }
 
-func testLogin(t *testing.T, b *azureAuthBackend, s logical.Storage, loginData, roleData map[string]interface{}) error {
+func testLogin(t *testing.T, b *azureAuthBackend, s logical.Storage, loginData, claims, roleData map[string]interface{}) error {
 	t.Helper()
+	loginData["jwt"] = testJWT(t, claims)
 	resp, err := b.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.UpdateOperation,
 		Path:      "login",

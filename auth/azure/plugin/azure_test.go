@@ -63,6 +63,8 @@ func (*mockProvider) Verifier() tokenVerifier {
 	return newMockVerifier()
 }
 
-func (*mockProvider) ComputeClient(string) computeClient {
-	return &mockComputeClient{}
+func (p *mockProvider) ComputeClient(string) computeClient {
+	return &mockComputeClient{
+		computeClientFunc: p.computeClientFunc,
+	}
 }
