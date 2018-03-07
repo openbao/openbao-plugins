@@ -72,6 +72,10 @@ TTL will be set to the value of this parameter.`,
 					Type:        framework.TypeCommaStringSlice,
 					Description: ``,
 				},
+				"bound_locations": &framework.FieldSchema{
+					Type:        framework.TypeCommaStringSlice,
+					Description: ``,
+				},
 			},
 			ExistenceCheck: b.pathRoleExistenceCheck,
 			Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -111,6 +115,7 @@ type azureRole struct {
 	BoundGroupIDs            []string `json:"bound_group_ids"`
 	BoundResourceGroups      []string `json:"bound_resource_groups"`
 	BoundSubscriptionsIDs    []string `json:"bound_subscription_ids"`
+	BoundLocations           []string `json:"bound_locations"`
 }
 
 // role takes a storage backend and the name and returns the role's storage
@@ -182,6 +187,7 @@ func (b *azureAuthBackend) pathRoleRead(ctx context.Context, req *logical.Reques
 			"bound_group_ids":             role.BoundGroupIDs,
 			"bound_subscription_ids":      role.BoundSubscriptionsIDs,
 			"bound_resource_groups":       role.BoundResourceGroups,
+			"bound_locations":             role.BoundLocations,
 		},
 	}
 
@@ -274,6 +280,10 @@ func (b *azureAuthBackend) pathRoleCreateUpdate(ctx context.Context, req *logica
 
 	if boundGroupIDs, ok := data.GetOk("bound_resource_groups"); ok {
 		role.BoundGroupIDs = boundGroupIDs.([]string)
+	}
+
+	if boundLocations, ok := data.GetOk("bound_locations"); ok {
+		role.BoundLocations = boundLocations.([]string)
 	}
 
 	// Check that the TTL value provided is less than the MaxTTL.

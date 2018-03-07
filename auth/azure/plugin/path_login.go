@@ -2,8 +2,8 @@ package plugin
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2017-12-01/compute"
@@ -26,9 +26,17 @@ func pathLogin(b *azureAuthBackend) *framework.Path {
 				Type:        framework.TypeString,
 				Description: `A signed JWT`,
 			},
-			"resource_id": &framework.FieldSchema{
+			"subscription_id": &framework.FieldSchema{
 				Type:        framework.TypeString,
-				Description: `The resource id for the instance logging in`,
+				Description: `The subscription id for the instance.`,
+			},
+			"resource_group_name": &framework.FieldSchema{
+				Type:        framework.TypeString,
+				Description: `The resource group from the instance.`,
+			},
+			"vm_name": &framework.FieldSchema{
+				Type:        framework.TypeString,
+				Description: `The name of the virtual machine.`,
 			},
 		},
 
@@ -51,7 +59,9 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	if roleName == "" {
 		return logical.ErrorResponse("role is required"), nil
 	}
-	resourceID := data.Get("resource_id").(string)
+	subscriptionID := data.Get("subscription_id").(string)
+	resourceGroupName := data.Get("resource_group_name").(string)
+	vmName := data.Get("vm_name").(string)
 
 	config, err := b.config(ctx, req.Storage)
 	if err != nil {
@@ -92,7 +102,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 		return nil, err
 	}
 
-	if err := b.verifyResourceID(ctx, resourceID, claims, role); err != nil {
+	if err := b.verifyResource(ctx, subscriptionID, resourceGroupName, vmName, claims, role); err != nil {
 		return nil, err
 	}
 
@@ -148,46 +158,47 @@ func verifyClaims(claims *additionalClaims, role *azureRole) error {
 	return nil
 }
 
-func (b *azureAuthBackend) verifyResourceID(ctx context.Context, resourceID string, claims *additionalClaims, role *azureRole) error {
+func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, resourceGroupName, vmName string, claims *additionalClaims, role *azureRole) error {
 	// If not checking anythign with the resource id, exit early
-	if len(role.BoundResourceGroups) == 0 && len(role.BoundSubscriptionsIDs) == 0 {
+	if len(role.BoundResourceGroups) == 0 && len(role.BoundSubscriptionsIDs) == 0 && len(role.BoundLocations) == 0 {
 		return nil
 	}
 
-	if resourceID == "" {
-		return fmt.Errorf("resource_id must be provided for given role")
+	if subscriptionID == "" || resourceGroupName == "" || vmName == "" {
+		return errors.New("subscription_id, resource_group_name, and vm_name are required")
 	}
 
-	parsedResourceID, err := parseAzureResourceID(resourceID)
-	if err != nil {
-		return err
-	}
-
-	if strings.ToLower(parsedResourceID.Provider) != "microsoft.compute" {
-		return fmt.Errorf("only Microsoft.Compute providers are supported, got %s", parsedResourceID.Provider)
-	}
-
-	vmName, ok := parsedResourceID.Path["virtualMachines"]
-	if !ok {
-		return fmt.Errorf("virtual machine name not provided")
-	}
-
-	client := b.provider.ComputeClient(parsedResourceID.SubscriptionID)
-	vm, err := client.Get(ctx, parsedResourceID.ResourceGroup, vmName, compute.InstanceView)
+	client := b.provider.ComputeClient(subscriptionID)
+	vm, err := client.Get(ctx, resourceGroupName, vmName, compute.InstanceView)
 	if err != nil {
 		return errwrap.Wrapf("unable to retrieve virtual machine metadata: {{err}}", err)
 	}
 
+	if vm.Identity == nil {
+		return fmt.Errorf("vm client did not return identity information")
+	}
+	if vm.Identity.PrincipalID == nil {
+		return fmt.Errorf("vm principal id is empty")
+	}
 	if *vm.Identity.PrincipalID != claims.ObjectID {
 		return fmt.Errorf("token object id does not match virtual machine principal id")
 	}
 
-	if len(role.BoundResourceGroups) > 0 && !strutil.StrListContains(role.BoundResourceGroups, parsedResourceID.ResourceGroup) {
+	if len(role.BoundResourceGroups) > 0 && !strutil.StrListContains(role.BoundResourceGroups, resourceGroupName) {
 		return fmt.Errorf("resource group not authoirzed")
 	}
 
-	if len(role.BoundSubscriptionsIDs) > 0 && !strutil.StrListContains(role.BoundSubscriptionsIDs, parsedResourceID.SubscriptionID) {
+	if len(role.BoundSubscriptionsIDs) > 0 && !strutil.StrListContains(role.BoundSubscriptionsIDs, subscriptionID) {
 		return fmt.Errorf("subscription not authoirzed")
+	}
+
+	if len(role.BoundLocations) > 0 {
+		if vm.Location == nil {
+			return fmt.Errorf("vm location is empty")
+		}
+		if !strutil.StrListContains(role.BoundLocations, *vm.Location) {
+			return fmt.Errorf("token object id does not match virtual machine principal id")
+		}
 	}
 
 	return nil
