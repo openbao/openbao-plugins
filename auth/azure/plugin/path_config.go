@@ -53,15 +53,15 @@ type azureConfig struct {
 }
 
 func (b *azureAuthBackend) config(ctx context.Context, s logical.Storage) (*azureConfig, error) {
+	config := new(azureConfig)
 	entry, err := s.Get(ctx, "config")
 	if err != nil {
 		return nil, err
 	}
 	if entry == nil {
-		return nil, nil
+		return config, nil
 	}
 
-	config := new(azureConfig)
 	if err := entry.DecodeJSON(config); err != nil {
 		return nil, err
 	}

@@ -266,20 +266,20 @@ func (b *azureAuthBackend) pathRoleCreateUpdate(ctx context.Context, req *logica
 		role.MaxTTL = time.Second * time.Duration(data.Get("max_ttl").(int))
 	}
 
+	if boundServicePrincipalIDs, ok := data.GetOk("bound_service_principal_ids"); ok {
+		role.BoundServicePrincipalIDs = boundServicePrincipalIDs.([]string)
+	}
+
+	if boundGroupIDs, ok := data.GetOk("bound_group_ids"); ok {
+		role.BoundGroupIDs = boundGroupIDs.([]string)
+	}
+
 	if boundSubscriptionsIDs, ok := data.GetOk("bound_subscription_ids"); ok {
 		role.BoundSubscriptionsIDs = boundSubscriptionsIDs.([]string)
 	}
 
 	if boundResourceGroups, ok := data.GetOk("bound_resource_groups"); ok {
 		role.BoundResourceGroups = boundResourceGroups.([]string)
-	}
-
-	if boundServicePrincipalIDs, ok := data.GetOk("bound_service_principal_ids"); ok {
-		role.BoundServicePrincipalIDs = boundServicePrincipalIDs.([]string)
-	}
-
-	if boundGroupIDs, ok := data.GetOk("bound_resource_groups"); ok {
-		role.BoundGroupIDs = boundGroupIDs.([]string)
 	}
 
 	if boundLocations, ok := data.GetOk("bound_locations"); ok {
@@ -323,7 +323,7 @@ var roleHelp = map[string][2]string{
 	"role": {
 		"Register an role with the backend.",
 		`A role is required to authenticate with this backend. The role binds
-		kubernetes service account metadata with token policies and settings.
+		azure instance metadata with token policies and settings.
 		The bindings, token polices and token settings can all be configured
 		using this endpoint`,
 	},

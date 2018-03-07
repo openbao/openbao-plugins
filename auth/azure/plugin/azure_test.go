@@ -30,19 +30,34 @@ func (s *mockKeySet) VerifySignature(ctx context.Context, idToken string) ([]byt
 func newMockVerifier() tokenVerifier {
 	config := &oidc.Config{
 		SkipClientIDCheck: true,
-		SkipExpiryCheck:   true,
+		SkipExpiryCheck:   false,
 	}
 	ks := new(mockKeySet)
 	return oidc.NewVerifier("", ks, config)
 }
 
-type mockComputeClient struct{}
+type mockComputeClient struct {
+	computeClientFunc func(vmName string) (compute.VirtualMachine, error)
+}
 
-func (*mockComputeClient) Get(ctx context.Context, resourceGroup, vmName string, instanceView compute.InstanceViewTypes) (compute.VirtualMachine, error) {
+func (c *mockComputeClient) Get(ctx context.Context, resourceGroup, vmName string, instanceView compute.InstanceViewTypes) (compute.VirtualMachine, error) {
+	if c.computeClientFunc != nil {
+		return c.computeClientFunc(vmName)
+	}
 	return compute.VirtualMachine{}, nil
 }
 
-type mockProvider struct{}
+type computeClientFunc func(vmName string) (compute.VirtualMachine, error)
+
+type mockProvider struct {
+	computeClientFunc
+}
+
+func newMockProvider(f computeClientFunc) *mockProvider {
+	return &mockProvider{
+		computeClientFunc: f,
+	}
+}
 
 func (*mockProvider) Verifier() tokenVerifier {
 	return newMockVerifier()

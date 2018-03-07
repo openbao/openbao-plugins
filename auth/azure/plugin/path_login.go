@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2017-12-01/compute"
-
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/helper/strutil"
 	"github.com/hashicorp/vault/logical"
@@ -66,9 +65,6 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	config, err := b.config(ctx, req.Storage)
 	if err != nil {
 		return nil, errwrap.Wrapf("unable to retrieve backend configuration: {{err}}", err)
-	}
-	if config == nil {
-		return logical.ErrorResponse("backend not configured"), nil
 	}
 
 	role, err := b.role(ctx, req.Storage, roleName)
@@ -142,10 +138,10 @@ func (b *azureAuthBackend) verifyClaims(claims *additionalClaims, role *azureRol
 		}
 	}
 
-	if len(role.BoundServicePrincipalIDs) > 0 {
+	if len(role.BoundGroupIDs) > 0 {
 		var found bool
 		for _, group := range claims.GroupIDs {
-			if !strutil.StrListContains(role.BoundGroupIDs, group) {
+			if strutil.StrListContains(role.BoundGroupIDs, group) {
 				found = true
 				break
 			}
