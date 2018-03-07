@@ -52,7 +52,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	if roleName == "" {
 		return logical.ErrorResponse("role is required"), nil
 	}
-	resourceID := data.Get("resource_id").(string)
+	//resourceID := data.Get("resource_id").(string)
 
 	config, err := b.config(ctx, req.Storage)
 	if err != nil {
@@ -93,9 +93,9 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 		return nil, err
 	}
 
-	if err := verifyResourceID(ctx, resourceID, client.authorizer, claims, role); err != nil {
-		return nil, err
-	}
+	// if err := verifyResourceID(ctx, resourceID, client.Authorizer(), claims, role); err != nil {
+	// 	return nil, err
+	// }
 
 	resp := &logical.Response{
 		Auth: &logical.Auth{

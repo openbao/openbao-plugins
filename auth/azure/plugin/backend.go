@@ -28,7 +28,7 @@ type azureAuthBackend struct {
 
 	l sync.RWMutex
 
-	client     *azureClient
+	client     Client
 	httpClient *http.Client
 }
 
@@ -68,7 +68,7 @@ func (b *azureAuthBackend) invalidate(ctx context.Context, key string) {
 	}
 }
 
-func (b *azureAuthBackend) getClient(config *azureConfig) (*azureClient, error) {
+func (b *azureAuthBackend) getClient(config *azureConfig) (Client, error) {
 	b.l.RLock()
 	unlockFunc := b.l.RUnlock
 	defer func() { unlockFunc() }()

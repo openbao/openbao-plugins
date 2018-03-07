@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Azure/go-autorest/autorest"
 	oidc "github.com/coreos/go-oidc"
 )
 
@@ -26,11 +27,21 @@ func (s *mockKeySet) VerifySignature(ctx context.Context, idToken string) ([]byt
 	return payload, nil
 }
 
-func newMockVerifier() *oidc.IDTokenVerifier {
+func newMockVerifier() tokenVerifier {
 	config := &oidc.Config{
 		SkipClientIDCheck: true,
 		SkipExpiryCheck:   true,
 	}
 	ks := new(mockKeySet)
 	return oidc.NewVerifier("", ks, config)
+}
+
+type mockClient struct{}
+
+func (*mockClient) Verifier() tokenVerifier {
+	return newMockVerifier()
+}
+
+func (*mockClient) Authorizer() autorest.Authorizer {
+	return autorest.NullAuthorizer{}
 }
