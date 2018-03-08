@@ -155,7 +155,7 @@ func (b *azureAuthBackend) verifyClaims(claims *additionalClaims, role *azureRol
 }
 
 func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, resourceGroupName, vmName string, claims *additionalClaims, role *azureRole) error {
-	// If not checking anythign with the resource id, exit early
+	// If not checking anything with the resource id, exit early
 	if len(role.BoundResourceGroups) == 0 && len(role.BoundSubscriptionsIDs) == 0 && len(role.BoundLocations) == 0 {
 		return nil
 	}

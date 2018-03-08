@@ -75,7 +75,7 @@ func NewAzureProvider(config *azureConfig) (*azureProvider, error) {
 			return nil, err
 		}
 	}
-	return provider, err
+	return provider, nil
 }
 
 func (p *azureProvider) Verifier() tokenVerifier {
