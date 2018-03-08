@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2017-12-01/compute"
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/helper/strutil"
 	"github.com/hashicorp/vault/logical"
@@ -177,7 +178,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 	if vm.Identity.PrincipalID == nil {
 		return fmt.Errorf("vm principal id is empty")
 	}
-	if *vm.Identity.PrincipalID != claims.ObjectID {
+	if to.String(vm.Identity.PrincipalID) != claims.ObjectID {
 		return fmt.Errorf("token object id does not match virtual machine principal id")
 	}
 
@@ -196,7 +197,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		if vm.Location == nil {
 			return fmt.Errorf("vm location is empty")
 		}
-		if !strutil.StrListContains(role.BoundLocations, *vm.Location) {
+		if !strutil.StrListContains(role.BoundLocations, to.String(vm.Location)) {
 			return fmt.Errorf("token object id does not match virtual machine principal id")
 		}
 	}
