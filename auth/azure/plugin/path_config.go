@@ -13,8 +13,9 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 		Fields: map[string]*framework.FieldSchema{
 			"tenant_id": &framework.FieldSchema{
 				Type: framework.TypeString,
-				Description: `The Azure Active Directory origanizational.  This value can also
-				be provided with the AZURE_TENANT_ID environment variable.`,
+				Description: `The tenant id for the Azure Active Directory.  This is sometimes
+				referred to as Directory ID in AD.  This value can also be provided with the 
+				AZURE_TENANT_ID environment variable.`,
 			},
 			"resource": &framework.FieldSchema{
 				Type: framework.TypeString,
