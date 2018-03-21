@@ -124,6 +124,32 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 			},
 		},
 	}
+
+	// Add groups to group aliases
+	for _, groupID := range claims.GroupIDs {
+		if groupID == "" {
+			continue
+		}
+		resp.Auth.GroupAliases = append(resp.Auth.GroupAliases, &logical.Alias{
+			Name: groupID,
+		})
+	}
+
+	if resp.Auth.TTL == 0 {
+		resp.Auth.TTL = b.System().DefaultLeaseTTL()
+	}
+	if role.MaxTTL > 0 {
+		maxTTL := role.MaxTTL
+		if maxTTL > b.System().MaxLeaseTTL() {
+			maxTTL = b.System().MaxLeaseTTL()
+		}
+
+		if resp.Auth.TTL > maxTTL {
+			resp.Auth.TTL = maxTTL
+			resp.AddWarning(fmt.Sprintf("Effective TTL of '%s' exceeded the effective max_ttl of '%s'; TTL value is capped accordingly", resp.Auth.TTL, maxTTL))
+		}
+	}
+
 	return resp, nil
 }
 
@@ -148,7 +174,7 @@ func (b *azureAuthBackend) verifyClaims(claims *additionalClaims, role *azureRol
 			}
 		}
 		if !found {
-			return fmt.Errorf("group not authorized: %v", claims.GroupIDs)
+			return fmt.Errorf("groups not authorized: %v", claims.GroupIDs)
 		}
 	}
 

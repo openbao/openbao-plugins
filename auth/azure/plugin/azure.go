@@ -80,7 +80,8 @@ func NewAzureProvider(config *azureConfig) (*azureProvider, error) {
 
 func (p *azureProvider) Verifier() tokenVerifier {
 	verifierConfig := &oidc.Config{
-		ClientID: p.settings.Resource,
+		ClientID:             p.settings.Resource,
+		SupportedSigningAlgs: []string{oidc.RS256},
 	}
 	return p.oidcProvider.Verifier(verifierConfig)
 }
