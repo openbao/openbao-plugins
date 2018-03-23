@@ -57,24 +57,29 @@ duration specified by this value. At each renewal, the token's
 TTL will be set to the value of this parameter.`,
 				},
 				"bound_subscription_ids": &framework.FieldSchema{
-					Type:        framework.TypeCommaStringSlice,
-					Description: ``,
+					Type: framework.TypeCommaStringSlice,
+					Description: `Comma-separated list of subscription ids that login 
+is restricted to.`,
 				},
 				"bound_resource_groups": &framework.FieldSchema{
-					Type:        framework.TypeCommaStringSlice,
-					Description: ``,
+					Type: framework.TypeCommaStringSlice,
+					Description: `Comma-separated list of resource groups that login 
+is restricted to.`,
 				},
 				"bound_group_ids": &framework.FieldSchema{
-					Type:        framework.TypeCommaStringSlice,
-					Description: ``,
+					Type: framework.TypeCommaStringSlice,
+					Description: `Comma-separated list of group ids that login 
+is restricted to.`,
 				},
 				"bound_service_principal_ids": &framework.FieldSchema{
-					Type:        framework.TypeCommaStringSlice,
-					Description: ``,
+					Type: framework.TypeCommaStringSlice,
+					Description: `Comma-separated list of service principal ids that login 
+is restricted to.`,
 				},
 				"bound_locations": &framework.FieldSchema{
-					Type:        framework.TypeCommaStringSlice,
-					Description: ``,
+					Type: framework.TypeCommaStringSlice,
+					Description: `Comma-separated list of locations that login 
+is restricted to.`,
 				},
 			},
 			ExistenceCheck: b.pathRoleExistenceCheck,
