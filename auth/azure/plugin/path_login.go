@@ -224,7 +224,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 			return fmt.Errorf("vm location is empty")
 		}
 		if !strutil.StrListContains(role.BoundLocations, to.String(vm.Location)) {
-			return fmt.Errorf("token object id does not match virtual machine principal id")
+			return fmt.Errorf("location not authorized")
 		}
 	}
 
