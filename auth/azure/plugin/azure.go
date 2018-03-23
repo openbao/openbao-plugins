@@ -63,7 +63,7 @@ func newAzureProvider(config *azureConfig) (*azureProvider, error) {
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read response body: %v", err)
+		return nil, errwrap.Wrapf("unable to read response body: {{err}}", err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%s: %s", resp.Status, body)

@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -231,7 +232,7 @@ func (b *azureAuthBackend) pathRoleCreateUpdate(ctx context.Context, req *logica
 	// Create a new entry object if this is a CreateOperation
 	if role == nil {
 		if req.Operation == logical.UpdateOperation {
-			return nil, fmt.Errorf("role entry not found during update operation")
+			return nil, errors.New("role entry not found during update operation")
 		}
 		role = new(azureRole)
 	}
