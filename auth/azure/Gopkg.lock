@@ -7,8 +7,8 @@
     "services/compute/mgmt/2017-12-01/compute",
     "version"
   ]
-  revision = "56a0b1d2af3b65d5f1f7a330e02faaf48b473c5a"
-  version = "v14.6.0"
+  revision = "56332fec5b308fbb6615fa1af6117394cdba186d"
+  version = "v15.0.0"
 
 [[projects]]
   name = "github.com/Azure/go-autorest"
@@ -21,8 +21,8 @@
     "autorest/to",
     "autorest/validation"
   ]
-  revision = "0ae36a9e544696de46fdadb7b0d5fb38af48c063"
-  version = "v10.2.0"
+  revision = "cd2702d0255126f3d64a7cef703e1341f22bc0ac"
+  version = "v10.5.0"
 
 [[projects]]
   name = "github.com/SermoDigital/jose"
@@ -167,8 +167,7 @@
     "helper/errutil",
     "helper/jsonutil",
     "helper/locksutil",
-    "helper/logbridge",
-    "helper/logformat",
+    "helper/logging",
     "helper/mlock",
     "helper/parseutil",
     "helper/pluginutil",
@@ -184,7 +183,7 @@
     "physical/inmem",
     "version"
   ]
-  revision = "6c0b238459756032c35d1dc95707eb419142e6c2"
+  revision = "6e3520658f9ac3e54fede6c9369e9436b11a007b"
 
 [[projects]]
   branch = "master"
@@ -388,6 +387,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "dc3c27c232c004d82d840fce1eba6b62f16b706b2d7a5cefa46d07360193d213"
+  inputs-digest = "65fc9226b84c21105772eb655df62ebc241cc9f282fc3dee27b4826719ac7af7"
   solver-name = "gps-cdcl"
   solver-version = 1

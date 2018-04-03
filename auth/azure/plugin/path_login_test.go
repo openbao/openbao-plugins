@@ -19,8 +19,9 @@ func TestLogin(t *testing.T) {
 
 	roleName := "testrole"
 	roleData := map[string]interface{}{
-		"name":     roleName,
-		"policies": []string{"dev", "prod"},
+		"name":                        roleName,
+		"policies":                    []string{"dev", "prod"},
+		"bound_service_principal_ids": []string{"*"},
 	}
 	testRoleCreate(t, b, s, roleData)
 
