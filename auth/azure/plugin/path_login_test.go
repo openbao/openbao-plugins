@@ -50,7 +50,7 @@ func TestLogin_BoundServicePrincipalID(t *testing.T) {
 	roleData := map[string]interface{}{
 		"name":                        roleName,
 		"policies":                    []string{"dev", "prod"},
-		"bound_service_principal_ids": []string{"spid1", "spid2"},
+		"bound_service_principal_ids": []string{"SpiD1", "sPid2"},
 	}
 	testRoleCreate(t, b, s, roleData)
 
@@ -89,6 +89,9 @@ func TestLogin_BoundGroupID(t *testing.T) {
 	loginData := map[string]interface{}{
 		"role": roleName,
 	}
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
+
+	claims["groups"] = []string{"GrP1"}
 	testLoginSuccess(t, b, s, loginData, claims, roleData)
 
 	claims["groups"] = []string{"bad grp"}
