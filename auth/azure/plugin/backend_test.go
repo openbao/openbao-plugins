@@ -24,7 +24,7 @@ func getTestBackendWithComputeClient(t *testing.T, f computeClientFunc) (*azureA
 		},
 		StorageView: &logical.InmemStorage{},
 	}
-	b := Backend(config)
+	b := backend(config)
 	err := b.Setup(context.Background(), config)
 	if err != nil {
 		t.Fatalf("unable to create backend: %v", err)
