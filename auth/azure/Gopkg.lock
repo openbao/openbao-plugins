@@ -2,13 +2,13 @@
 
 
 [[projects]]
-  branch = "master"
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
     "services/compute/mgmt/2017-12-01/compute",
     "version"
   ]
-  revision = "0a8ed6c65dc34935d90dee3ddbc901f1f497f221"
+  revision = "514bddd77de93dd0349ada5fbe250077ddc619ff"
+  version = "v17.1.0"
 
 [[projects]]
   name = "github.com/Azure/go-autorest"
@@ -21,8 +21,8 @@
     "autorest/to",
     "autorest/validation"
   ]
-  revision = "aa2a4534ab680e938d933870f58f23f77e0e208e"
-  version = "v10.9.0"
+  revision = "4de44cd533576f3c7b44dcb08dc03754d217144d"
+  version = "v10.9.2"
 
 [[projects]]
   name = "github.com/SermoDigital/jose"
@@ -42,10 +42,10 @@
   revision = "1fca145dffbcaa8fe914309b1ec0cfc67500fe61"
 
 [[projects]]
-  branch = "v2"
   name = "github.com/coreos/go-oidc"
   packages = ["."]
-  revision = "1bddd0c53795df182c7b4a3eac80127312ef50ca"
+  revision = "1180514eaf4d9f38d0d19eef639a1d695e066e72"
+  version = "v2.0.0"
 
 [[projects]]
   name = "github.com/dgrijalva/jwt-go"
@@ -117,7 +117,7 @@
   branch = "master"
   name = "github.com/hashicorp/go-retryablehttp"
   packages = ["."]
-  revision = "763e4b5d05f5534071213c67c335aad6b0d318a7"
+  revision = "3b087ef2d313afe6c55b2f511d20db04ca767075"
 
 [[projects]]
   branch = "master"
@@ -196,13 +196,13 @@
     "physical/inmem",
     "version"
   ]
-  revision = "8568e791dd7896c3820b6ac5373a991f257a39e4"
+  revision = "74e1134a91bc9c801dab2c846f49551a99ce1fb6"
 
 [[projects]]
   branch = "master"
   name = "github.com/hashicorp/yamux"
   packages = ["."]
-  revision = "2658be15c5f05e76244154714161f17e3e77de2e"
+  revision = "3520598351bb3500a49ae9563f5539666ae0a27c"
 
 [[projects]]
   branch = "master"
@@ -252,7 +252,7 @@
     "pkcs12",
     "pkcs12/internal/rc2"
   ]
-  revision = "ab813273cd59e1333f7ae7bff5d027d4aadf528c"
+  revision = "b47b1587369238182299fe4dad77d05b8b461e06"
 
 [[projects]]
   branch = "master"
@@ -267,7 +267,7 @@
     "internal/timeseries",
     "trace"
   ]
-  revision = "dfa909b99c79129e1100513e5cd36307665e5723"
+  revision = "1e491301e022f8f977054da4c2d852decd59571f"
 
 [[projects]]
   branch = "master"
@@ -276,7 +276,7 @@
     ".",
     "internal"
   ]
-  revision = "ec22f46f877b4505e0117eeaab541714644fdd28"
+  revision = "1e0a3fa8ba9a5c9eb35c271780101fdaf1b205d7"
 
 [[projects]]
   branch = "master"
@@ -329,7 +329,7 @@
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "694d95ba50e67b2e363f3483057db5d4910c18f9"
+  revision = "81158efcc9f219c511e4d3c0d61a0e6e49c01a24"
 
 [[projects]]
   name = "google.golang.org/grpc"
@@ -377,6 +377,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "61c28e72ad566031f6893fb9f2e10e12f2fb78fb36e9e0ac9469adb9029743fe"
+  inputs-digest = "c3e4074bca1f825d394f54f993a9e73abb26b89566347b200af5ac550b9d49b2"
   solver-name = "gps-cdcl"
   solver-version = 1
