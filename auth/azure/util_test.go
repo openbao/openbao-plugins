@@ -1,4 +1,4 @@
-package plugin
+package azureauth
 
 import (
 	"encoding/json"

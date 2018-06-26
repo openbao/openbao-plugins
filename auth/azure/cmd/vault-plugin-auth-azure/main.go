@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	azureplugin "github.com/hashicorp/vault-plugin-auth-azure/plugin"
+	"github.com/hashicorp/vault-plugin-auth-azure"
 	"github.com/hashicorp/vault/helper/pluginutil"
 	"github.com/hashicorp/vault/logical/plugin"
 )
@@ -18,7 +18,7 @@ func main() {
 	tlsProviderFunc := pluginutil.VaultPluginTLSProvider(tlsConfig)
 
 	err := plugin.Serve(&plugin.ServeOpts{
-		BackendFactoryFunc: azureplugin.Factory,
+		BackendFactoryFunc: azureauth.Factory,
 		TLSProviderFunc:    tlsProviderFunc,
 	})
 	if err != nil {
