@@ -24,7 +24,6 @@ import (
 	"net/http"
 )
 
-// Deprecated: Please use package github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization instead.
 // ProviderOperationsMetadataClient is the role based access control provides you a way to apply granular level policy
 // administration down to individual resources or resource groups. These operations enable you to manage role
 // definitions and role assignments. A role definition describes the set of actions that can be performed on resources.
@@ -33,23 +32,20 @@ type ProviderOperationsMetadataClient struct {
 	BaseClient
 }
 
-// Deprecated: Please use package github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization instead.
 // NewProviderOperationsMetadataClient creates an instance of the ProviderOperationsMetadataClient client.
 func NewProviderOperationsMetadataClient(subscriptionID string) ProviderOperationsMetadataClient {
 	return NewProviderOperationsMetadataClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// Deprecated: Please use package github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization instead.
 // NewProviderOperationsMetadataClientWithBaseURI creates an instance of the ProviderOperationsMetadataClient client.
 func NewProviderOperationsMetadataClientWithBaseURI(baseURI string, subscriptionID string) ProviderOperationsMetadataClient {
 	return ProviderOperationsMetadataClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
 
-// Deprecated: Please use package github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization instead.
 // Get gets provider operations metadata for the specified resource provider.
-//
-// resourceProviderNamespace is the namespace of the resource provider. expand is specifies whether to expand the
-// values.
+// Parameters:
+// resourceProviderNamespace - the namespace of the resource provider.
+// expand - specifies whether to expand the values.
 func (client ProviderOperationsMetadataClient) Get(ctx context.Context, resourceProviderNamespace string, expand string) (result ProviderOperationsMetadata, err error) {
 	req, err := client.GetPreparer(ctx, resourceProviderNamespace, expand)
 	if err != nil {
@@ -72,7 +68,6 @@ func (client ProviderOperationsMetadataClient) Get(ctx context.Context, resource
 	return
 }
 
-// Deprecated: Please use package github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization instead.
 // GetPreparer prepares the Get request.
 func (client ProviderOperationsMetadataClient) GetPreparer(ctx context.Context, resourceProviderNamespace string, expand string) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
@@ -97,7 +92,6 @@ func (client ProviderOperationsMetadataClient) GetPreparer(ctx context.Context, 
 	return preparer.Prepare((&http.Request{}).WithContext(ctx))
 }
 
-// Deprecated: Please use package github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization instead.
 // GetSender sends the Get request. The method will close the
 // http.Response Body if it receives an error.
 func (client ProviderOperationsMetadataClient) GetSender(req *http.Request) (*http.Response, error) {
@@ -105,7 +99,6 @@ func (client ProviderOperationsMetadataClient) GetSender(req *http.Request) (*ht
 		autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...))
 }
 
-// Deprecated: Please use package github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization instead.
 // GetResponder handles the response to the Get request. The method always
 // closes the http.Response Body.
 func (client ProviderOperationsMetadataClient) GetResponder(resp *http.Response) (result ProviderOperationsMetadata, err error) {
@@ -119,10 +112,9 @@ func (client ProviderOperationsMetadataClient) GetResponder(resp *http.Response)
 	return
 }
 
-// Deprecated: Please use package github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization instead.
 // List gets provider operations metadata for all resource providers.
-//
-// expand is specifies whether to expand the values.
+// Parameters:
+// expand - specifies whether to expand the values.
 func (client ProviderOperationsMetadataClient) List(ctx context.Context, expand string) (result ProviderOperationsMetadataListResultPage, err error) {
 	result.fn = client.listNextResults
 	req, err := client.ListPreparer(ctx, expand)
@@ -146,7 +138,6 @@ func (client ProviderOperationsMetadataClient) List(ctx context.Context, expand 
 	return
 }
 
-// Deprecated: Please use package github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization instead.
 // ListPreparer prepares the List request.
 func (client ProviderOperationsMetadataClient) ListPreparer(ctx context.Context, expand string) (*http.Request, error) {
 	const APIVersion = "2018-01-01-preview"
@@ -167,7 +158,6 @@ func (client ProviderOperationsMetadataClient) ListPreparer(ctx context.Context,
 	return preparer.Prepare((&http.Request{}).WithContext(ctx))
 }
 
-// Deprecated: Please use package github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization instead.
 // ListSender sends the List request. The method will close the
 // http.Response Body if it receives an error.
 func (client ProviderOperationsMetadataClient) ListSender(req *http.Request) (*http.Response, error) {
@@ -175,7 +165,6 @@ func (client ProviderOperationsMetadataClient) ListSender(req *http.Request) (*h
 		autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...))
 }
 
-// Deprecated: Please use package github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization instead.
 // ListResponder handles the response to the List request. The method always
 // closes the http.Response Body.
 func (client ProviderOperationsMetadataClient) ListResponder(resp *http.Response) (result ProviderOperationsMetadataListResult, err error) {
@@ -210,7 +199,6 @@ func (client ProviderOperationsMetadataClient) listNextResults(lastResults Provi
 	return
 }
 
-// Deprecated: Please use package github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization instead.
 // ListComplete enumerates all values, automatically crossing page boundaries as required.
 func (client ProviderOperationsMetadataClient) ListComplete(ctx context.Context, expand string) (result ProviderOperationsMetadataListResultIterator, err error) {
 	result.page, err = client.List(ctx, expand)
