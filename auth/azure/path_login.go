@@ -66,6 +66,9 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	if err != nil {
 		return nil, errwrap.Wrapf("unable to retrieve backend configuration: {{err}}", err)
 	}
+	if config == nil {
+		config = new(azureConfig)
+	}
 
 	role, err := b.role(ctx, req.Storage, roleName)
 	if err != nil {
@@ -75,7 +78,6 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 		return logical.ErrorResponse(fmt.Sprintf("invalid role name %q", roleName)), nil
 	}
 
-	// Set the client id for 'aud' claim verification
 	provider, err := b.getProvider(config)
 	if err != nil {
 		return nil, err
