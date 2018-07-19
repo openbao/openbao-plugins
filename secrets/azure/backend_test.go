@@ -96,16 +96,15 @@ func (m *mockProvider) ListRoles(ctx context.Context, scope string, filter strin
 					},
 				},
 			}, nil
-		} else {
-			return []authorization.RoleDefinition{
-				{
-					ID: to.StringPtr(fmt.Sprintf("/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-%s", name)),
-					RoleDefinitionProperties: &authorization.RoleDefinitionProperties{
-						RoleName: to.StringPtr(name),
-					},
-				},
-			}, nil
 		}
+		return []authorization.RoleDefinition{
+			{
+				ID: to.StringPtr(fmt.Sprintf("/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-%s", name)),
+				RoleDefinitionProperties: &authorization.RoleDefinitionProperties{
+					RoleName: to.StringPtr(name),
+				},
+			},
+		}, nil
 	}
 
 	return []authorization.RoleDefinition{}, nil
