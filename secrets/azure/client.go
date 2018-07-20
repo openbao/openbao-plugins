@@ -18,6 +18,8 @@ import (
 	uuid "github.com/hashicorp/go-uuid"
 )
 
+const appNamePrefix = "vault-"
+
 // client offers higher level Azure operations that provide a simpler interface
 // for handlers. It in turn relies on a Provider interface to access the lower level
 // Azure Client SDK methods.
@@ -55,6 +57,8 @@ func (c *client) createApp(ctx context.Context) (app *graphrbac.Application, err
 	if err != nil {
 		return nil, err
 	}
+
+	name = appNamePrefix + name
 
 	appURL := fmt.Sprintf("https://%s", name)
 
