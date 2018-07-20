@@ -61,12 +61,8 @@ type provider struct {
 
 // NewAzureProvider creates an azureProvider, backed by Azure client objects for underlying services.
 func NewAzureProvider(settings *clientSettings) (AzureProvider, error) {
-
-	// build clients that use the Active Directory endpoint
-	config := auth.NewClientCredentialsConfig(settings.ClientID, settings.ClientSecret, settings.TenantID)
-	config.AADEndpoint = settings.Environment.ActiveDirectoryEndpoint
-	config.Resource = settings.Environment.GraphEndpoint
-	authorizer, err := config.Authorizer()
+	// build clients that use the GraphRBAC endpoint
+	authorizer, err := getAuthorizer(settings, settings.Environment.GraphEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -80,8 +76,7 @@ func NewAzureProvider(settings *clientSettings) (AzureProvider, error) {
 	spClient.AddToUserAgent(userAgent())
 
 	// build clients that use the Resource Manager endpoint
-	config.Resource = settings.Environment.ResourceManagerEndpoint
-	authorizer, err = config.Authorizer()
+	authorizer, err = getAuthorizer(settings, settings.Environment.ResourceManagerEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +99,30 @@ func NewAzureProvider(settings *clientSettings) (AzureProvider, error) {
 	}
 
 	return p, nil
+}
+
+// getAuthorizer attempts to create an authorizer, preferring ClientID/Secret if present,
+// and falling back to MSI if not.
+func getAuthorizer(settings *clientSettings, resource string) (authorizer autorest.Authorizer, err error) {
+
+	if settings.ClientID != "" && settings.ClientSecret != "" && settings.TenantID != "" {
+		config := auth.NewClientCredentialsConfig(settings.ClientID, settings.ClientSecret, settings.TenantID)
+		config.AADEndpoint = settings.Environment.ActiveDirectoryEndpoint
+		config.Resource = resource
+		authorizer, err = config.Authorizer()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		config := auth.NewMSIConfig()
+		config.Resource = resource
+		authorizer, err = config.Authorizer()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return authorizer, nil
 }
 
 // CreateApplication create a new Azure application object.

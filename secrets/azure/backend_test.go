@@ -41,7 +41,11 @@ func getTestBackend(t *testing.T, initConfig bool) (*azureSecretBackend, logical
 	if err != nil {
 		t.Fatalf("unable to create backend: %v", err)
 	}
-	b.provider = newMockProvider()
+
+	b.client = &client{
+		provider: newMockProvider(),
+		settings: new(clientSettings),
+	}
 
 	if initConfig {
 		cfg := map[string]interface{}{

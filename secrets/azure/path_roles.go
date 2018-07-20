@@ -10,7 +10,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/hashicorp/errwrap"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault/helper/jsonutil"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
@@ -22,11 +21,11 @@ const (
 	credentialTypeSP = 0
 )
 
-// Roles is a Vault role construct, now mapping to Azure roles, primarily
+// Role is a Vault role construct that maps to Azure roles
 type Role struct {
 	CredentialType int           `json:"credential_type"` // Reserved. Always SP at this time.
 	AzureRoles     []*azureRole  `json:"azure_roles"`
-	DefaultTTL     time.Duration `json:"ttl"`
+	TTL            time.Duration `json:"ttl"`
 	MaxTTL         time.Duration `json:"max_ttl"`
 }
 
@@ -90,7 +89,6 @@ func pathsRole(b *azureSecretBackend) []*framework.Path {
 // a role name or ID.  ID is unambigious and will be used if provided. Given just role name,
 // a search will be performed and if exactly one match is found, that role will be used.
 func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	var merr *multierror.Error
 	var resp *logical.Response
 
 	// load or create role
@@ -111,9 +109,9 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 
 	// update role with any provided parameters
 	if ttlRaw, ok := d.GetOk("ttl"); ok {
-		role.DefaultTTL = time.Duration(ttlRaw.(int)) * time.Second
+		role.TTL = time.Duration(ttlRaw.(int)) * time.Second
 	} else if req.Operation == logical.CreateOperation {
-		role.DefaultTTL = time.Duration(d.Get("ttl").(int)) * time.Second
+		role.TTL = time.Duration(d.Get("ttl").(int)) * time.Second
 	}
 
 	if maxTTLRaw, ok := d.GetOk("max_ttl"); ok {
@@ -127,19 +125,14 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 
 		err := jsonutil.DecodeJSON([]byte(roles.(string)), &parsedRoles)
 		if err != nil {
-			merr = multierror.Append(merr, errors.New("invalid Azure role definitions"))
+			return logical.ErrorResponse("invalid Azure role definitions"), nil
 		}
 		role.AzureRoles = parsedRoles
 	}
 
 	// verify Azure roles, including looking up each role
 	// by ID or name.
-	cfg, err := b.getConfig(ctx, req.Storage)
-	if err != nil {
-		return nil, err
-	}
-
-	c, err := b.newClient(ctx, cfg)
+	c, err := b.getClient(ctx, req.Storage)
 	if err != nil {
 		return nil, err
 	}
@@ -179,43 +172,12 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 	}
 
 	// validate role definition constraints
-	if role.DefaultTTL < 0 {
-		merr = multierror.Append(merr, errors.New("ttl < 0"))
-	}
-	if role.MaxTTL < 0 {
-		merr = multierror.Append(merr, errors.New("max_ttl < 0"))
-	}
-
-	if cfg.DefaultTTL > 0 {
-		if role.DefaultTTL > cfg.DefaultTTL {
-			merr = multierror.Append(merr, errors.New("ttl > config TTL"))
-		}
-	} else {
-		if role.DefaultTTL > b.System().DefaultLeaseTTL() {
-			merr = multierror.Append(merr, errors.New("ttl > system TTL"))
-		}
-	}
-
-	if cfg.MaxTTL > 0 {
-		if role.MaxTTL > cfg.MaxTTL {
-			merr = multierror.Append(merr, errors.New("max_ttl > config max TTL"))
-		}
-	} else {
-		if role.MaxTTL > b.System().MaxLeaseTTL() {
-			merr = multierror.Append(merr, errors.New("max_ttl > system max TTL"))
-		}
-	}
-
-	if role.DefaultTTL > role.MaxTTL && role.MaxTTL != 0 {
-		merr = multierror.Append(merr, errors.New("ttl > max_ttl"))
+	if role.MaxTTL != 0 && role.TTL > role.MaxTTL {
+		return logical.ErrorResponse("ttl cannot be greater than max_ttl"), nil
 	}
 
 	if role.AzureRoles == nil || len(role.AzureRoles) == 0 {
-		merr = multierror.Append(merr, errors.New("missing Azure role definitions"))
-	}
-
-	if merr.ErrorOrNil() != nil {
-		return logical.ErrorResponse(merr.Error()), nil
+		return logical.ErrorResponse("missing Azure role definitions"), nil
 	}
 
 	// save role
@@ -241,7 +203,7 @@ func (b *azureSecretBackend) pathRoleRead(ctx context.Context, req *logical.Requ
 		return nil, nil
 	}
 
-	data["ttl"] = int64(r.DefaultTTL / time.Second)
+	data["ttl"] = int64(r.TTL / time.Second)
 	data["max_ttl"] = int64(r.MaxTTL / time.Second)
 	data["azure_roles"] = r.AzureRoles
 
@@ -316,7 +278,7 @@ control permissions to Azure resources.
 If the backend is mounted at "azure", you would create a Vault role at "azure/roles/my_role",
 and request credentials from "azure/creds/my_role".
 
-Each Vault roles is configured with the standard ttl parameters and a list of Azure
+Each Vault role is configured with the standard ttl parameters and a list of Azure
 roles and scopes. These Azure roles will be fetched during the Vault role creation
 and must exist for the request to succeed. Multiple Azure roles may be specified. When
 a used requests credentials against the Vault role, and new service principal is created
