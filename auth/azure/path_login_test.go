@@ -103,7 +103,7 @@ func TestLogin_BoundGroupID(t *testing.T) {
 
 func TestLogin_BoundSubscriptionID(t *testing.T) {
 	principalID := "prinID"
-	f := func(vmName string) (compute.VirtualMachine, error) {
+	c := func(vmName string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
 			PrincipalID: &principalID,
 		}
@@ -111,7 +111,16 @@ func TestLogin_BoundSubscriptionID(t *testing.T) {
 			Identity: &id,
 		}, nil
 	}
-	b, s := getTestBackendWithComputeClient(t, f)
+	v := func(vmssName string) (compute.VirtualMachineScaleSet, error) {
+		id := compute.VirtualMachineScaleSetIdentity{
+			PrincipalID: &principalID,
+		}
+		return compute.VirtualMachineScaleSet{
+			Identity: &id,
+		}, nil
+	}
+
+	b, s := getTestBackendWithComputeClient(t, c, v)
 
 	roleName := "testrole"
 	subID := "subID"
@@ -139,7 +148,12 @@ func TestLogin_BoundSubscriptionID(t *testing.T) {
 	loginData["resource_group_name"] = "rg"
 	testLoginFailure(t, b, s, loginData, claims, roleData)
 
+	loginData["vmss_name"] = "vmss"
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
+
 	loginData["vm_name"] = "vm"
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+	delete(loginData, "vmss_name")
 	testLoginSuccess(t, b, s, loginData, claims, roleData)
 
 	loginData["subscription_id"] = "bad sub"
@@ -148,7 +162,7 @@ func TestLogin_BoundSubscriptionID(t *testing.T) {
 
 func TestLogin_BoundResourceGroup(t *testing.T) {
 	principalID := "prinID"
-	f := func(vmName string) (compute.VirtualMachine, error) {
+	c := func(vmName string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
 			PrincipalID: &principalID,
 		}
@@ -156,7 +170,15 @@ func TestLogin_BoundResourceGroup(t *testing.T) {
 			Identity: &id,
 		}, nil
 	}
-	b, s := getTestBackendWithComputeClient(t, f)
+	v := func(vmName string) (compute.VirtualMachineScaleSet, error) {
+		id := compute.VirtualMachineScaleSetIdentity{
+			PrincipalID: &principalID,
+		}
+		return compute.VirtualMachineScaleSet{
+			Identity: &id,
+		}, nil
+	}
+	b, s := getTestBackendWithComputeClient(t, c, v)
 
 	roleName := "testrole"
 	rg := "rg"
@@ -184,6 +206,10 @@ func TestLogin_BoundResourceGroup(t *testing.T) {
 	loginData["resource_group_name"] = rg
 	testLoginFailure(t, b, s, loginData, claims, roleData)
 
+	loginData["vmss_name"] = "vmss"
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
+	delete(loginData, "vmss_name")
+
 	loginData["vm_name"] = "vm"
 	testLoginSuccess(t, b, s, loginData, claims, roleData)
 
@@ -194,7 +220,7 @@ func TestLogin_BoundResourceGroup(t *testing.T) {
 func TestLogin_BoundLocation(t *testing.T) {
 	principalID := "prinID"
 	location := "loc"
-	f := func(vmName string) (compute.VirtualMachine, error) {
+	c := func(vmName string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
 			PrincipalID: &principalID,
 		}
@@ -213,7 +239,27 @@ func TestLogin_BoundLocation(t *testing.T) {
 		}
 		return compute.VirtualMachine{}, nil
 	}
-	b, s := getTestBackendWithComputeClient(t, f)
+	v := func(vmssName string) (compute.VirtualMachineScaleSet, error) {
+		id := compute.VirtualMachineScaleSetIdentity{
+			PrincipalID: &principalID,
+		}
+		switch vmssName {
+		case "good":
+			return compute.VirtualMachineScaleSet{
+				Identity: &id,
+				Location: &location,
+			}, nil
+		case "bad":
+			badLoc := "bad"
+			return compute.VirtualMachineScaleSet{
+				Identity: &id,
+				Location: &badLoc,
+			}, nil
+		}
+		return compute.VirtualMachineScaleSet{}, nil
+	}
+
+	b, s := getTestBackendWithComputeClient(t, c, v)
 
 	roleName := "testrole"
 	roleData := map[string]interface{}{
@@ -236,10 +282,69 @@ func TestLogin_BoundLocation(t *testing.T) {
 
 	loginData["subscription_id"] = "sub"
 	loginData["resource_group_name"] = "rg"
+
+	loginData["vmss_name"] = "good"
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
+
+	loginData["vmss_name"] = "bad"
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+
+	delete(loginData, "vmss_name")
+
 	loginData["vm_name"] = "good"
 	testLoginSuccess(t, b, s, loginData, claims, roleData)
 
 	loginData["vm_name"] = "bad"
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+}
+
+func TestLogin_BoundScaleSet(t *testing.T) {
+	principalID := "prinID"
+	c := func(vmName string) (compute.VirtualMachine, error) {
+		id := compute.VirtualMachineIdentity{
+			PrincipalID: &principalID,
+		}
+		return compute.VirtualMachine{
+			Identity: &id,
+		}, nil
+	}
+	v := func(vmssName string) (compute.VirtualMachineScaleSet, error) {
+		id := compute.VirtualMachineScaleSetIdentity{
+			PrincipalID: &principalID,
+		}
+		return compute.VirtualMachineScaleSet{
+			Identity: &id,
+		}, nil
+	}
+
+	b, s := getTestBackendWithComputeClient(t, c, v)
+
+	roleName := "testrole"
+	roleData := map[string]interface{}{
+		"name":             roleName,
+		"policies":         []string{"dev", "prod"},
+		"bound_scale_sets": []string{"goodvmss"},
+	}
+	testRoleCreate(t, b, s, roleData)
+
+	claims := map[string]interface{}{
+		"exp": time.Now().Add(60 * time.Second).Unix(),
+		"nbf": time.Now().Add(-60 * time.Second).Unix(),
+		"oid": principalID,
+	}
+
+	loginData := map[string]interface{}{
+		"role": roleName,
+	}
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+
+	loginData["subscription_id"] = "sub"
+	loginData["resource_group_name"] = "rg"
+
+	loginData["vmss_name"] = "goodvmss"
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
+
+	loginData["vmss_name"] = "badvmss"
 	testLoginFailure(t, b, s, loginData, claims, roleData)
 }
 
