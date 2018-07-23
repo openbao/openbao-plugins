@@ -49,6 +49,44 @@ func TestConfig(t *testing.T) {
 	}
 }
 
+func TestConfigDelete(t *testing.T) {
+	b, s := getTestBackend(t, false)
+
+	// Test valid config
+	config := map[string]interface{}{
+		"subscription_id": "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+		"tenant_id":       "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+		"client_id":       "testClientId",
+		"client_secret":   "testClientSecret",
+		"environment":     "AZURECHINACLOUD",
+	}
+
+	testConfigCreate(t, b, s, config)
+
+	delete(config, "client_secret")
+	testConfigRead(t, b, s, config)
+
+	resp, err := b.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.DeleteOperation,
+		Path:      "config",
+		Storage:   s,
+	})
+
+	nilErr(t, err)
+
+	if resp != nil && resp.IsError() {
+		t.Fatal(resp.Error())
+	}
+
+	config = map[string]interface{}{
+		"subscription_id": "",
+		"tenant_id":       "",
+		"client_id":       "",
+		"environment":     "",
+	}
+	testConfigRead(t, b, s, config)
+}
+
 func testConfigCreate(t *testing.T, b logical.Backend, s logical.Storage, d map[string]interface{}) {
 	t.Helper()
 	testConfigCreateUpdate(t, b, logical.CreateOperation, s, d)

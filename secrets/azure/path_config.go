@@ -59,6 +59,7 @@ func pathConfig(b *azureSecretBackend) *framework.Path {
 			logical.ReadOperation:   b.pathConfigRead,
 			logical.CreateOperation: b.pathConfigWrite,
 			logical.UpdateOperation: b.pathConfigWrite,
+			logical.DeleteOperation: b.pathConfigDelete,
 		},
 		ExistenceCheck:  b.pathConfigExistenceCheck,
 		HelpSynopsis:    confHelpSyn,
@@ -135,6 +136,16 @@ func (b *azureSecretBackend) pathConfigRead(ctx context.Context, req *logical.Re
 		},
 	}
 	return resp, nil
+}
+
+func (b *azureSecretBackend) pathConfigDelete(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	err := req.Storage.Delete(ctx, configStoragePath)
+
+	if err == nil {
+		b.reset()
+	}
+
+	return nil, err
 }
 
 func (b *azureSecretBackend) pathConfigExistenceCheck(ctx context.Context, req *logical.Request, data *framework.FieldData) (bool, error) {
