@@ -36,6 +36,40 @@ func TestConfig_Write(t *testing.T) {
 
 }
 
+func TestConfigDelete(t *testing.T) {
+	b, s := getTestBackend(t)
+
+	configData := map[string]interface{}{
+		"tenant_id": "tid",
+		"resource":  "resource",
+	}
+	if err := testConfigCreate(t, b, s, configData); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	resp, err := b.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.DeleteOperation,
+		Path:      fmt.Sprintf("config"),
+		Storage:   s,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err = b.HandleRequest(context.Background(), &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      "config",
+		Storage:   s,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp != nil {
+		t.Fatal("expected nil config after delete")
+	}
+}
+
 func testConfigCreate(t *testing.T, b *azureAuthBackend, s logical.Storage, d map[string]interface{}) error {
 	resp, err := b.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.CreateOperation,
