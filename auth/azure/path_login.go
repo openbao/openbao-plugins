@@ -35,7 +35,7 @@ func pathLogin(b *azureAuthBackend) *framework.Path {
 			},
 			"vm_name": &framework.FieldSchema{
 				Type:        framework.TypeString,
-				Description: `The name of the virtual machine.`,
+				Description: `The name of the virtual machine. This value is ignored if vmss_name is specified.`,
 			},
 			"vmss_name": &framework.FieldSchema{
 				Type:        framework.TypeString,
@@ -188,8 +188,8 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 	var principalID, location *string
 
 	switch {
-	case vmssName != "" && vmName != "":
-		return errors.New("only one of vm_name or vmss_name should be specified")
+	// If vmss name is specified, the vm name will be ignored and only the scale set
+	// will be verified since vm names are generated automatically for scale sets
 	case vmssName != "":
 		client := b.provider.VMSSClient(subscriptionID)
 		vmss, err := client.Get(ctx, resourceGroupName, vmssName)
@@ -234,6 +234,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 
 		principalID = vm.Identity.PrincipalID
 		location = vm.Location
+
 	default:
 		return errors.New("either vm_name or vmss_name is required")
 	}
