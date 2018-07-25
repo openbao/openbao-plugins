@@ -78,14 +78,14 @@ func (*mockProvider) Verifier() tokenVerifier {
 	return newMockVerifier()
 }
 
-func (p *mockProvider) ComputeClient(string) computeClient {
+func (p *mockProvider) ComputeClient(string) (computeClient, error) {
 	return &mockComputeClient{
 		computeClientFunc: p.computeClientFunc,
-	}
+	}, nil
 }
 
-func (p *mockProvider) VMSSClient(string) vmssClient {
+func (p *mockProvider) VMSSClient(string) (vmssClient, error) {
 	return &mockVMSSClient{
 		vmssClientFunc: p.vmssClientFunc,
-	}
+	}, nil
 }
