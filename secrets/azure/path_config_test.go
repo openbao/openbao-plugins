@@ -101,14 +101,14 @@ func testConfigCreateUpdate(t *testing.T, b logical.Backend, op logical.Operatio
 	t.Helper()
 
 	// save and restore the client since the config change will clear it
-	client := b.(*azureSecretBackend).client
+	settings := b.(*azureSecretBackend).settings
 	resp, err := b.HandleRequest(context.Background(), &logical.Request{
 		Operation: op,
 		Path:      "config",
 		Data:      d,
 		Storage:   s,
 	})
-	b.(*azureSecretBackend).client = client
+	b.(*azureSecretBackend).settings = settings
 
 	if err != nil {
 		t.Fatal(err)

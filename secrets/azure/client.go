@@ -34,44 +34,37 @@ func (b *azureSecretBackend) getClient(ctx context.Context, s logical.Storage) (
 	unlockFunc := b.lock.RUnlock
 	defer func() { unlockFunc() }()
 
-	if b.client != nil {
-		return b.client, nil
+	if b.settings == nil {
+		// Upgrade lock
+		b.lock.RUnlock()
+		b.lock.Lock()
+		unlockFunc = b.lock.Unlock
+
+		// Create a new client from the stored or empty config
+		config, err := b.getConfig(ctx, s)
+		if err != nil {
+			return nil, err
+		}
+		if config == nil {
+			config = new(azureConfig)
+		}
+
+		settings, err := getClientSettings(config)
+		if err != nil {
+			return nil, err
+		}
+		b.settings = settings
 	}
 
-	// Upgrade lock
-	b.lock.RUnlock()
-	b.lock.Lock()
-	unlockFunc = b.lock.Unlock
-
-	if b.client != nil {
-		return b.client, nil
-	}
-
-	// Create a new client from the stored or empty config
-	config, err := b.getConfig(ctx, s)
-	if err != nil {
-		return nil, err
-	}
-	if config == nil {
-		config = new(azureConfig)
-	}
-
-	settings, err := getClientSettings(config)
-	if err != nil {
-		return nil, err
-	}
-
-	p, err := NewAzureProvider(settings)
+	p, err := b.getProvider(b.settings)
 	if err != nil {
 		return nil, err
 	}
 
 	c := &client{
 		provider: p,
-		settings: settings,
+		settings: b.settings,
 	}
-
-	b.client = c
 
 	return c, nil
 }

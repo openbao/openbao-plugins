@@ -59,8 +59,8 @@ type provider struct {
 	rdClient  *authorization.RoleDefinitionsClient
 }
 
-// NewAzureProvider creates an azureProvider, backed by Azure client objects for underlying services.
-func NewAzureProvider(settings *clientSettings) (AzureProvider, error) {
+// newAzureProvider creates an azureProvider, backed by Azure client objects for underlying services.
+func newAzureProvider(settings *clientSettings) (AzureProvider, error) {
 	// build clients that use the GraphRBAC endpoint
 	authorizer, err := getAuthorizer(settings, settings.Environment.GraphEndpoint)
 	if err != nil {

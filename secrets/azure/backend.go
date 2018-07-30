@@ -12,8 +12,9 @@ import (
 type azureSecretBackend struct {
 	*framework.Backend
 
-	client *client
-	lock   sync.RWMutex
+	getProvider func(*clientSettings) (AzureProvider, error)
+	settings    *clientSettings
+	lock        sync.RWMutex
 }
 
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
@@ -48,6 +49,8 @@ func backend() *azureSecretBackend {
 		Invalidate:  b.invalidate,
 	}
 
+	b.getProvider = newAzureProvider
+
 	return &b
 }
 
@@ -58,7 +61,7 @@ func (b *azureSecretBackend) reset() {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	b.client = nil
+	b.settings = nil
 }
 
 func (b *azureSecretBackend) invalidate(ctx context.Context, key string) {

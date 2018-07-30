@@ -61,7 +61,10 @@ func TestSPRead(t *testing.T) {
 		nilErr(t, err)
 
 		appObjID := resp.Secret.InternalData["app_object_id"].(string)
-		if !b.client.provider.(*mockProvider).appExists(appObjID) {
+		client, err := b.getClient(context.Background(), s)
+		nilErr(t, err)
+
+		if !client.provider.(*mockProvider).appExists(appObjID) {
 			t.Fatalf("application was not created")
 		}
 
@@ -117,11 +120,14 @@ func TestSPRevoke(t *testing.T) {
 	})
 
 	appObjID := resp.Secret.InternalData["app_object_id"].(string)
-	if !b.client.provider.(*mockProvider).appExists(appObjID) {
+	client, err := b.getClient(context.Background(), s)
+	nilErr(t, err)
+
+	if !client.provider.(*mockProvider).appExists(appObjID) {
 		t.Fatalf("application was not created")
 	}
 
-	// Serialize and deserialize the secret to lose typing, as will really happen
+	// Serialize and deserialize the secret to remove typing, as will really happen.
 	secret := new(logical.Secret)
 	enc, err := jsonutil.EncodeJSON(resp.Secret)
 	if err != nil {
@@ -141,7 +147,7 @@ func TestSPRevoke(t *testing.T) {
 		t.Fatalf("receive response error: %v", resp.Error())
 	}
 
-	if b.client.provider.(*mockProvider).appExists(appObjID) {
+	if client.provider.(*mockProvider).appExists(appObjID) {
 		t.Fatalf("application present but should have been deleted")
 	}
 }
@@ -167,9 +173,11 @@ func TestCredentialReadProviderError(t *testing.T) {
 
 	testRoleCreate(t, b, s, "test_role", testRole)
 
-	b.client.provider.(*mockProvider).failNextCreateApplication = true
+	client, err := b.getClient(context.Background(), s)
+	nilErr(t, err)
+	client.provider.(*mockProvider).failNextCreateApplication = true
 
-	_, err := b.HandleRequest(context.Background(), &logical.Request{
+	_, err = b.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.ReadOperation,
 		Path:      "creds/test_role",
 		Storage:   s,
@@ -242,18 +250,20 @@ func TestCredentialInteg(t *testing.T) {
 	appID := resp.Data["client_id"].(string)
 
 	// Use the underlying provider to access clients directly for testing
-	client := b.client.provider.(*provider)
+	client, err := b.getClient(context.Background(), s)
+	nilErr(t, err)
+	provider := client.provider.(*provider)
 
 	// recover the SP Object ID, which is not used by the application but
 	// is helpful for verification testing
-	spList, err := client.spClient.List(context.Background(), "")
+	spList, err := provider.spClient.List(context.Background(), "")
 	nilErr(t, err)
 
-	var spObjId string
+	var spObjID string
 	for spList.NotDone() {
 		for _, v := range spList.Values() {
 			if to.String(v.AppID) == appID {
-				spObjId = to.String(v.ObjectID)
+				spObjID = to.String(v.ObjectID)
 				goto FOUND
 			}
 		}
@@ -263,7 +273,7 @@ func TestCredentialInteg(t *testing.T) {
 
 FOUND:
 	// verify the new SP can be accessed
-	_, err = client.spClient.Get(context.Background(), spObjId)
+	_, err = provider.spClient.Get(context.Background(), spObjID)
 	if err != nil {
 		t.Fatalf("Expected nil error on GET of new SP, got: %#v", err)
 	}
@@ -273,10 +283,10 @@ FOUND:
 	raIDs := resp.Secret.InternalData["role_assignment_ids"].([]string)
 	equal(t, 1, len(raIDs))
 
-	ra, err := client.raClient.GetByID(context.Background(), raIDs[0])
+	ra, err := provider.raClient.GetByID(context.Background(), raIDs[0])
 	nilErr(t, err)
 
-	roleDefs, err := b.client.provider.ListRoles(context.Background(), fmt.Sprintf("subscriptions/%s", subscriptionID), "")
+	roleDefs, err := client.provider.ListRoles(context.Background(), fmt.Sprintf("subscriptions/%s", subscriptionID), "")
 	nilErr(t, err)
 
 	defID := *ra.RoleAssignmentPropertiesWithScope.RoleDefinitionID
@@ -308,7 +318,7 @@ FOUND:
 	// Verify that SP get is an error after delete. Expected there
 	// to be a delay and that this step would take some time/retries,
 	// but that seems not to be the case.
-	_, err = client.spClient.Get(context.Background(), spObjId)
+	_, err = provider.spClient.Get(context.Background(), spObjID)
 
 	if err == nil {
 		t.Fatal("Expected error reading deleted SP")
