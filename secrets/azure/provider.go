@@ -2,15 +2,11 @@ package azuresecrets
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"runtime"
 
 	"github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac"
 	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
-	"github.com/hashicorp/vault/helper/pluginutil"
 	"github.com/hashicorp/vault/helper/useragent"
 )
 
@@ -67,13 +63,20 @@ func newAzureProvider(settings *clientSettings) (AzureProvider, error) {
 		return nil, err
 	}
 
+	var userAgent string
+	if settings.PluginEnv != nil {
+		userAgent = useragent.PluginString(settings.PluginEnv, "azure-secrets")
+	} else {
+		userAgent = useragent.String()
+	}
+
 	appClient := graphrbac.NewApplicationsClient(settings.TenantID)
 	appClient.Authorizer = authorizer
-	appClient.AddToUserAgent(userAgent())
+	appClient.AddToUserAgent(userAgent)
 
 	spClient := graphrbac.NewServicePrincipalsClient(settings.TenantID)
 	spClient.Authorizer = authorizer
-	spClient.AddToUserAgent(userAgent())
+	spClient.AddToUserAgent(userAgent)
 
 	// build clients that use the Resource Manager endpoint
 	authorizer, err = getAuthorizer(settings, settings.Environment.ResourceManagerEndpoint)
@@ -83,11 +86,11 @@ func newAzureProvider(settings *clientSettings) (AzureProvider, error) {
 
 	raClient := authorization.NewRoleAssignmentsClient(settings.SubscriptionID)
 	raClient.Authorizer = authorizer
-	raClient.AddToUserAgent(userAgent())
+	raClient.AddToUserAgent(userAgent)
 
 	rdClient := authorization.NewRoleDefinitionsClient(settings.SubscriptionID)
 	rdClient.Authorizer = authorizer
-	rdClient.AddToUserAgent(userAgent())
+	rdClient.AddToUserAgent(userAgent)
 
 	p := &provider{
 		settings: settings,
@@ -184,14 +187,4 @@ func (p *provider) ListRoleAssignments(ctx context.Context, filter string) ([]au
 	}
 
 	return page.Values(), nil
-}
-
-// userAgent determines the User Agent to send on HTTP requests.
-func userAgent() string {
-	if version := os.Getenv(pluginutil.PluginVaultVersionEnv); version != "" {
-		projectURL := "https://www.vaultproject.io/"
-		rt := runtime.Version()
-		return fmt.Sprintf("Vault/%s (+%s; %s)", version, projectURL, rt)
-	}
-	return useragent.String()
 }

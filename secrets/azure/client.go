@@ -49,7 +49,7 @@ func (b *azureSecretBackend) getClient(ctx context.Context, s logical.Storage) (
 			config = new(azureConfig)
 		}
 
-		settings, err := getClientSettings(config)
+		settings, err := b.getClientSettings(ctx, config)
 		if err != nil {
 			return nil, err
 		}
@@ -218,11 +218,12 @@ type clientSettings struct {
 	ClientID       string
 	ClientSecret   string
 	Environment    azure.Environment
+	PluginEnv      *logical.PluginEnvironment
 }
 
 // getClientSettings creates a new clientSettings object.
 // Environment variables have higher precedence than stored configuration.
-func getClientSettings(config *azureConfig) (*clientSettings, error) {
+func (b *azureSecretBackend) getClientSettings(ctx context.Context, config *azureConfig) (*clientSettings, error) {
 	firstAvailable := func(opts ...string) string {
 		for _, s := range opts {
 			if s != "" {
@@ -254,6 +255,12 @@ func getClientSettings(config *azureConfig) (*clientSettings, error) {
 		return nil, err
 	}
 	settings.Environment = env
+
+	pluginEnv, err := b.System().PluginEnv(ctx)
+	if err != nil {
+		return nil, errwrap.Wrapf("error loading plugin environment: {{err}}", err)
+	}
+	settings.PluginEnv = pluginEnv
 
 	return settings, nil
 }
