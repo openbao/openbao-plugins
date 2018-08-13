@@ -40,20 +40,22 @@ func (b *azureSecretBackend) getClient(ctx context.Context, s logical.Storage) (
 		b.lock.Lock()
 		unlockFunc = b.lock.Unlock
 
-		// Create a new client from the stored or empty config
-		config, err := b.getConfig(ctx, s)
-		if err != nil {
-			return nil, err
-		}
-		if config == nil {
-			config = new(azureConfig)
-		}
+		if b.settings == nil {
+			// Create a new client from the stored or empty config
+			config, err := b.getConfig(ctx, s)
+			if err != nil {
+				return nil, err
+			}
+			if config == nil {
+				config = new(azureConfig)
+			}
 
-		settings, err := b.getClientSettings(ctx, config)
-		if err != nil {
-			return nil, err
+			settings, err := b.getClientSettings(ctx, config)
+			if err != nil {
+				return nil, err
+			}
+			b.settings = settings
 		}
-		b.settings = settings
 	}
 
 	p, err := b.getProvider(b.settings)
@@ -131,7 +133,7 @@ func (c *client) deleteApp(ctx context.Context, appObjectID string) error {
 	resp, err := c.provider.DeleteApplication(ctx, appObjectID)
 
 	// Don't consider it an error if the object wasn't present
-	if err != nil && resp.StatusCode == 404 {
+	if err != nil && resp.Response != nil && resp.StatusCode == 404 {
 		return nil
 	}
 
@@ -182,7 +184,7 @@ func (c *client) assignRoles(ctx context.Context, sp *graphrbac.ServicePrincipal
 		}
 
 		if !assigned {
-			return nil, fmt.Errorf("unable to assign roles. Principal ID not found: %s", to.String(sp.ObjectID))
+			return nil, fmt.Errorf("Unable to assign roles. Principal ID not found: %s", to.String(sp.ObjectID))
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/vault/logical"
 )
@@ -53,7 +54,7 @@ func TestRoleCreate(t *testing.T) {
 		resp, err := testRoleRead(t, b, s, name)
 		nilErr(t, err)
 
-		resp.Data["azure_roles"] = encodeJSON(resp.Data["azure_roles"])
+		convertRespTypes(resp.Data)
 		equal(t, spRole1, resp.Data)
 
 		testRoleCreate(t, b, s, name, spRole2)
@@ -61,7 +62,7 @@ func TestRoleCreate(t *testing.T) {
 		resp, err = testRoleRead(t, b, s, name)
 		nilErr(t, err)
 
-		resp.Data["azure_roles"] = encodeJSON(resp.Data["azure_roles"])
+		convertRespTypes(resp.Data)
 		equal(t, spRole2, resp.Data)
 	})
 
@@ -84,7 +85,8 @@ func TestRoleCreate(t *testing.T) {
 
 		resp, err := testRoleRead(t, b, s, name)
 		nilErr(t, err)
-		resp.Data["azure_roles"] = encodeJSON(resp.Data["azure_roles"])
+
+		convertRespTypes(resp.Data)
 		equal(t, testRole, resp.Data)
 	})
 
@@ -386,4 +388,12 @@ func testRoleRead(t *testing.T, b *azureSecretBackend, s logical.Storage, name s
 		Path:      fmt.Sprintf("roles/%s", name),
 		Storage:   s,
 	})
+}
+
+// Utility function to convert response types back to the format that is used as
+// input in order to streamline the comparison steps.
+func convertRespTypes(data map[string]interface{}) {
+	data["azure_roles"] = encodeJSON(data["azure_roles"])
+	data["ttl"] = int64(data["ttl"].(time.Duration))
+	data["max_ttl"] = int64(data["max_ttl"].(time.Duration))
 }

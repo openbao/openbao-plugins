@@ -176,7 +176,7 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 		return logical.ErrorResponse("ttl cannot be greater than max_ttl"), nil
 	}
 
-	if role.AzureRoles == nil || len(role.AzureRoles) == 0 {
+	if len(role.AzureRoles) == 0 {
 		return logical.ErrorResponse("missing Azure role definitions"), nil
 	}
 
@@ -203,8 +203,8 @@ func (b *azureSecretBackend) pathRoleRead(ctx context.Context, req *logical.Requ
 		return nil, nil
 	}
 
-	data["ttl"] = int64(r.TTL / time.Second)
-	data["max_ttl"] = int64(r.MaxTTL / time.Second)
+	data["ttl"] = r.TTL / time.Second
+	data["max_ttl"] = r.MaxTTL / time.Second
 	data["azure_roles"] = r.AzureRoles
 
 	return &logical.Response{
