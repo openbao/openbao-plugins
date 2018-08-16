@@ -191,6 +191,8 @@ func TestCredentialReadProviderError(t *testing.T) {
 // TestCredentialInteg is an integration test against the live Azure service. It requires
 // valid, sufficiently-privileged Azure credentials in env variables.
 func TestCredentialInteg(t *testing.T) {
+	t.Parallel()
+
 	if os.Getenv("VAULT_ACC") != "1" {
 		t.SkipNow()
 	}

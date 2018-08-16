@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -111,19 +112,30 @@ func (c *client) createSP(
 		return nil, "", err
 	}
 
-	now := time.Now()
-	result, err := c.provider.CreateServicePrincipal(ctx, graphrbac.ServicePrincipalCreateParameters{
-		AppID:          app.AppID,
-		AccountEnabled: to.BoolPtr(true),
-		PasswordCredentials: &[]graphrbac.PasswordCredential{
-			graphrbac.PasswordCredential{
-				StartDate: &date.Time{Time: now},
-				EndDate:   &date.Time{Time: now.Add(duration)},
-				KeyID:     to.StringPtr(keyID),
-				Value:     to.StringPtr(password),
+	resultRaw, err := retry(ctx, func() (interface{}, bool, error) {
+		now := time.Now()
+		result, err := c.provider.CreateServicePrincipal(ctx, graphrbac.ServicePrincipalCreateParameters{
+			AppID:          app.AppID,
+			AccountEnabled: to.BoolPtr(true),
+			PasswordCredentials: &[]graphrbac.PasswordCredential{
+				graphrbac.PasswordCredential{
+					StartDate: &date.Time{Time: now},
+					EndDate:   &date.Time{Time: now.Add(duration)},
+					KeyID:     to.StringPtr(keyID),
+					Value:     to.StringPtr(password),
+				},
 			},
-		},
+		})
+
+		// Propagation delays within Azure can cause this error occasionally, so don't quit on it.
+		if err != nil && strings.Contains(err.Error(), "does not reference a valid application object") {
+			return nil, false, nil
+		}
+
+		return result, true, err
 	})
+
+	result := resultRaw.(graphrbac.ServicePrincipal)
 
 	return &result, password, err
 }
@@ -150,13 +162,7 @@ func (c *client) assignRoles(ctx context.Context, sp *graphrbac.ServicePrincipal
 			return nil, err
 		}
 
-		// retries are essential for this operation as there can be a significant delay between
-		// when a service principal is created and when it is visible for other operations. If
-		// it isn't visible yet, "PrincipalNotFound" is the error received and is not treated
-		// as an error here. The retry logic (5 seconds sleeps, max 36 tries) is straight from
-		// the az cli behavior and was confirmed as acceptable by Microsoft.
-		assigned := false
-		for i := 0; i < 36; i++ {
+		resultRaw, err := retry(ctx, func() (interface{}, bool, error) {
 			ra, err := c.provider.CreateRoleAssignment(ctx, role.Scope, assignmentID,
 				authorization.RoleAssignmentCreateParameters{
 					RoleAssignmentProperties: &authorization.RoleAssignmentProperties{
@@ -165,27 +171,19 @@ func (c *client) assignRoles(ctx context.Context, sp *graphrbac.ServicePrincipal
 					},
 				})
 
-			if err == nil {
-				ids = append(ids, to.String(ra.ID))
-				assigned = true
-				break
+			// Propagation delays within Azure can cause this error occasionally, so don't quit on it.
+			if err != nil && strings.Contains(err.Error(), "PrincipalNotFound") {
+				return nil, false, nil
 			}
 
-			if !strings.Contains(err.Error(), "PrincipalNotFound") {
-				return nil, errwrap.Wrapf("error while assigning role: {{err}}", err)
-			}
+			return to.String(ra.ID), true, err
+		})
 
-			t := time.NewTimer(5 * time.Second)
-			select {
-			case <-t.C:
-			case <-ctx.Done():
-				return nil, errors.New("role assignment operation cancelled")
-			}
+		if err != nil {
+			return nil, errwrap.Wrapf("error while assigning roles: {{err}}", err)
 		}
 
-		if !assigned {
-			return nil, fmt.Errorf("Unable to assign roles. Principal ID not found: %s", to.String(sp.ObjectID))
-		}
+		ids = append(ids, resultRaw.(string))
 	}
 
 	return ids, nil
@@ -265,4 +263,33 @@ func (b *azureSecretBackend) getClientSettings(ctx context.Context, config *azur
 	settings.PluginEnv = pluginEnv
 
 	return settings, nil
+}
+
+// retry will repeatedly call f until one of:
+//   * f returns true
+//   * the context is cancelled
+//   * 3 minutes elapse
+//
+// Delays are random but will average 5 seconds. The hardcoded durations are the same
+// ones used in the Azure CLI tool.
+func retry(ctx context.Context, f func() (interface{}, bool, error)) (interface{}, error) {
+	delayTimer := time.NewTimer(0)
+	endCh := time.NewTimer(3 * time.Minute).C
+
+	for {
+		if result, done, err := f(); done {
+			return result, err
+		}
+
+		delay := time.Duration(2000+rand.Intn(6000)) * time.Millisecond
+		delayTimer.Reset(delay)
+
+		select {
+		case <-delayTimer.C:
+		case <-endCh:
+			return nil, errors.New("retry: timeout")
+		case <-ctx.Done():
+			return nil, errors.New("retry: cancelled")
+		}
+	}
 }
