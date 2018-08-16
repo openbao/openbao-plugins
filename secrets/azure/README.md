@@ -1,9 +1,3 @@
-# Status of this repo
-
-This private repository contains code (Identity support) that may or may not ever become public, so **this repo should remain private**. When the Azure Secrets plugin is moved to OSS, a new repo will be created and a copy of the source will be imported. Identity support was ~80% complete when it was stopped. The WIP state can be found at: https://github.com/hashicorp/vault-plugin-secrets-azure/tree/pre-identity-removal
-
----
-
 # Vault Plugin: Azure Secrets Backend [![Build Status](https://travis-ci.org/hashicorp/vault-plugin-secrets-azure.svg?branch=master)](https://travis-ci.org/hashicorp/vault-plugin-secrets-azure)
 
 This is a standalone backend plugin for use with [Hashicorp Vault](https://www.github.com/hashicorp/vault).
