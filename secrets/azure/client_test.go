@@ -60,8 +60,10 @@ func TestRetry(t *testing.T) {
 			return nil, false, nil
 		})
 		elapsed := time.Now().Sub(start).Seconds()
-		if elapsed < 178 || elapsed > 182 {
-			t.Fatalf("expected time of ~180 seconds, got: %f", elapsed)
+		expected := retryTimeout.Seconds()
+
+		if elapsed < expected-2 || elapsed > expected+2 {
+			t.Fatalf("expected time of ~%f seconds, got: %f", expected, elapsed)
 		}
 		if err == nil || !strings.Contains(err.Error(), "timeout") {
 			t.Fatalf("expected timeout error, got: %v", err)
