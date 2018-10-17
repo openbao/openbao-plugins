@@ -69,6 +69,7 @@ func getTestBackend(t *testing.T, initConfig bool) (*azureSecretBackend, logical
 type mockProvider struct {
 	subscriptionID            string
 	applications              map[string]bool
+	passwords                 map[string]bool
 	failNextCreateApplication bool
 }
 
@@ -76,6 +77,7 @@ func newMockProvider() AzureProvider {
 	return &mockProvider{
 		subscriptionID: generateUUID(),
 		applications:   make(map[string]bool),
+		passwords:      make(map[string]bool),
 	}
 }
 
@@ -148,13 +150,43 @@ func (m *mockProvider) CreateApplication(ctx context.Context, parameters graphrb
 	}, nil
 }
 
+func (m *mockProvider) GetApplication(ctx context.Context, applicationObjectID string) (graphrbac.Application, error) {
+	return graphrbac.Application{
+		AppID: to.StringPtr("00000000-0000-0000-0000-000000000000"),
+	}, nil
+}
+
 func (m *mockProvider) DeleteApplication(ctx context.Context, applicationObjectID string) (autorest.Response, error) {
 	delete(m.applications, applicationObjectID)
 	return autorest.Response{}, nil
 }
 
+func (m *mockProvider) UpdateApplicationPasswordCredentials(ctx context.Context, applicationObjectID string, parameters graphrbac.PasswordCredentialsUpdateParameters) (result autorest.Response, err error) {
+	m.passwords = make(map[string]bool)
+	for _, v := range *parameters.Value {
+		m.passwords[*v.KeyID] = true
+	}
+
+	return autorest.Response{}, nil
+}
+
+func (m *mockProvider) ListApplicationPasswordCredentials(ctx context.Context, applicationObjectID string) (result graphrbac.PasswordCredentialListResult, err error) {
+	var creds []graphrbac.PasswordCredential
+	for keyID := range m.passwords {
+		creds = append(creds, graphrbac.PasswordCredential{KeyID: &keyID})
+	}
+
+	return graphrbac.PasswordCredentialListResult{
+		Value: &creds,
+	}, nil
+}
+
 func (m *mockProvider) appExists(s string) bool {
 	return m.applications[s]
+}
+
+func (m *mockProvider) passwordExists(s string) bool {
+	return m.passwords[s]
 }
 
 func (m *mockProvider) VMGet(ctx context.Context, resourceGroupName string, VMName string, expand compute.InstanceViewTypes) (result compute.VirtualMachine, err error) {

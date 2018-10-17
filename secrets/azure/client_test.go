@@ -9,6 +9,9 @@ import (
 )
 
 func TestRetry(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	t.Parallel()
 	t.Run("First try success", func(t *testing.T) {
 		_, err := retry(context.Background(), func() (interface{}, bool, error) {
