@@ -181,7 +181,7 @@ func TestRoleCreate(t *testing.T) {
 		})
 		nilErr(t, err)
 		if resp.IsError() {
-			t.Fatal("received unxpected error response")
+			t.Fatalf("received unexpected error response: %v", resp.Error())
 		}
 
 		resp, err = testRoleRead(t, b, s, name)
@@ -191,6 +191,64 @@ func TestRoleCreate(t *testing.T) {
 		equal(t, "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Owner", roles[0].RoleID)
 		equal(t, "Contributor", roles[1].RoleName)
 		equal(t, "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Contributor", roles[1].RoleID)
+	})
+
+	t.Run("Duplicate role name and scope", func(t *testing.T) {
+		b, s := getTestBackend(t, true)
+
+		var role = map[string]interface{}{
+			"azure_roles": compactJSON(`[
+				{
+					"role_name": "Owner",
+					"scope":  "test_scope_1"
+				},
+				{
+					"role_name": "Owner",
+					"scope":  "test_scope_1"
+				}
+			]`),
+		}
+
+		name := generateUUID()
+		resp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "roles/" + name,
+			Data:      role,
+			Storage:   s,
+		})
+		nilErr(t, err)
+		if !resp.IsError() {
+			t.Fatal("expected error response for duplicate role & scope")
+		}
+	})
+
+	t.Run("Duplicate role name, different scope", func(t *testing.T) {
+		b, s := getTestBackend(t, true)
+
+		var role = map[string]interface{}{
+			"azure_roles": compactJSON(`[
+				{
+					"role_name": "Owner",
+					"scope":  "test_scope_1"
+				},
+				{
+					"role_name": "Owner",
+					"scope":  "test_scope_2"
+				}
+			]`),
+		}
+
+		name := generateUUID()
+		resp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "roles/" + name,
+			Data:      role,
+			Storage:   s,
+		})
+		nilErr(t, err)
+		if resp.IsError() {
+			t.Fatalf("received unexpected error response: %v", resp.Error())
+		}
 	})
 
 	t.Run("Role name lookup (multiple match)", func(t *testing.T) {

@@ -348,12 +348,20 @@ func TestCredentialInteg(t *testing.T) {
 		nilErr(t, err)
 
 		// Add a Vault role that will provide creds with Azure "Reader" permissions
+		// Resources groups "vault-azure-secrets-test1" and "vault-azure-secrets-test2"
+		// should already exist in the test infrastructure. (The test can be simplified
+		// to just use scope "/subscriptions/%s" if need be.)
 		rolename := "test_role"
 		role := map[string]interface{}{
-			"azure_roles": fmt.Sprintf(`[{
-			"role_name": "Reader",
-			"scope":  "/subscriptions/%s"
-		}]`, subscriptionID),
+			"azure_roles": fmt.Sprintf(`[
+			{
+				"role_name": "Reader",
+				"scope":  "/subscriptions/%s/resourceGroups/vault-azure-secrets-test1"
+			},
+			{
+				"role_name": "Reader",
+				"scope":  "/subscriptions/%s/resourceGroups/vault-azure-secrets-test2"
+			}]`, subscriptionID, subscriptionID),
 		}
 		resp, err := b.HandleRequest(context.Background(), &logical.Request{
 			Operation: logical.CreateOperation,
@@ -411,10 +419,10 @@ func TestCredentialInteg(t *testing.T) {
 			t.Fatalf("Expected nil error on GET of new SP, got: %#v", err)
 		}
 
-		// Verify that a role assignment was created. Get the assignment
+		// Verify that the role assignments were created. Get the assignment
 		// info from Azure and verify it matches the Reader role.
 		raIDs := resp.Secret.InternalData["role_assignment_ids"].([]string)
-		equal(t, 1, len(raIDs))
+		equal(t, 2, len(raIDs))
 
 		ra, err := provider.raClient.GetByID(context.Background(), raIDs[0])
 		nilErr(t, err)
