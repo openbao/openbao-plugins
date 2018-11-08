@@ -299,7 +299,7 @@ func TestRoleCreateBad(t *testing.T) {
 	// invalid roles
 	role = map[string]interface{}{"azure_roles": "asdf"}
 	resp = testRoleCreateBasic(t, b, s, "test_role_1", role)
-	msg = "invalid Azure role definitions"
+	msg = "error parsing Azure roles"
 	if !strings.Contains(resp.Error().Error(), msg) {
 		t.Fatalf("expected to find: %s, got: %s", msg, resp.Error().Error())
 	}
@@ -307,7 +307,7 @@ func TestRoleCreateBad(t *testing.T) {
 	// invalid roles, with application_object_id
 	role = map[string]interface{}{"application_object_id": "abc", "azure_roles": "asdf"}
 	resp = testRoleCreateBasic(t, b, s, "test_role_1", role)
-	msg = "invalid Azure role definitions"
+	msg = "error parsing Azure roles"
 	if !strings.Contains(resp.Error().Error(), msg) {
 		t.Fatalf("expected to find: %s, got: %s", msg, resp.Error().Error())
 	}
