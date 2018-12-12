@@ -229,7 +229,15 @@ decrypts the value using the corresponding public key.
         algorithm=rsa_decrypt_oaep_4096_sha256
     ```
 
-1. Retrieve the public key from Cloud KMS:
+1. Retrieve the public key:
+
+    You can use Vault's `pubkey/:key` endpoint:
+
+    ```text
+    $ vault read -field=pem gcpkms/pubkey/my-key key_version=1 > ~/mykey.pub
+    ```
+
+    Or you can retrieve the values using `gcloud` or the Google Cloud API:
 
     ```text
     $ gcloud alpha kms keys versions get-public-key [CRYPTO_KEY_VERSION] \

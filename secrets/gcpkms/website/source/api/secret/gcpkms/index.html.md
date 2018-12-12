@@ -258,6 +258,65 @@ $ curl \
 }
 ```
 
+## Get Public Key
+
+This endpoint uses the named encryption key to retrieve the PEM-encoded contents
+of the corresponding public key on Google Cloud KMS. This only applies to
+asymmetric key types.
+
+| Method   | Path                       | Produces                  |
+| :------- | :--------------------------| :------------------------ |
+| `GET`    | `gcpkms/pubkey/:key`       | `200 application/json`    |
+
+### Example Policy
+
+```hcl
+path "gcpkms/pubkey/my-key" {
+  capabilities = ["read"]
+}
+```
+
+### Parameters
+
+- `key` (`string: <required>`) -
+Name of the key in Vault for which to retrieve the public key. This key must
+already exist in Vault and must map back to a Google Cloud KMS key. This is
+specified as part of the URL.
+
+- `key_version` (`int: <required>`) -
+Integer version of the crypto key version for which to retrieve the public key.
+This field is required.
+
+
+### Sample Payload
+
+```json
+{
+  "key_version": 1
+}
+```
+
+### Sample Request
+
+```text
+$ curl \
+    --header "X-Vault-Token: ..." \
+    --get \
+    --data @payload.json \
+    https://127.0.0.1:8200/v1/gcpkms/pubkey/my-key
+```
+
+### Sample Response
+
+```json
+{
+  "data": {
+    "pem": "----BEGIN PUBLIC KEY-----\nMIICIjANBgkq...",
+    "algorithm": "rsa_decrypt_oaep_4096_sha256"
+  }
+}
+```
+
 ## Re-Encrypt Existing Ciphertext
 
 This endpoint uses the named encryption key to re-encrypt the underlying
