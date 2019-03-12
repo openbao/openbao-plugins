@@ -373,6 +373,14 @@ func ProtoResponseToLogicalResponse(r *Response) (*logical.Response, error) {
 		return nil, err
 	}
 
+	var headers map[string][]string
+	if len(r.Headers) > 0 {
+		headers = make(map[string][]string, len(r.Headers))
+		for k, v := range r.Headers {
+			headers[k] = v.Header
+		}
+	}
+
 	return &logical.Response{
 		Secret:   secret,
 		Auth:     auth,
@@ -380,6 +388,7 @@ func ProtoResponseToLogicalResponse(r *Response) (*logical.Response, error) {
 		Redirect: r.Redirect,
 		Warnings: r.Warnings,
 		WrapInfo: wrapInfo,
+		Headers:  headers,
 	}, nil
 }
 
@@ -454,6 +463,11 @@ func LogicalResponseToProtoResponse(r *logical.Response) (*Response, error) {
 		return nil, err
 	}
 
+	headers := map[string]*Header{}
+	for k, v := range r.Headers {
+		headers[k] = &Header{Header: v}
+	}
+
 	return &Response{
 		Secret:   secret,
 		Auth:     auth,
@@ -461,6 +475,7 @@ func LogicalResponseToProtoResponse(r *logical.Response) (*Response, error) {
 		Redirect: r.Redirect,
 		Warnings: r.Warnings,
 		WrapInfo: wrapInfo,
+		Headers:  headers,
 	}, nil
 }
 
@@ -486,6 +501,7 @@ func LogicalAuthToProtoAuth(a *logical.Auth) (*Auth, error) {
 
 	return &Auth{
 		LeaseOptions:     lo,
+		TokenType:        uint32(a.TokenType),
 		InternalData:     string(buf[:]),
 		DisplayName:      a.DisplayName,
 		Policies:         a.Policies,
@@ -532,6 +548,7 @@ func ProtoAuthToLogicalAuth(a *Auth) (*logical.Auth, error) {
 
 	return &logical.Auth{
 		LeaseOptions:     lo,
+		TokenType:        logical.TokenType(a.TokenType),
 		InternalData:     data,
 		DisplayName:      a.DisplayName,
 		Policies:         a.Policies,
@@ -578,6 +595,7 @@ func LogicalTokenEntryToProtoTokenEntry(t *logical.TokenEntry) *TokenEntry {
 		BoundCIDRs:     boundCIDRs,
 		NamespaceID:    t.NamespaceID,
 		CubbyholeID:    t.CubbyholeID,
+		Type:           uint32(t.Type),
 	}
 }
 
@@ -614,5 +632,6 @@ func ProtoTokenEntryToLogicalTokenEntry(t *TokenEntry) (*logical.TokenEntry, err
 		BoundCIDRs:     boundCIDRs,
 		NamespaceID:    t.NamespaceID,
 		CubbyholeID:    t.CubbyholeID,
+		Type:           logical.TokenType(t.Type),
 	}, nil
 }

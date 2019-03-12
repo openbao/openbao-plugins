@@ -17,7 +17,7 @@ package ochttp
 import (
 	"io"
 	"net/http"
-	"net/http/httptrace"
+	"net/url"
 
 	"go.opencensus.io/plugin/ochttp/propagation/b3"
 	"go.opencensus.io/trace"
@@ -39,11 +39,9 @@ const (
 )
 
 type traceTransport struct {
-	base           http.RoundTripper
-	startOptions   trace.StartOptions
-	format         propagation.HTTPFormat
-	formatSpanName func(*http.Request) string
-	newClientTrace func(*http.Request, *trace.Span) *httptrace.ClientTrace
+	base         http.RoundTripper
+	startOptions trace.StartOptions
+	format       propagation.HTTPFormat
 }
 
 // TODO(jbd): Add message events for request and response size.
@@ -52,43 +50,27 @@ type traceTransport struct {
 // The created span can follow a parent span, if a parent is presented in
 // the request's context.
 func (t *traceTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	name := t.formatSpanName(req)
+	name := spanNameFromURL(req.URL)
 	// TODO(jbd): Discuss whether we want to prefix
 	// outgoing requests with Sent.
-	ctx, span := trace.StartSpan(req.Context(), name,
-		trace.WithSampler(t.startOptions.Sampler),
-		trace.WithSpanKind(trace.SpanKindClient))
-
-	if t.newClientTrace != nil {
-		req = req.WithContext(httptrace.WithClientTrace(ctx, t.newClientTrace(req, span)))
-	} else {
-		req = req.WithContext(ctx)
-	}
+	parent := trace.FromContext(req.Context())
+	span := trace.NewSpan(name, parent, t.startOptions)
+	req = req.WithContext(trace.WithSpan(req.Context(), span))
 
 	if t.format != nil {
-		// SpanContextToRequest will modify its Request argument, which is
-		// contrary to the contract for http.RoundTripper, so we need to
-		// pass it a copy of the Request.
-		// However, the Request struct itself was already copied by
-		// the WithContext calls above and so we just need to copy the header.
-		header := make(http.Header)
-		for k, v := range req.Header {
-			header[k] = v
-		}
-		req.Header = header
 		t.format.SpanContextToRequest(span.SpanContext(), req)
 	}
 
 	span.AddAttributes(requestAttrs(req)...)
 	resp, err := t.base.RoundTrip(req)
 	if err != nil {
-		span.SetStatus(trace.Status{Code: trace.StatusCodeUnknown, Message: err.Error()})
+		span.SetStatus(trace.Status{Code: 2, Message: err.Error()})
 		span.End()
 		return resp, err
 	}
 
 	span.AddAttributes(responseAttrs(resp)...)
-	span.SetStatus(TraceStatus(resp.StatusCode, resp.Status))
+	span.SetStatus(status(resp.StatusCode))
 
 	// span.End() will be invoked after
 	// a read from resp.Body returns io.EOF or when
@@ -144,8 +126,8 @@ func (t *traceTransport) CancelRequest(req *http.Request) {
 	}
 }
 
-func spanNameFromURL(req *http.Request) string {
-	return req.URL.Path
+func spanNameFromURL(u *url.URL) string {
+	return u.Path
 }
 
 func requestAttrs(r *http.Request) []trace.Attribute {
@@ -163,66 +145,71 @@ func responseAttrs(resp *http.Response) []trace.Attribute {
 	}
 }
 
-// TraceStatus is a utility to convert the HTTP status code to a trace.Status that
-// represents the outcome as closely as possible.
-func TraceStatus(httpStatusCode int, statusLine string) trace.Status {
+func status(statusCode int) trace.Status {
 	var code int32
-	if httpStatusCode < 200 || httpStatusCode >= 400 {
-		code = trace.StatusCodeUnknown
+	if statusCode < 200 || statusCode >= 400 {
+		code = codeUnknown
 	}
-	switch httpStatusCode {
+	switch statusCode {
 	case 499:
-		code = trace.StatusCodeCancelled
+		code = codeCancelled
 	case http.StatusBadRequest:
-		code = trace.StatusCodeInvalidArgument
+		code = codeInvalidArgument
 	case http.StatusGatewayTimeout:
-		code = trace.StatusCodeDeadlineExceeded
+		code = codeDeadlineExceeded
 	case http.StatusNotFound:
-		code = trace.StatusCodeNotFound
+		code = codeNotFound
 	case http.StatusForbidden:
-		code = trace.StatusCodePermissionDenied
+		code = codePermissionDenied
 	case http.StatusUnauthorized: // 401 is actually unauthenticated.
-		code = trace.StatusCodeUnauthenticated
+		code = codeUnathenticated
 	case http.StatusTooManyRequests:
-		code = trace.StatusCodeResourceExhausted
+		code = codeResourceExhausted
 	case http.StatusNotImplemented:
-		code = trace.StatusCodeUnimplemented
+		code = codeUnimplemented
 	case http.StatusServiceUnavailable:
-		code = trace.StatusCodeUnavailable
-	case http.StatusOK:
-		code = trace.StatusCodeOK
+		code = codeUnavailable
 	}
 	return trace.Status{Code: code, Message: codeToStr[code]}
 }
 
-var codeToStr = map[int32]string{
-	trace.StatusCodeOK:                 `OK`,
-	trace.StatusCodeCancelled:          `CANCELLED`,
-	trace.StatusCodeUnknown:            `UNKNOWN`,
-	trace.StatusCodeInvalidArgument:    `INVALID_ARGUMENT`,
-	trace.StatusCodeDeadlineExceeded:   `DEADLINE_EXCEEDED`,
-	trace.StatusCodeNotFound:           `NOT_FOUND`,
-	trace.StatusCodeAlreadyExists:      `ALREADY_EXISTS`,
-	trace.StatusCodePermissionDenied:   `PERMISSION_DENIED`,
-	trace.StatusCodeResourceExhausted:  `RESOURCE_EXHAUSTED`,
-	trace.StatusCodeFailedPrecondition: `FAILED_PRECONDITION`,
-	trace.StatusCodeAborted:            `ABORTED`,
-	trace.StatusCodeOutOfRange:         `OUT_OF_RANGE`,
-	trace.StatusCodeUnimplemented:      `UNIMPLEMENTED`,
-	trace.StatusCodeInternal:           `INTERNAL`,
-	trace.StatusCodeUnavailable:        `UNAVAILABLE`,
-	trace.StatusCodeDataLoss:           `DATA_LOSS`,
-	trace.StatusCodeUnauthenticated:    `UNAUTHENTICATED`,
-}
+// TODO(jbd): Provide status codes from trace package.
+const (
+	codeOK                 = 0
+	codeCancelled          = 1
+	codeUnknown            = 2
+	codeInvalidArgument    = 3
+	codeDeadlineExceeded   = 4
+	codeNotFound           = 5
+	codeAlreadyExists      = 6
+	codePermissionDenied   = 7
+	codeResourceExhausted  = 8
+	codeFailedPrecondition = 9
+	codeAborted            = 10
+	codeOutOfRange         = 11
+	codeUnimplemented      = 12
+	codeInternal           = 13
+	codeUnavailable        = 14
+	codeDataLoss           = 15
+	codeUnathenticated     = 16
+)
 
-func isHealthEndpoint(path string) bool {
-	// Health checking is pretty frequent and
-	// traces collected for health endpoints
-	// can be extremely noisy and expensive.
-	// Disable canonical health checking endpoints
-	// like /healthz and /_ah/health for now.
-	if path == "/healthz" || path == "/_ah/health" {
-		return true
-	}
-	return false
+var codeToStr = map[int32]string{
+	codeOK:                 `"OK"`,
+	codeCancelled:          `"CANCELLED"`,
+	codeUnknown:            `"UNKNOWN"`,
+	codeInvalidArgument:    `"INVALID_ARGUMENT"`,
+	codeDeadlineExceeded:   `"DEADLINE_EXCEEDED"`,
+	codeNotFound:           `"NOT_FOUND"`,
+	codeAlreadyExists:      `"ALREADY_EXISTS"`,
+	codePermissionDenied:   `"PERMISSION_DENIED"`,
+	codeResourceExhausted:  `"RESOURCE_EXHAUSTED"`,
+	codeFailedPrecondition: `"FAILED_PRECONDITION"`,
+	codeAborted:            `"ABORTED"`,
+	codeOutOfRange:         `"OUT_OF_RANGE"`,
+	codeUnimplemented:      `"UNIMPLEMENTED"`,
+	codeInternal:           `"INTERNAL"`,
+	codeUnavailable:        `"UNAVAILABLE"`,
+	codeDataLoss:           `"DATA_LOSS"`,
+	codeUnathenticated:     `"UNAUTHENTICATED"`,
 }

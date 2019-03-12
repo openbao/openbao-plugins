@@ -23,75 +23,82 @@ import (
 
 // The following variables are measures are recorded by ServerHandler:
 var (
-	ServerReceivedMessagesPerRPC = stats.Int64("grpc.io/server/received_messages_per_rpc", "Number of messages received in each RPC. Has value 1 for non-streaming RPCs.", stats.UnitDimensionless)
-	ServerReceivedBytesPerRPC    = stats.Int64("grpc.io/server/received_bytes_per_rpc", "Total bytes received across all messages per RPC.", stats.UnitBytes)
-	ServerSentMessagesPerRPC     = stats.Int64("grpc.io/server/sent_messages_per_rpc", "Number of messages sent in each RPC. Has value 1 for non-streaming RPCs.", stats.UnitDimensionless)
-	ServerSentBytesPerRPC        = stats.Int64("grpc.io/server/sent_bytes_per_rpc", "Total bytes sent in across all response messages per RPC.", stats.UnitBytes)
-	ServerLatency                = stats.Float64("grpc.io/server/server_latency", "Time between first byte of request received to last byte of response sent, or terminal error.", stats.UnitMilliseconds)
+	ServerErrorCount        = stats.Int64("grpc.io/server/error_count", "RPC Errors", stats.UnitNone)
+	ServerServerElapsedTime = stats.Float64("grpc.io/server/server_elapsed_time", "Server elapsed time in msecs", stats.UnitMilliseconds)
+	ServerRequestBytes      = stats.Int64("grpc.io/server/request_bytes", "Request bytes", stats.UnitBytes)
+	ServerResponseBytes     = stats.Int64("grpc.io/server/response_bytes", "Response bytes", stats.UnitBytes)
+	ServerStartedCount      = stats.Int64("grpc.io/server/started_count", "Number of server RPCs (streams) started", stats.UnitNone)
+	ServerFinishedCount     = stats.Int64("grpc.io/server/finished_count", "Number of server RPCs (streams) finished", stats.UnitNone)
+	ServerRequestCount      = stats.Int64("grpc.io/server/request_count", "Number of server RPC request messages", stats.UnitNone)
+	ServerResponseCount     = stats.Int64("grpc.io/server/response_count", "Number of server RPC response messages", stats.UnitNone)
 )
 
 // TODO(acetechnologist): This is temporary and will need to be replaced by a
 // mechanism to load these defaults from a common repository/config shared by
 // all supported languages. Likely a serialized protobuf of these defaults.
 
-// Predefined views may be registered to collect data for the above measures.
+// Predefined views may be subscribed to collect data for the above measures.
 // As always, you may also define your own custom views over measures collected by this
-// package. These are declared as a convenience only; none are registered by
+// package. These are declared as a convenience only; none are subscribed by
 // default.
 var (
-	ServerReceivedBytesPerRPCView = &view.View{
-		Name:        "grpc.io/server/received_bytes_per_rpc",
-		Description: "Distribution of received bytes per RPC, by method.",
-		Measure:     ServerReceivedBytesPerRPC,
-		TagKeys:     []tag.Key{KeyServerMethod},
-		Aggregation: DefaultBytesDistribution,
-	}
-
-	ServerSentBytesPerRPCView = &view.View{
-		Name:        "grpc.io/server/sent_bytes_per_rpc",
-		Description: "Distribution of total sent bytes per RPC, by method.",
-		Measure:     ServerSentBytesPerRPC,
-		TagKeys:     []tag.Key{KeyServerMethod},
-		Aggregation: DefaultBytesDistribution,
-	}
-
-	ServerLatencyView = &view.View{
-		Name:        "grpc.io/server/server_latency",
-		Description: "Distribution of server latency in milliseconds, by method.",
-		TagKeys:     []tag.Key{KeyServerMethod},
-		Measure:     ServerLatency,
-		Aggregation: DefaultMillisecondsDistribution,
-	}
-
-	ServerCompletedRPCsView = &view.View{
-		Name:        "grpc.io/server/completed_rpcs",
-		Description: "Count of RPCs by method and status.",
-		TagKeys:     []tag.Key{KeyServerMethod, KeyServerStatus},
-		Measure:     ServerLatency,
+	ServerErrorCountView = &view.View{
+		Name:        "grpc.io/server/error_count",
+		Description: "RPC Errors",
+		TagKeys:     []tag.Key{KeyMethod, KeyStatus},
+		Measure:     ServerErrorCount,
 		Aggregation: view.Count(),
 	}
 
-	ServerReceivedMessagesPerRPCView = &view.View{
-		Name:        "grpc.io/server/received_messages_per_rpc",
-		Description: "Distribution of messages received count per RPC, by method.",
-		TagKeys:     []tag.Key{KeyServerMethod},
-		Measure:     ServerReceivedMessagesPerRPC,
+	ServerServerElapsedTimeView = &view.View{
+		Name:        "grpc.io/server/server_elapsed_time",
+		Description: "Server elapsed time in msecs",
+		TagKeys:     []tag.Key{KeyMethod},
+		Measure:     ServerServerElapsedTime,
+		Aggregation: DefaultMillisecondsDistribution,
+	}
+
+	ServerRequestBytesView = &view.View{
+		Name:        "grpc.io/server/request_bytes",
+		Description: "Request bytes",
+		TagKeys:     []tag.Key{KeyMethod},
+		Measure:     ServerRequestBytes,
+		Aggregation: DefaultBytesDistribution,
+	}
+
+	ServerResponseBytesView = &view.View{
+		Name:        "grpc.io/server/response_bytes",
+		Description: "Response bytes",
+		TagKeys:     []tag.Key{KeyMethod},
+		Measure:     ServerResponseBytes,
+		Aggregation: DefaultBytesDistribution,
+	}
+
+	ServerRequestCountView = &view.View{
+		Name:        "grpc.io/server/request_count",
+		Description: "Count of request messages per server RPC",
+		TagKeys:     []tag.Key{KeyMethod},
+		Measure:     ServerRequestCount,
 		Aggregation: DefaultMessageCountDistribution,
 	}
 
-	ServerSentMessagesPerRPCView = &view.View{
-		Name:        "grpc.io/server/sent_messages_per_rpc",
-		Description: "Distribution of messages sent count per RPC, by method.",
-		TagKeys:     []tag.Key{KeyServerMethod},
-		Measure:     ServerSentMessagesPerRPC,
+	ServerResponseCountView = &view.View{
+		Name:        "grpc.io/server/response_count",
+		Description: "Count of response messages per server RPC",
+		TagKeys:     []tag.Key{KeyMethod},
+		Measure:     ServerResponseCount,
 		Aggregation: DefaultMessageCountDistribution,
 	}
 )
 
 // DefaultServerViews are the default server views provided by this package.
 var DefaultServerViews = []*view.View{
-	ServerReceivedBytesPerRPCView,
-	ServerSentBytesPerRPCView,
-	ServerLatencyView,
-	ServerCompletedRPCsView,
+	ServerErrorCountView,
+	ServerServerElapsedTimeView,
+	ServerRequestBytesView,
+	ServerResponseBytesView,
+	ServerRequestCountView,
+	ServerResponseCountView,
 }
+
+// TODO(jbd): Add roundtrip_latency, uncompressed_request_bytes, uncompressed_response_bytes, request_count, response_count.

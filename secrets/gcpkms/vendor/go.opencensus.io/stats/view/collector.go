@@ -40,12 +40,11 @@ func (c *collector) addSample(s string, v float64) {
 	aggregator.addSample(v)
 }
 
-// collectRows returns a snapshot of the collected Row values.
 func (c *collector) collectedRows(keys []tag.Key) []*Row {
-	rows := make([]*Row, 0, len(c.signatures))
+	var rows []*Row
 	for sig, aggregator := range c.signatures {
 		tags := decodeTags([]byte(sig), keys)
-		row := &Row{Tags: tags, Data: aggregator.clone()}
+		row := &Row{tags, aggregator}
 		rows = append(rows, row)
 	}
 	return rows

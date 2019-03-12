@@ -16,7 +16,6 @@ package trace
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -31,43 +30,28 @@ type Exporter interface {
 	ExportSpan(s *SpanData)
 }
 
-type exportersMap map[Exporter]struct{}
-
 var (
-	exporterMu sync.Mutex
-	exporters  atomic.Value
+	exportersMu sync.Mutex
+	exporters   map[Exporter]struct{}
 )
 
 // RegisterExporter adds to the list of Exporters that will receive sampled
 // trace spans.
-//
-// Binaries can register exporters, libraries shouldn't register exporters.
 func RegisterExporter(e Exporter) {
-	exporterMu.Lock()
-	new := make(exportersMap)
-	if old, ok := exporters.Load().(exportersMap); ok {
-		for k, v := range old {
-			new[k] = v
-		}
+	exportersMu.Lock()
+	if exporters == nil {
+		exporters = make(map[Exporter]struct{})
 	}
-	new[e] = struct{}{}
-	exporters.Store(new)
-	exporterMu.Unlock()
+	exporters[e] = struct{}{}
+	exportersMu.Unlock()
 }
 
 // UnregisterExporter removes from the list of Exporters the Exporter that was
 // registered with the given name.
 func UnregisterExporter(e Exporter) {
-	exporterMu.Lock()
-	new := make(exportersMap)
-	if old, ok := exporters.Load().(exportersMap); ok {
-		for k, v := range old {
-			new[k] = v
-		}
-	}
-	delete(new, e)
-	exporters.Store(new)
-	exporterMu.Unlock()
+	exportersMu.Lock()
+	delete(exporters, e)
+	exportersMu.Unlock()
 }
 
 // SpanData contains all the information collected by a Span.

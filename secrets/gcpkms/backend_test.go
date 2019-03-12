@@ -90,7 +90,7 @@ func testKMSKeyRingName(tb testing.TB, name string) string {
 	}
 
 	if name == "" {
-		name = fmt.Sprintf("vault-test-%s", uuid.NewV4())
+		name = fmt.Sprintf("vault-test-%s", uuid.Must(uuid.NewV4()))
 	}
 
 	return fmt.Sprintf("projects/%s/locations/us-east1/keyRings/%s", project, name)
@@ -162,7 +162,7 @@ func testCreateKMSCryptoKeyPurpose(tb testing.TB, purpose kmspb.CryptoKey_Crypto
 	kmsClient := testKMSClient(tb)
 
 	keyRing, cleanup := testCreateKMSKeyRing(tb, "")
-	keyName := fmt.Sprintf("%s", uuid.NewV4())
+	keyName := fmt.Sprintf("%s", uuid.Must(uuid.NewV4()))
 
 	ctx := context.Background()
 
