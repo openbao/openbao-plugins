@@ -9,13 +9,14 @@ import (
 	"google.golang.org/grpc"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
+	plugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/vault/helper/pluginutil"
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/plugin/pb"
 )
 
 var ErrPluginShutdown = errors.New("plugin is shut down")
+var ErrClientInMetadataMode = errors.New("plugin client can not perform action while in metadata mode")
 
 // Validate backendGRPCPluginClient satisfies the logical.Backend interface
 var _ logical.Backend = &backendGRPCPluginClient{}

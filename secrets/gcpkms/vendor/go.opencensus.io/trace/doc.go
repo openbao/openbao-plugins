@@ -13,18 +13,19 @@
 // limitations under the License.
 
 /*
-Package trace contains support for OpenCensus distributed tracing.
+Package trace contains types for representing trace information, and
+functions for global configuration of tracing.
 
 The following assumes a basic familiarity with OpenCensus concepts.
 See http://opencensus.io
 
 
-Exporting Traces
+Enabling Tracing for a Program
 
-To export collected tracing data, register at least one exporter. You can use
+To use OpenCensus tracing, register at least one Exporter. You can use
 one of the provided exporters or write your own.
 
-    trace.RegisterExporter(exporter)
+    trace.RegisterExporter(anExporter)
 
 By default, traces will be sampled relatively rarely. To change the sampling
 frequency for your entire program, call ApplyConfig. Use a ProbabilitySampler
@@ -32,8 +33,6 @@ to sample a subset of traces, or use AlwaysSample to collect a trace on every ru
 
     trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
 
-Be careful about using trace.AlwaysSample in a production application with
-significant traffic: a new trace will be started and exported for every request.
 
 Adding Spans to a Trace
 
@@ -44,10 +43,13 @@ It is common to want to capture all the activity of a function call in a span. F
 this to work, the function must take a context.Context as a parameter. Add these two
 lines to the top of the function:
 
-    ctx, span := trace.StartSpan(ctx, "example.com/Run")
+    ctx, span := trace.StartSpan(ctx, "your choice of name")
     defer span.End()
 
 StartSpan will create a new top-level span if the context
 doesn't contain another span, otherwise it will create a child span.
+
+As a suggestion, use the fully-qualified function name as the span name, e.g.
+"github.com/me/mypackage.Run".
 */
 package trace // import "go.opencensus.io/trace"

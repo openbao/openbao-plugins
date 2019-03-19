@@ -15,7 +15,7 @@
 // Package b3 contains a propagation.HTTPFormat implementation
 // for B3 propagation. See https://github.com/openzipkin/b3-propagation
 // for more details.
-package b3 // import "go.opencensus.io/plugin/ochttp/propagation/b3"
+package b3
 
 import (
 	"encoding/hex"
@@ -25,11 +25,10 @@ import (
 	"go.opencensus.io/trace/propagation"
 )
 
-// B3 headers that OpenCensus understands.
 const (
-	TraceIDHeader = "X-B3-TraceId"
-	SpanIDHeader  = "X-B3-SpanId"
-	SampledHeader = "X-B3-Sampled"
+	traceIDHeader = "X-B3-TraceId"
+	spanIDHeader  = "X-B3-SpanId"
+	sampledHeader = "X-B3-Sampled"
 )
 
 // HTTPFormat implements propagation.HTTPFormat to propagate
@@ -46,15 +45,15 @@ var _ propagation.HTTPFormat = (*HTTPFormat)(nil)
 
 // SpanContextFromRequest extracts a B3 span context from incoming requests.
 func (f *HTTPFormat) SpanContextFromRequest(req *http.Request) (sc trace.SpanContext, ok bool) {
-	tid, ok := ParseTraceID(req.Header.Get(TraceIDHeader))
+	tid, ok := parseTraceID(req.Header.Get(traceIDHeader))
 	if !ok {
 		return trace.SpanContext{}, false
 	}
-	sid, ok := ParseSpanID(req.Header.Get(SpanIDHeader))
+	sid, ok := parseSpanID(req.Header.Get(spanIDHeader))
 	if !ok {
 		return trace.SpanContext{}, false
 	}
-	sampled, _ := ParseSampled(req.Header.Get(SampledHeader))
+	sampled, _ := parseSampled(req.Header.Get(sampledHeader))
 	return trace.SpanContext{
 		TraceID:      tid,
 		SpanID:       sid,
@@ -62,8 +61,7 @@ func (f *HTTPFormat) SpanContextFromRequest(req *http.Request) (sc trace.SpanCon
 	}, true
 }
 
-// ParseTraceID parses the value of the X-B3-TraceId header.
-func ParseTraceID(tid string) (trace.TraceID, bool) {
+func parseTraceID(tid string) (trace.TraceID, bool) {
 	if tid == "" {
 		return trace.TraceID{}, false
 	}
@@ -84,8 +82,7 @@ func ParseTraceID(tid string) (trace.TraceID, bool) {
 	return traceID, true
 }
 
-// ParseSpanID parses the value of the X-B3-SpanId or X-B3-ParentSpanId headers.
-func ParseSpanID(sid string) (spanID trace.SpanID, ok bool) {
+func parseSpanID(sid string) (spanID trace.SpanID, ok bool) {
 	if sid == "" {
 		return trace.SpanID{}, false
 	}
@@ -93,13 +90,12 @@ func ParseSpanID(sid string) (spanID trace.SpanID, ok bool) {
 	if err != nil {
 		return trace.SpanID{}, false
 	}
-	start := 8 - len(b)
+	start := (8 - len(b))
 	copy(spanID[start:], b)
 	return spanID, true
 }
 
-// ParseSampled parses the value of the X-B3-Sampled header.
-func ParseSampled(sampled string) (trace.TraceOptions, bool) {
+func parseSampled(sampled string) (trace.TraceOptions, bool) {
 	switch sampled {
 	case "true", "1":
 		return trace.TraceOptions(1), true
@@ -110,8 +106,8 @@ func ParseSampled(sampled string) (trace.TraceOptions, bool) {
 
 // SpanContextToRequest modifies the given request to include B3 headers.
 func (f *HTTPFormat) SpanContextToRequest(sc trace.SpanContext, req *http.Request) {
-	req.Header.Set(TraceIDHeader, hex.EncodeToString(sc.TraceID[:]))
-	req.Header.Set(SpanIDHeader, hex.EncodeToString(sc.SpanID[:]))
+	req.Header.Set(traceIDHeader, hex.EncodeToString(sc.TraceID[:]))
+	req.Header.Set(spanIDHeader, hex.EncodeToString(sc.SpanID[:]))
 
 	var sampled string
 	if sc.IsSampled() {
@@ -119,5 +115,5 @@ func (f *HTTPFormat) SpanContextToRequest(sc trace.SpanContext, req *http.Reques
 	} else {
 		sampled = "0"
 	}
-	req.Header.Set(SampledHeader, sampled)
+	req.Header.Set(sampledHeader, sampled)
 }

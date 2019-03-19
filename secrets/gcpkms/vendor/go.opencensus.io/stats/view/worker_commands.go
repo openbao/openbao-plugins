@@ -73,23 +73,20 @@ func (cmd *registerViewReq) handleCommand(w *worker) {
 	}
 }
 
-// unregisterFromViewReq is the command to unregister to a view. Has no
+// unsubscribeFromViewReq is the command to unsubscribe to a view. Has no
 // impact on the data collection for client that are pulling data from the
 // library.
-type unregisterFromViewReq struct {
+type unsubscribeFromViewReq struct {
 	views []string
 	done  chan struct{}
 }
 
-func (cmd *unregisterFromViewReq) handleCommand(w *worker) {
+func (cmd *unsubscribeFromViewReq) handleCommand(w *worker) {
 	for _, name := range cmd.views {
 		vi, ok := w.views[name]
 		if !ok {
 			continue
 		}
-
-		// Report pending data for this view before removing it.
-		w.reportView(vi, time.Now())
 
 		vi.unsubscribe()
 		if !vi.isSubscribed() {
@@ -97,7 +94,6 @@ func (cmd *unregisterFromViewReq) handleCommand(w *worker) {
 			// The collected data can be cleared.
 			vi.clearRows()
 		}
-		delete(w.views, name)
 	}
 	cmd.done <- struct{}{}
 }
@@ -146,7 +142,7 @@ type recordReq struct {
 
 func (cmd *recordReq) handleCommand(w *worker) {
 	for _, m := range cmd.ms {
-		if (m == stats.Measurement{}) { // not registered
+		if (m == stats.Measurement{}) { // not subscribed
 			continue
 		}
 		ref := w.getMeasureRef(m.Measure().Name())
@@ -157,7 +153,7 @@ func (cmd *recordReq) handleCommand(w *worker) {
 }
 
 // setReportingPeriodReq is the command to modify the duration between
-// reporting the collected data to the registered clients.
+// reporting the collected data to the subscribed clients.
 type setReportingPeriodReq struct {
 	d time.Duration
 	c chan bool

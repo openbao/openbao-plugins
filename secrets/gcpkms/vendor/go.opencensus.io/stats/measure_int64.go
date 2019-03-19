@@ -15,7 +15,7 @@
 
 package stats
 
-// Int64Measure is a measure for int64 values.
+// Int64Measure is a measure of type int64.
 type Int64Measure struct {
 	md *measureDescriptor
 }
@@ -44,10 +44,8 @@ func (m *Int64Measure) M(v int64) Measurement {
 	return Measurement{m: m, v: float64(v)}
 }
 
-// Int64 creates a new measure for int64 values.
-//
-// See the documentation for interface Measure for more guidance on the
-// parameters of this function.
+// Int64 creates a new measure of type Int64Measure.
+// It never returns an error.
 func Int64(name, description, unit string) *Int64Measure {
 	mi := registerMeasureHandle(name, description, unit)
 	return &Int64Measure{mi}

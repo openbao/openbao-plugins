@@ -176,59 +176,46 @@ func Encode(m *Map) []byte {
 
 // Decode decodes the given []byte into a tag map.
 func Decode(bytes []byte) (*Map, error) {
-	ts := newMap()
-	err := DecodeEach(bytes, ts.upsert)
-	if err != nil {
-		// no partial failures
-		return nil, err
-	}
-	return ts, nil
-}
+	ts := newMap(0)
 
-// DecodeEach decodes the given serialized tag map, calling handler for each
-// tag key and value decoded.
-func DecodeEach(bytes []byte, fn func(key Key, val string)) error {
 	eg := &encoderGRPC{
 		buf: bytes,
 	}
 	if len(eg.buf) == 0 {
-		return nil
+		return ts, nil
 	}
 
 	version := eg.readByte()
 	if version > tagsVersionID {
-		return fmt.Errorf("cannot decode: unsupported version: %q; supports only up to: %q", version, tagsVersionID)
+		return nil, fmt.Errorf("cannot decode: unsupported version: %q; supports only up to: %q", version, tagsVersionID)
 	}
 
 	for !eg.readEnded() {
 		typ := keyType(eg.readByte())
 
 		if typ != keyTypeString {
-			return fmt.Errorf("cannot decode: invalid key type: %q", typ)
+			return nil, fmt.Errorf("cannot decode: invalid key type: %q", typ)
 		}
 
 		k, err := eg.readBytesWithVarintLen()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		v, err := eg.readBytesWithVarintLen()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		key, err := NewKey(string(k))
 		if err != nil {
-			return err
+			return nil, err // no partial failures
 		}
 		val := string(v)
 		if !checkValue(val) {
-			return errInvalidValue
+			return nil, errInvalidValue // no partial failures
 		}
-		fn(key, val)
-		if err != nil {
-			return err
-		}
+		ts.upsert(key, val)
 	}
-	return nil
+	return ts, nil
 }
