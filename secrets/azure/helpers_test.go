@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-test/deep"
 	uuid "github.com/hashicorp/go-uuid"
-	"github.com/hashicorp/vault/helper/jsonutil"
+	"github.com/hashicorp/vault/sdk/helper/jsonutil"
 )
 
 func init() {
