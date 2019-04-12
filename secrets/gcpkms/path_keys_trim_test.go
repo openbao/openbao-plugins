@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/vault/logical"
+	"github.com/hashicorp/vault/sdk/logical"
 	"google.golang.org/api/iterator"
 
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"

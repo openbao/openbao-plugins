@@ -5,8 +5,8 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	gcpkms "github.com/hashicorp/vault-plugin-secrets-gcpkms"
-	"github.com/hashicorp/vault/helper/pluginutil"
-	"github.com/hashicorp/vault/logical/plugin"
+	"github.com/hashicorp/vault/api"
+	"github.com/hashicorp/vault/sdk/plugin"
 )
 
 func main() {
@@ -19,13 +19,13 @@ func main() {
 		}
 	}()
 
-	meta := &pluginutil.APIClientMeta{}
+	meta := &api.APIClientMeta{}
 
 	flags := meta.FlagSet()
 	flags.Parse(os.Args[1:])
 
 	tlsConfig := meta.GetTLSConfig()
-	tlsProviderFunc := pluginutil.VaultPluginTLSProvider(tlsConfig)
+	tlsProviderFunc := api.VaultPluginTLSProvider(tlsConfig)
 
 	if err := plugin.Serve(&plugin.ServeOpts{
 		BackendFactoryFunc: gcpkms.Factory,
