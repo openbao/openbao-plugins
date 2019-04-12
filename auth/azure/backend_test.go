@@ -6,7 +6,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/vault/logical"
+	"github.com/hashicorp/vault/sdk/logical"
 )
 
 func getTestBackend(t *testing.T) (*azureAuthBackend, logical.Storage) {

@@ -4,18 +4,18 @@ import (
 	"log"
 	"os"
 
-	"github.com/hashicorp/vault-plugin-auth-azure"
-	"github.com/hashicorp/vault/helper/pluginutil"
-	"github.com/hashicorp/vault/logical/plugin"
+	azureauth "github.com/hashicorp/vault-plugin-auth-azure"
+	"github.com/hashicorp/vault/api"
+	"github.com/hashicorp/vault/sdk/plugin"
 )
 
 func main() {
-	apiClientMeta := &pluginutil.APIClientMeta{}
+	apiClientMeta := &api.APIClientMeta{}
 	flags := apiClientMeta.FlagSet()
 	flags.Parse(os.Args[1:])
 
 	tlsConfig := apiClientMeta.GetTLSConfig()
-	tlsProviderFunc := pluginutil.VaultPluginTLSProvider(tlsConfig)
+	tlsProviderFunc := api.VaultPluginTLSProvider(tlsConfig)
 
 	err := plugin.Serve(&plugin.ServeOpts{
 		BackendFactoryFunc: azureauth.Factory,
@@ -26,4 +26,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-
