@@ -19,7 +19,7 @@ func main() {
 		}
 	}()
 
-	meta := &api.APIClientMeta{}
+	meta := &api.PluginAPIClientMeta{}
 
 	flags := meta.FlagSet()
 	flags.Parse(os.Args[1:])
