@@ -428,6 +428,26 @@ func TestPathKeys_Delete(t *testing.T) {
 				if entry != nil {
 					t.Errorf("expected deletion: %#v", entry)
 				}
+
+				// If we didn't expect an error, check that the key has the right
+				// attributes.
+				if !tc.err {
+					kmsClient := testKMSClient(t)
+					ck, err := kmsClient.GetCryptoKey(ctx, &kmspb.GetCryptoKeyRequest{
+						Name: cryptoKey,
+					})
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					if ck.NextRotationTime != nil {
+						t.Errorf("expected %q to be nil", ck.NextRotationTime)
+					}
+
+					if ck.RotationSchedule != nil {
+						t.Errorf("expected %q to be nil", ck.RotationSchedule)
+					}
+				}
 			})
 		}
 	})

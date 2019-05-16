@@ -75,6 +75,8 @@ func main() {
 					for _, ck := range cks {
 						ck := ck
 
+						disableCKRotation(ck)
+
 						ckvwp.Submit(func() {
 							ckvs := listCKVs(ck)
 
@@ -181,6 +183,23 @@ func listCKs(parent string) []string {
 	rwp.StopWait()
 
 	return cks
+}
+
+func disableCKRotation(ck string) {
+	ctx := context.Background()
+
+	if _, err := kmsClient.UpdateCryptoKey(ctx, &kmspb.UpdateCryptoKeyRequest{
+		CryptoKey: &kmspb.CryptoKey{
+			Name:             ck,
+			NextRotationTime: nil,
+			RotationSchedule: nil,
+		},
+		UpdateMask: &field_mask.FieldMask{
+			Paths: []string{"next_rotation_time", "rotation_period"},
+		},
+	}); err != nil {
+		log.Printf("cleanup: failed to disable rotation on crypto key: %s, %s", ck, err)
+	}
 }
 
 func listKRs(parent string) []string {
