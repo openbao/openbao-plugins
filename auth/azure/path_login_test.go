@@ -369,6 +369,9 @@ func testLogin(t *testing.T, b *azureAuthBackend, s logical.Storage, loginData, 
 		Path:      "login",
 		Data:      loginData,
 		Storage:   s,
+		Connection: &logical.Connection{
+			RemoteAddr: "127.0.0.1",
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("err: %v", err)
