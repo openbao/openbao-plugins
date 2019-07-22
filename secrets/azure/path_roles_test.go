@@ -186,7 +186,7 @@ func TestRoleCreate(t *testing.T) {
 
 		resp, err = testRoleRead(t, b, s, name)
 		nilErr(t, err)
-		roles := resp.Data["azure_roles"].([]*azureRole)
+		roles := resp.Data["azure_roles"].([]*AzureRole)
 		equal(t, "Owner", roles[0].RoleName)
 		equal(t, "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Owner", roles[0].RoleID)
 		equal(t, "Contributor", roles[1].RoleName)

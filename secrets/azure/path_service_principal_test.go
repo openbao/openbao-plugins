@@ -24,13 +24,13 @@ const (
 )
 
 var testRole = map[string]interface{}{
-	"azure_roles": encodeJSON([]azureRole{
-		azureRole{
+	"azure_roles": encodeJSON([]AzureRole{
+		AzureRole{
 			RoleName: "Owner",
 			RoleID:   "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Owner",
 			Scope:    "/subscriptions/ce7d1612-67c1-4dc6-8d81-4e0a432e696b",
 		},
-		azureRole{
+		AzureRole{
 			RoleName: "Contributor",
 			RoleID:   "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Contributor",
 			Scope:    "/subscriptions/ce7d1612-67c1-4dc6-8d81-4e0a432e696b",
