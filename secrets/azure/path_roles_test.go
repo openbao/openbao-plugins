@@ -27,6 +27,15 @@ func TestRoleCreate(t *testing.T) {
 			"role_id": "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Owner2",
 			"scope":  "test_scope_2"
 		}]`),
+			"azure_groups": compactJSON(`[
+		{
+			"group_name": "foo",
+			"object_id": "239b11fe-6adf-409a-b231-08b918e9de23FAKE_GROUP-foo"
+		},
+		{
+			"group_name": "bar",
+			"object_id": "31c5bf7e-e1e8-42c8-882c-856f776290afFAKE_GROUP-bar"
+		}]`),
 			"ttl":                   int64(0),
 			"max_ttl":               int64(0),
 			"application_object_id": "",
@@ -43,6 +52,15 @@ func TestRoleCreate(t *testing.T) {
 			"role_name": "Contributor2",
 			"role_id": "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Contributor2",
 			"scope":  "test_scope_3"
+		}]`),
+			"azure_groups": compactJSON(`[
+		{
+			"group_name": "baz",
+			"object_id": "de55c630-8415-4bd3-b329-530688e60173FAKE_GROUP-baz"
+		},
+		{
+			"group_name": "bam",
+			"object_id": "a6a834a6-36c3-4575-8e2b-05095963d603FAKE_GROUP-bam"
 		}]`),
 			"ttl":                   int64(300),
 			"max_ttl":               int64(3000),
@@ -74,6 +92,7 @@ func TestRoleCreate(t *testing.T) {
 			"ttl":                   int64(300),
 			"max_ttl":               int64(3000),
 			"azure_roles":           "[]",
+			"azure_groups":          "[]",
 		}
 
 		name := generateUUID()
@@ -96,6 +115,7 @@ func TestRoleCreate(t *testing.T) {
 				}]`,
 			),
 			"application_object_id": "",
+			"azure_groups":          "[]",
 		}
 
 		// Verify that ttl and max_ttl are 0 if not provided
@@ -193,6 +213,42 @@ func TestRoleCreate(t *testing.T) {
 		equal(t, "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Contributor", roles[1].RoleID)
 	})
 
+	t.Run("Group name lookup", func(t *testing.T) {
+		b, s := getTestBackend(t, true)
+		var group = map[string]interface{}{
+			"azure_groups": compactJSON(`[
+				{
+					"group_name": "baz",
+					"object_id": ""
+				},
+				{
+					"group_name": "will be replaced",
+					"object_id": "a6a834a6-36c3-4575-8e2b-05095963d603FAKE_GROUP-bam"
+				}
+			]`),
+		}
+
+		name := generateUUID()
+		resp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "roles/" + name,
+			Data:      group,
+			Storage:   s,
+		})
+		nilErr(t, err)
+		if resp.IsError() {
+			t.Fatalf("received unexpected error response: %v", resp.Error())
+		}
+
+		resp, err = testRoleRead(t, b, s, name)
+		nilErr(t, err)
+		groups := resp.Data["azure_groups"].([]*AzureGroup)
+		equal(t, "baz", groups[0].GroupName)
+		equal(t, "00000000-1111-2222-3333-444444444444FAKE_GROUP-baz", groups[0].ObjectID)
+		equal(t, "bam", groups[1].GroupName)
+		equal(t, "a6a834a6-36c3-4575-8e2b-05095963d603FAKE_GROUP-bam", groups[1].ObjectID)
+	})
+
 	t.Run("Duplicate role name and scope", func(t *testing.T) {
 		b, s := getTestBackend(t, true)
 
@@ -251,6 +307,35 @@ func TestRoleCreate(t *testing.T) {
 		}
 	})
 
+	t.Run("Duplicate group object ID", func(t *testing.T) {
+		b, s := getTestBackend(t, true)
+
+		var role = map[string]interface{}{
+			"azure_groups": compactJSON(`[
+				{
+					"display_name": "foo",
+					"object_id":  "a93d630b-c088-4e5d-801b-7cd264900e84"
+				},
+				{
+					"display_name": "foo",
+					"object_id":  "a93d630b-c088-4e5d-801b-7cd264900e84"
+				}
+			]`),
+		}
+
+		name := generateUUID()
+		resp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "roles/" + name,
+			Data:      role,
+			Storage:   s,
+		})
+		nilErr(t, err)
+		if !resp.IsError() {
+			t.Fatal("expected error response for duplicate object_id")
+		}
+	})
+
 	t.Run("Role name lookup (multiple match)", func(t *testing.T) {
 		b, s := getTestBackend(t, true)
 
@@ -283,6 +368,36 @@ func TestRoleCreate(t *testing.T) {
 		}
 	})
 
+	t.Run("Group name lookup (multiple match)", func(t *testing.T) {
+		b, s := getTestBackend(t, true)
+
+		// if group_name=="multiple", the mock will return multiple IDs, which are not allowed
+		var role = map[string]interface{}{
+			"azure_groups": compactJSON(`[
+				{
+					"display_name": "multiple",
+					"object_id": ""
+				},
+				{
+					"display_name": "will be replaced",
+					"role_id": "a6a834a6-36c3-4575-8e2b-05095963d603FAKE_GROUP-bam"
+				}
+			]`),
+		}
+
+		name := generateUUID()
+		resp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "roles/" + name,
+			Data:      role,
+			Storage:   s,
+		})
+		nilErr(t, err)
+		if !resp.IsError() {
+			t.Fatal("expected error response")
+		}
+	})
+
 }
 
 func TestRoleCreateBad(t *testing.T) {
@@ -291,7 +406,7 @@ func TestRoleCreateBad(t *testing.T) {
 	// missing roles and Application ID
 	role := map[string]interface{}{}
 	resp := testRoleCreateBasic(t, b, s, "test_role_1", role)
-	msg := "either Azure role definitions or an Application Object ID must be provided"
+	msg := "either Azure role definitions, group definitions, or an Application Object ID must be provided"
 	if !strings.Contains(resp.Error().Error(), msg) {
 		t.Fatalf("expected to find: %s, got: %s", msg, resp.Error().Error())
 	}
@@ -300,6 +415,14 @@ func TestRoleCreateBad(t *testing.T) {
 	role = map[string]interface{}{"azure_roles": "asdf"}
 	resp = testRoleCreateBasic(t, b, s, "test_role_1", role)
 	msg = "error parsing Azure roles"
+	if !strings.Contains(resp.Error().Error(), msg) {
+		t.Fatalf("expected to find: %s, got: %s", msg, resp.Error().Error())
+	}
+
+	// invalid roles with group membership
+	role = map[string]interface{}{"azure_groups": "asdf"}
+	resp = testRoleCreateBasic(t, b, s, "test_role_1", role)
+	msg = "error parsing Azure groups"
 	if !strings.Contains(resp.Error().Error(), msg) {
 		t.Fatalf("expected to find: %s, got: %s", msg, resp.Error().Error())
 	}
@@ -483,6 +606,9 @@ func testRoleRead(t *testing.T, b *azureSecretBackend, s logical.Storage, name s
 func convertRespTypes(data map[string]interface{}) {
 	if data["azure_roles"] != nil {
 		data["azure_roles"] = encodeJSON(data["azure_roles"])
+	}
+	if data["azure_groups"] != nil {
+		data["azure_groups"] = encodeJSON(data["azure_groups"])
 	}
 	data["ttl"] = int64(data["ttl"].(time.Duration))
 	data["max_ttl"] = int64(data["max_ttl"].(time.Duration))

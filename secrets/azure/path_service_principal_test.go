@@ -23,32 +23,81 @@ const (
 	fakeRoleDef2     = "458f24bf-eaa3-42aa-a2ab-14e172d0bc5e"
 )
 
-var testRole = map[string]interface{}{
-	"azure_roles": encodeJSON([]AzureRole{
-		AzureRole{
-			RoleName: "Owner",
-			RoleID:   "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Owner",
-			Scope:    "/subscriptions/ce7d1612-67c1-4dc6-8d81-4e0a432e696b",
-		},
-		AzureRole{
-			RoleName: "Contributor",
-			RoleID:   "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Contributor",
-			Scope:    "/subscriptions/ce7d1612-67c1-4dc6-8d81-4e0a432e696b",
-		},
-	}),
-}
+var (
+	testRole = map[string]interface{}{
+		"azure_roles": encodeJSON([]AzureRole{
+			AzureRole{
+				RoleName: "Owner",
+				RoleID:   "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Owner",
+				Scope:    "/subscriptions/ce7d1612-67c1-4dc6-8d81-4e0a432e696b",
+			},
+			AzureRole{
+				RoleName: "Contributor",
+				RoleID:   "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Contributor",
+				Scope:    "/subscriptions/ce7d1612-67c1-4dc6-8d81-4e0a432e696b",
+			},
+		}),
+	}
 
-var testStaticSPRole = map[string]interface{}{
-	"application_object_id": "00000000-0000-0000-0000-000000000000",
-}
+	testGroupRole = map[string]interface{}{
+		"azure_groups": encodeJSON([]AzureGroup{
+			AzureGroup{
+				GroupName: "foo",
+				ObjectID:  "00000000-1111-2222-3333-444444444444FAKE_GROUP-foo",
+			},
+			AzureGroup{
+				GroupName: "baz",
+				ObjectID:  "00000000-1111-2222-3333-444444444444FAKE_GROUP-baz",
+			},
+		}),
+	}
+
+	testStaticSPRole = map[string]interface{}{
+		"application_object_id": "00000000-0000-0000-0000-000000000000",
+	}
+)
 
 func TestSPRead(t *testing.T) {
 	b, s := getTestBackend(t, true)
 
 	// verify basic cred issuance
-	t.Run("Basic", func(t *testing.T) {
+	t.Run("Basic Role", func(t *testing.T) {
 		name := generateUUID()
 		testRoleCreate(t, b, s, name, testRole)
+
+		resp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "creds/" + name,
+			Storage:   s,
+		})
+
+		nilErr(t, err)
+
+		if resp.IsError() {
+			t.Fatalf("expected no response error, actual:%#v", resp.Error())
+		}
+
+		// verify client_id format, and that the corresponding app actually exists
+		_, err = uuid.ParseUUID(resp.Data["client_id"].(string))
+		nilErr(t, err)
+
+		appObjID := resp.Secret.InternalData["app_object_id"].(string)
+		client, err := b.getClient(context.Background(), s)
+		nilErr(t, err)
+
+		if !client.provider.(*mockProvider).appExists(appObjID) {
+			t.Fatalf("application was not created")
+		}
+
+		// verify password format
+		_, err = uuid.ParseUUID(resp.Data["client_secret"].(string))
+		nilErr(t, err)
+	})
+
+	// verify basic cred issuance using group membership
+	t.Run("Basic Group", func(t *testing.T) {
+		name := generateUUID()
+		testRoleCreate(t, b, s, name, testGroupRole)
 
 		resp, err := b.HandleRequest(context.Background(), &logical.Request{
 			Operation: logical.ReadOperation,
@@ -193,45 +242,89 @@ func TestStaticSPRead(t *testing.T) {
 func TestSPRevoke(t *testing.T) {
 	b, s := getTestBackend(t, true)
 
-	testRoleCreate(t, b, s, "test_role", testRole)
+	t.Run("roles", func(t *testing.T) {
+		testRoleCreate(t, b, s, "test_role", testRole)
 
-	resp, err := b.HandleRequest(context.Background(), &logical.Request{
-		Operation: logical.ReadOperation,
-		Path:      "creds/test_role",
-		Storage:   s,
+		resp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "creds/test_role",
+			Storage:   s,
+		})
+
+		appObjID := resp.Secret.InternalData["app_object_id"].(string)
+		client, err := b.getClient(context.Background(), s)
+		nilErr(t, err)
+
+		if !client.provider.(*mockProvider).appExists(appObjID) {
+			t.Fatalf("application was not created")
+		}
+
+		// Serialize and deserialize the secret to remove typing, as will really happen.
+		secret := new(logical.Secret)
+		enc, err := jsonutil.EncodeJSON(resp.Secret)
+		if err != nil {
+			t.Fatalf("expected nil error, actual:%#v", err.Error())
+		}
+		jsonutil.DecodeJSON(enc, &secret)
+
+		resp, err = b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.RevokeOperation,
+			Secret:    secret,
+			Storage:   s,
+		})
+
+		nilErr(t, err)
+
+		if resp.IsError() {
+			t.Fatalf("receive response error: %v", resp.Error())
+		}
+
+		if client.provider.(*mockProvider).appExists(appObjID) {
+			t.Fatalf("application present but should have been deleted")
+		}
 	})
 
-	appObjID := resp.Secret.InternalData["app_object_id"].(string)
-	client, err := b.getClient(context.Background(), s)
-	nilErr(t, err)
+	t.Run("groups", func(t *testing.T) {
+		testRoleCreate(t, b, s, "test_role", testGroupRole)
 
-	if !client.provider.(*mockProvider).appExists(appObjID) {
-		t.Fatalf("application was not created")
-	}
+		resp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "creds/test_role",
+			Storage:   s,
+		})
 
-	// Serialize and deserialize the secret to remove typing, as will really happen.
-	secret := new(logical.Secret)
-	enc, err := jsonutil.EncodeJSON(resp.Secret)
-	if err != nil {
-		t.Fatalf("expected nil error, actual:%#v", err.Error())
-	}
-	jsonutil.DecodeJSON(enc, &secret)
+		appObjID := resp.Secret.InternalData["app_object_id"].(string)
+		client, err := b.getClient(context.Background(), s)
+		nilErr(t, err)
 
-	resp, err = b.HandleRequest(context.Background(), &logical.Request{
-		Operation: logical.RevokeOperation,
-		Secret:    secret,
-		Storage:   s,
+		if !client.provider.(*mockProvider).appExists(appObjID) {
+			t.Fatalf("application was not created")
+		}
+
+		// Serialize and deserialize the secret to remove typing, as will really happen.
+		secret := new(logical.Secret)
+		enc, err := jsonutil.EncodeJSON(resp.Secret)
+		if err != nil {
+			t.Fatalf("expected nil error, actual:%#v", err.Error())
+		}
+		jsonutil.DecodeJSON(enc, &secret)
+
+		resp, err = b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.RevokeOperation,
+			Secret:    secret,
+			Storage:   s,
+		})
+
+		nilErr(t, err)
+
+		if resp.IsError() {
+			t.Fatalf("receive response error: %v", resp.Error())
+		}
+
+		if client.provider.(*mockProvider).appExists(appObjID) {
+			t.Fatalf("application present but should have been deleted")
+		}
 	})
-
-	nilErr(t, err)
-
-	if resp.IsError() {
-		t.Fatalf("receive response error: %v", resp.Error())
-	}
-
-	if client.provider.(*mockProvider).appExists(appObjID) {
-		t.Fatalf("application present but should have been deleted")
-	}
 }
 
 func TestStaticSPRevoke(t *testing.T) {

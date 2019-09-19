@@ -133,7 +133,9 @@ func (m *mockProvider) GetRoleByID(ctx context.Context, roleID string) (result a
 }
 
 func (m *mockProvider) CreateServicePrincipal(ctx context.Context, parameters graphrbac.ServicePrincipalCreateParameters) (graphrbac.ServicePrincipal, error) {
-	return graphrbac.ServicePrincipal{}, nil
+	return graphrbac.ServicePrincipal{
+		ObjectID: to.StringPtr(generateUUID()),
+	}, nil
 }
 
 func (m *mockProvider) CreateApplication(ctx context.Context, parameters graphrbac.ApplicationCreateParameters) (graphrbac.Application, error) {
@@ -205,4 +207,58 @@ func (m *mockProvider) CreateRoleAssignment(ctx context.Context, scope string, r
 
 func (m *mockProvider) DeleteRoleAssignmentByID(ctx context.Context, roleID string) (result authorization.RoleAssignment, err error) {
 	return authorization.RoleAssignment{}, nil
+}
+
+// AddGroupMember adds a member to a AAD Group.
+func (m *mockProvider) AddGroupMember(ctx context.Context, groupObjectID string, parameters graphrbac.GroupAddMemberParameters) (result autorest.Response, err error) {
+	return autorest.Response{}, nil
+}
+
+// RemoveGroupMember removes a member from a AAD Group.
+func (m *mockProvider) RemoveGroupMember(ctx context.Context, groupObjectID, memberObjectID string) (result autorest.Response, err error) {
+	return autorest.Response{}, nil
+}
+
+// GetGroup gets group information from the directory.
+func (m *mockProvider) GetGroup(ctx context.Context, objectID string) (result graphrbac.ADGroup, err error) {
+	g := graphrbac.ADGroup{
+		ObjectID: to.StringPtr(objectID),
+	}
+	s := strings.Split(objectID, "FAKE_GROUP-")
+	if len(s) > 1 {
+		g.DisplayName = to.StringPtr(s[1])
+	}
+
+	return g, nil
+}
+
+// ListGroups gets list of groups for the current tenant.
+func (m *mockProvider) ListGroups(ctx context.Context, filter string) (result []graphrbac.ADGroup, err error) {
+	reGroupName := regexp.MustCompile("displayName eq '(.*)'")
+
+	match := reGroupName.FindAllStringSubmatch(filter, -1)
+	if len(match) > 0 {
+		name := match[0][1]
+		if name == "multiple" {
+			return []graphrbac.ADGroup{
+				{
+					ObjectID:    to.StringPtr(fmt.Sprintf("00000000-1111-2222-3333-444444444444FAKE_GROUP-%s-1", name)),
+					DisplayName: to.StringPtr(name),
+				},
+				{
+					ObjectID:    to.StringPtr(fmt.Sprintf("00000000-1111-2222-3333-444444444444FAKE_GROUP-%s-2", name)),
+					DisplayName: to.StringPtr(name),
+				},
+			}, nil
+		}
+
+		return []graphrbac.ADGroup{
+			{
+				ObjectID:    to.StringPtr(fmt.Sprintf("00000000-1111-2222-3333-444444444444FAKE_GROUP-%s", name)),
+				DisplayName: to.StringPtr(name),
+			},
+		}, nil
+	}
+
+	return []graphrbac.ADGroup{}, nil
 }
