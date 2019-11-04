@@ -151,9 +151,13 @@ func (c *client) createSP(
 		return result, true, err
 	})
 
+	if err != nil {
+		return nil, "", errwrap.Wrapf("error creating service principal: {{err}}", err)
+	}
+
 	result := resultRaw.(graphrbac.ServicePrincipal)
 
-	return &result, password, err
+	return &result, password, nil
 }
 
 // addAppPassword adds a new password to an App's credentials list.
