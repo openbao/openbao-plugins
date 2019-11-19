@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/vault/sdk/logical"
+
 	"github.com/go-test/deep"
 	uuid "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/vault/sdk/helper/jsonutil"
@@ -59,4 +61,15 @@ func generateUUID() string {
 		panic(err)
 	}
 	return u
+}
+
+// fakeSaveLoad will simulate the JSON encoding/decoding process that secrets will normally go
+// through. If not done, some of the secret data will retain richer data types (e.g. pointers)
+// than would normally be seen.
+func fakeSaveLoad(s *logical.Secret) {
+	enc := encodeJSON(s)
+
+	if err := jsonutil.DecodeJSON([]byte(enc), s); err != nil {
+		panic(err)
+	}
 }
