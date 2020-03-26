@@ -1,0 +1,21 @@
+version: 2.1
+
+references:
+  images:
+    golang: &GO_IMAGE circleci/golang:1.12
+
+jobs:
+  make-test:
+    docker:
+      - image: *GO_IMAGE
+        environment:
+          GO111MODULE: "on"
+    working_directory: /go/src/github.com/hashicorp/vault-plugin-auth-azure
+    steps:
+      - checkout
+      - run: make test
+        
+workflows:
+  tests:
+    jobs:
+      - make-test
