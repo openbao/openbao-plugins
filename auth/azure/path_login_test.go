@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2017-12-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute"
 	oidc "github.com/coreos/go-oidc"
 	"github.com/hashicorp/vault/sdk/helper/policyutil"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -211,6 +211,78 @@ func TestLogin_BoundResourceGroup(t *testing.T) {
 
 	loginData["vm_name"] = "vm"
 	testLoginSuccess(t, b, s, loginData, claims, roleData)
+
+	loginData["resource_group_name"] = "bad rg"
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+}
+
+func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
+	principalID := "prinID"
+	badPrincipalID := "badID"
+	c := func(vmName string) (compute.VirtualMachine, error) {
+		id := compute.VirtualMachineIdentity{
+			UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
+				"mockuserassignedmsi": &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
+					PrincipalID: &principalID,
+				},
+			},
+		}
+		return compute.VirtualMachine{
+			Identity: &id,
+		}, nil
+	}
+	v := func(vmName string) (compute.VirtualMachineScaleSet, error) {
+		id := compute.VirtualMachineScaleSetIdentity{
+			UserAssignedIdentities: map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{
+				"mockuserassignedmsi": &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{
+					PrincipalID: &principalID,
+				},
+			},
+		}
+		return compute.VirtualMachineScaleSet{
+			Identity: &id,
+		}, nil
+	}
+	b, s := getTestBackendWithComputeClient(t, c, v)
+
+	roleName := "testrole"
+	rg := "rg"
+	roleData := map[string]interface{}{
+		"name":                  roleName,
+		"policies":              []string{"dev", "prod"},
+		"bound_resource_groups": []string{rg},
+	}
+	testRoleCreate(t, b, s, roleData)
+
+	claims := map[string]interface{}{
+		"exp": time.Now().Add(60 * time.Second).Unix(),
+		"nbf": time.Now().Add(-60 * time.Second).Unix(),
+		"oid": principalID,
+	}
+	badClaims := map[string]interface{}{
+		"exp": time.Now().Add(60 * time.Second).Unix(),
+		"nbf": time.Now().Add(-60 * time.Second).Unix(),
+		"oid": badPrincipalID,
+	}
+
+	loginData := map[string]interface{}{
+		"role": roleName,
+	}
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+
+	loginData["subscription_id"] = "sub"
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+
+	loginData["resource_group_name"] = rg
+	testLoginFailure(t, b, s, loginData, claims, roleData)
+
+	loginData["vmss_name"] = "vmss"
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
+	delete(loginData, "vmss_name")
+
+	loginData["vm_name"] = "vm"
+	testLoginSuccess(t, b, s, loginData, claims, roleData)
+	testLoginFailure(t, b, s, loginData, badClaims, roleData)
 
 	loginData["resource_group_name"] = "bad rg"
 	testLoginFailure(t, b, s, loginData, claims, roleData)

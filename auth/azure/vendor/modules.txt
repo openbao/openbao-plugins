@@ -1,5 +1,5 @@
 # github.com/Azure/azure-sdk-for-go v36.2.0+incompatible
-github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2017-12-01/compute
+github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute
 github.com/Azure/azure-sdk-for-go/version
 # github.com/Azure/go-autorest/autorest v0.9.2
 github.com/Azure/go-autorest/autorest
