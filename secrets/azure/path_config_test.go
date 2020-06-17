@@ -72,7 +72,7 @@ func TestConfigDelete(t *testing.T) {
 		Storage:   s,
 	})
 
-	nilErr(t, err)
+	assertErrorIsNil(t, err)
 
 	if resp != nil && resp.IsError() {
 		t.Fatal(resp.Error())

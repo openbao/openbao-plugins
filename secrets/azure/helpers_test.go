@@ -17,11 +17,19 @@ func init() {
 	deep.CompareUnexportedFields = true
 }
 
-// nilErr tests for non-nil errors
-func nilErr(tb testing.TB, err error) {
+// assertErrorIsNil tests for non-nil errors
+func assertErrorIsNil(tb testing.TB, err error) {
 	tb.Helper()
 	if err != nil {
 		tb.Fatalf("\nunexpected error: %s", err.Error())
+	}
+}
+
+// assertKeyExists asserts that the provided key exists within the map
+func assertKeyExists(tb testing.TB, m map[string]interface{}, key string) {
+	tb.Helper()
+	if _, exists := m[key]; !exists {
+		tb.Fatalf("key %s does not exist", key)
 	}
 }
 

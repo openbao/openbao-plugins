@@ -17,7 +17,7 @@ func TestRetry(t *testing.T) {
 		_, err := retry(context.Background(), func() (interface{}, bool, error) {
 			return nil, true, nil
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 	})
 
 	t.Run("Three retries", func(t *testing.T) {
@@ -39,7 +39,7 @@ func TestRetry(t *testing.T) {
 		if elapsed < 4 || elapsed > 16 {
 			t.Fatalf("expected time of 4-16 seconds, got: %f", elapsed)
 		}
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 	})
 
 	t.Run("Error on attempt", func(t *testing.T) {
@@ -59,18 +59,23 @@ func TestRetry(t *testing.T) {
 		}
 		t.Parallel()
 		start := time.Now()
-		_, err := retry(context.Background(), func() (interface{}, bool, error) {
+
+		timeout := 10 * time.Second
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		called := 0
+		_, err := retry(ctx, func() (interface{}, bool, error) {
+			called++
 			return nil, false, nil
 		})
-		elapsed := time.Now().Sub(start).Seconds()
-		expected := retryTimeout.Seconds()
-
-		if elapsed < expected-2 || elapsed > expected+2 {
-			t.Fatalf("expected time of ~%f seconds, got: %f", expected, elapsed)
+		elapsed := time.Now().Sub(start)
+		if err == nil {
+			t.Fatalf("expected error, got nil")
 		}
-		if err == nil || !strings.Contains(err.Error(), "timeout") {
-			t.Fatalf("expected timeout error, got: %v", err)
+		if called == 0 {
+			t.Fatalf("retryable function was never called")
 		}
+		assertDuration(t, elapsed, timeout, 100*time.Millisecond)
 	})
 
 	t.Run("Cancellation", func(t *testing.T) {
@@ -91,8 +96,26 @@ func TestRetry(t *testing.T) {
 			t.Fatalf("expected time of ~7 seconds, got: %f", elapsed)
 		}
 
-		if err == nil || !strings.Contains(err.Error(), "cancelled") {
-			t.Fatalf("expected cancelled error, got: %v", err)
+		if err == nil {
+			t.Fatalf("expected err: got nil")
+		}
+		underlyingErr := errors.Unwrap(err)
+		if underlyingErr != context.Canceled {
+			t.Fatalf("expected %s, got: %v", context.Canceled, err)
 		}
 	})
+}
+
+// assertDuration with a certain amount of flex in the exact value
+func assertDuration(t *testing.T, actual, expected, delta time.Duration) {
+	t.Helper()
+
+	diff := actual - expected
+	if diff < 0 {
+		diff = -diff
+	}
+
+	if diff > delta {
+		t.Fatalf("Actual duration %s does not equal expected %s with delta %s", actual, expected, delta)
+	}
 }

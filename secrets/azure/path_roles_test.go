@@ -72,7 +72,7 @@ func TestRoleCreate(t *testing.T) {
 		testRoleCreate(t, b, s, name, spRole1)
 
 		resp, err := testRoleRead(t, b, s, name)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		convertRespTypes(resp.Data)
 		equal(t, spRole1, resp.Data)
@@ -80,7 +80,7 @@ func TestRoleCreate(t *testing.T) {
 		testRoleCreate(t, b, s, name, spRole2)
 
 		resp, err = testRoleRead(t, b, s, name)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		convertRespTypes(resp.Data)
 		equal(t, spRole2, resp.Data)
@@ -99,7 +99,7 @@ func TestRoleCreate(t *testing.T) {
 		testRoleCreate(t, b, s, name, spRole1)
 
 		resp, err := testRoleRead(t, b, s, name)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		convertRespTypes(resp.Data)
 		equal(t, spRole1, resp.Data)
@@ -126,7 +126,7 @@ func TestRoleCreate(t *testing.T) {
 		testRole["max_ttl"] = int64(0)
 
 		resp, err := testRoleRead(t, b, s, name)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		convertRespTypes(resp.Data)
 		equal(t, testRole, resp.Data)
@@ -167,7 +167,7 @@ func TestRoleCreate(t *testing.T) {
 				Data:      role,
 				Storage:   s,
 			})
-			nilErr(t, err)
+			assertErrorIsNil(t, err)
 
 			if resp.IsError() != test.expError {
 				t.Fatalf("\ncase %d\nexp error: %t\ngot: %v", i, test.expError, err)
@@ -199,13 +199,13 @@ func TestRoleCreate(t *testing.T) {
 			Data:      role,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 		if resp.IsError() {
 			t.Fatalf("received unexpected error response: %v", resp.Error())
 		}
 
 		resp, err = testRoleRead(t, b, s, name)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 		roles := resp.Data["azure_roles"].([]*AzureRole)
 		equal(t, "Owner", roles[0].RoleName)
 		equal(t, "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Owner", roles[0].RoleID)
@@ -235,13 +235,13 @@ func TestRoleCreate(t *testing.T) {
 			Data:      group,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 		if resp.IsError() {
 			t.Fatalf("received unexpected error response: %v", resp.Error())
 		}
 
 		resp, err = testRoleRead(t, b, s, name)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 		groups := resp.Data["azure_groups"].([]*AzureGroup)
 		equal(t, "baz", groups[0].GroupName)
 		equal(t, "00000000-1111-2222-3333-444444444444FAKE_GROUP-baz", groups[0].ObjectID)
@@ -272,7 +272,7 @@ func TestRoleCreate(t *testing.T) {
 			Data:      role,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 		if !resp.IsError() {
 			t.Fatal("expected error response for duplicate role & scope")
 		}
@@ -301,7 +301,7 @@ func TestRoleCreate(t *testing.T) {
 			Data:      role,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 		if resp.IsError() {
 			t.Fatalf("received unexpected error response: %v", resp.Error())
 		}
@@ -330,7 +330,7 @@ func TestRoleCreate(t *testing.T) {
 			Data:      role,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 		if !resp.IsError() {
 			t.Fatal("expected error response for duplicate object_id")
 		}
@@ -362,7 +362,7 @@ func TestRoleCreate(t *testing.T) {
 			Data:      role,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 		if !resp.IsError() {
 			t.Fatal("expected error response")
 		}
@@ -392,7 +392,7 @@ func TestRoleCreate(t *testing.T) {
 			Data:      role,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 		if !resp.IsError() {
 			t.Fatal("expected error response")
 		}
@@ -486,7 +486,7 @@ func TestRoleList(t *testing.T) {
 		Path:      "roles/",
 		Storage:   s,
 	})
-	nilErr(t, err)
+	assertErrorIsNil(t, err)
 
 	exp := []string{"r1", "r2", "r3"}
 	sort.Strings(resp.Data["keys"].([]string))
@@ -498,14 +498,14 @@ func TestRoleList(t *testing.T) {
 		Path:      "roles/r2",
 		Storage:   s,
 	})
-	nilErr(t, err)
+	assertErrorIsNil(t, err)
 
 	resp, err = b.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.ListOperation,
 		Path:      "roles/",
 		Storage:   s,
 	})
-	nilErr(t, err)
+	assertErrorIsNil(t, err)
 
 	exp = []string{"r1", "r3"}
 	sort.Strings(resp.Data["keys"].([]string))
@@ -531,7 +531,7 @@ func TestRoleDelete(t *testing.T) {
 		Path:      fmt.Sprintf("roles/%s", name),
 		Storage:   s,
 	})
-	nilErr(t, err)
+	assertErrorIsNil(t, err)
 
 	resp, err = testRoleRead(t, b, s, name)
 	if resp != nil || err != nil {
@@ -539,7 +539,7 @@ func TestRoleDelete(t *testing.T) {
 	}
 
 	resp, err = testRoleRead(t, b, s, nameAlt)
-	nilErr(t, err)
+	assertErrorIsNil(t, err)
 	if resp == nil {
 		t.Fatalf("expected non-nil response, actual:%#v", resp)
 	}

@@ -63,7 +63,7 @@ func TestSPRead(t *testing.T) {
 			Storage:   s,
 		})
 
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if resp.IsError() {
 			t.Fatalf("expected no response error, actual:%#v", resp.Error())
@@ -71,19 +71,17 @@ func TestSPRead(t *testing.T) {
 
 		// verify client_id format, and that the corresponding app actually exists
 		_, err = uuid.ParseUUID(resp.Data["client_id"].(string))
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		appObjID := resp.Secret.InternalData["app_object_id"].(string)
 		client, err := b.getClient(context.Background(), s)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if !client.provider.(*mockProvider).appExists(appObjID) {
 			t.Fatalf("application was not created")
 		}
 
-		// verify password format
-		_, err = uuid.ParseUUID(resp.Data["client_secret"].(string))
-		nilErr(t, err)
+		assertClientSecret(t, resp.Data)
 	})
 
 	// verify basic cred issuance using group membership
@@ -97,7 +95,7 @@ func TestSPRead(t *testing.T) {
 			Storage:   s,
 		})
 
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if resp.IsError() {
 			t.Fatalf("expected no response error, actual:%#v", resp.Error())
@@ -105,19 +103,17 @@ func TestSPRead(t *testing.T) {
 
 		// verify client_id format, and that the corresponding app actually exists
 		_, err = uuid.ParseUUID(resp.Data["client_id"].(string))
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		appObjID := resp.Secret.InternalData["app_object_id"].(string)
 		client, err := b.getClient(context.Background(), s)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if !client.provider.(*mockProvider).appExists(appObjID) {
 			t.Fatalf("application was not created")
 		}
 
-		// verify password format
-		_, err = uuid.ParseUUID(resp.Data["client_secret"].(string))
-		nilErr(t, err)
+		assertClientSecret(t, resp.Data)
 	})
 
 	// verify role TTLs are reflected in secret
@@ -131,7 +127,7 @@ func TestSPRead(t *testing.T) {
 			Storage:   s,
 		})
 
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		equal(t, 0*time.Second, resp.Secret.TTL)
 		equal(t, 0*time.Second, resp.Secret.MaxTTL)
@@ -148,7 +144,7 @@ func TestSPRead(t *testing.T) {
 			Storage:   s,
 		})
 
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		equal(t, 20*time.Second, resp.Secret.TTL)
 		equal(t, 30*time.Second, resp.Secret.MaxTTL)
@@ -169,7 +165,7 @@ func TestStaticSPRead(t *testing.T) {
 			Storage:   s,
 		})
 
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if resp.IsError() {
 			t.Fatalf("expected no response error, actual:%#v", resp.Error())
@@ -177,7 +173,7 @@ func TestStaticSPRead(t *testing.T) {
 
 		// verify client_id format, and that the corresponding app actually exists
 		_, err = uuid.ParseUUID(resp.Data["client_id"].(string))
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		keyID := resp.Secret.InternalData["key_id"].(string)
 		if !strings.HasPrefix(keyID, "ffffff") {
@@ -185,15 +181,13 @@ func TestStaticSPRead(t *testing.T) {
 		}
 
 		client, err := b.getClient(context.Background(), s)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if !client.provider.(*mockProvider).passwordExists(keyID) {
 			t.Fatalf("password was not created")
 		}
 
-		// verify password format
-		_, err = uuid.ParseUUID(resp.Data["client_secret"].(string))
-		nilErr(t, err)
+		assertClientSecret(t, resp.Data)
 	})
 
 	// verify role TTLs are reflected in secret
@@ -207,7 +201,7 @@ func TestStaticSPRead(t *testing.T) {
 			Storage:   s,
 		})
 
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		equal(t, 0*time.Second, resp.Secret.TTL)
 		equal(t, 0*time.Second, resp.Secret.MaxTTL)
@@ -224,7 +218,7 @@ func TestStaticSPRead(t *testing.T) {
 			Storage:   s,
 		})
 
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		equal(t, 20*time.Second, resp.Secret.TTL)
 		equal(t, 30*time.Second, resp.Secret.MaxTTL)
@@ -242,10 +236,11 @@ func TestSPRevoke(t *testing.T) {
 			Path:      "creds/test_role",
 			Storage:   s,
 		})
+		assertErrorIsNil(t, err)
 
 		appObjID := resp.Secret.InternalData["app_object_id"].(string)
 		client, err := b.getClient(context.Background(), s)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if !client.provider.(*mockProvider).appExists(appObjID) {
 			t.Fatalf("application was not created")
@@ -260,7 +255,7 @@ func TestSPRevoke(t *testing.T) {
 			Storage:   s,
 		})
 
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if resp.IsError() {
 			t.Fatalf("receive response error: %v", resp.Error())
@@ -279,10 +274,11 @@ func TestSPRevoke(t *testing.T) {
 			Path:      "creds/test_role",
 			Storage:   s,
 		})
+		assertErrorIsNil(t, err)
 
 		appObjID := resp.Secret.InternalData["app_object_id"].(string)
 		client, err := b.getClient(context.Background(), s)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if !client.provider.(*mockProvider).appExists(appObjID) {
 			t.Fatalf("application was not created")
@@ -297,7 +293,7 @@ func TestSPRevoke(t *testing.T) {
 			Storage:   s,
 		})
 
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if resp.IsError() {
 			t.Fatalf("receive response error: %v", resp.Error())
@@ -319,6 +315,7 @@ func TestStaticSPRevoke(t *testing.T) {
 		Path:      "creds/test_role",
 		Storage:   s,
 	})
+	assertErrorIsNil(t, err)
 
 	keyID := resp.Secret.InternalData["key_id"].(string)
 	if !strings.HasPrefix(keyID, "ffffff") {
@@ -326,7 +323,7 @@ func TestStaticSPRevoke(t *testing.T) {
 	}
 
 	client, err := b.getClient(context.Background(), s)
-	nilErr(t, err)
+	assertErrorIsNil(t, err)
 
 	if !client.provider.(*mockProvider).passwordExists(keyID) {
 		t.Fatalf("password was not created")
@@ -341,7 +338,7 @@ func TestStaticSPRevoke(t *testing.T) {
 		Storage:   s,
 	})
 
-	nilErr(t, err)
+	assertErrorIsNil(t, err)
 
 	if resp.IsError() {
 		t.Fatalf("receive response error: %v", resp.Error())
@@ -361,7 +358,7 @@ func TestSPReadMissingRole(t *testing.T) {
 		Storage:   s,
 	})
 
-	nilErr(t, err)
+	assertErrorIsNil(t, err)
 
 	if !resp.IsError() {
 		t.Fatal("expected a response error")
@@ -374,7 +371,7 @@ func TestCredentialReadProviderError(t *testing.T) {
 	testRoleCreate(t, b, s, "test_role", testRole)
 
 	client, err := b.getClient(context.Background(), s)
-	nilErr(t, err)
+	assertErrorIsNil(t, err)
 	client.provider.(*mockProvider).failNextCreateApplication = true
 
 	_, err = b.HandleRequest(context.Background(), &logical.Request{
@@ -415,7 +412,7 @@ func TestCredentialInteg(t *testing.T) {
 			StorageView: s,
 		}
 		err := b.Setup(context.Background(), config)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		// Add a Vault role that will provide creds with Azure "Reader" permissions
 		// Resources groups "vault-azure-secrets-test1" and "vault-azure-secrets-test2"
@@ -439,7 +436,7 @@ func TestCredentialInteg(t *testing.T) {
 			Data:      role,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if resp != nil && resp.IsError() {
 			t.Fatal(resp.Error())
@@ -452,7 +449,7 @@ func TestCredentialInteg(t *testing.T) {
 			Data:      role,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if resp != nil && resp.IsError() {
 			t.Fatal(resp.Error())
@@ -462,13 +459,13 @@ func TestCredentialInteg(t *testing.T) {
 
 		// Use the underlying provider to access clients directly for testing
 		client, err := b.getClient(context.Background(), s)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 		provider := client.provider.(*provider)
 
 		// recover the SP Object ID, which is not used by the application but
 		// is helpful for verification testing
 		spList, err := provider.spClient.List(context.Background(), "")
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		var spObjID string
 		for spList.NotDone() {
@@ -495,10 +492,10 @@ func TestCredentialInteg(t *testing.T) {
 		equal(t, 2, len(raIDs))
 
 		ra, err := provider.raClient.GetByID(context.Background(), raIDs[0])
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		roleDefs, err := client.provider.ListRoles(context.Background(), fmt.Sprintf("subscriptions/%s", subscriptionID), "")
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		defID := *ra.RoleAssignmentPropertiesWithScope.RoleDefinitionID
 		found := false
@@ -549,7 +546,7 @@ func TestCredentialInteg(t *testing.T) {
 			StorageView: s,
 		}
 		err := b.Setup(context.Background(), config)
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		// Add a Vault role that will provide creds with Azure "Reader" permissions
 		subscriptionID := os.Getenv("AZURE_SUBSCRIPTION_ID")
@@ -567,7 +564,7 @@ func TestCredentialInteg(t *testing.T) {
 			Data:      role,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if resp != nil && resp.IsError() {
 			t.Fatal(resp.Error())
@@ -580,7 +577,7 @@ func TestCredentialInteg(t *testing.T) {
 			Data:      role,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if resp != nil && resp.IsError() {
 			t.Fatal(resp.Error())
@@ -604,7 +601,7 @@ func TestCredentialInteg(t *testing.T) {
 			Data:      role,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if resp != nil && resp.IsError() {
 			t.Fatal(resp.Error())
@@ -617,7 +614,7 @@ func TestCredentialInteg(t *testing.T) {
 			Data:      role,
 			Storage:   s,
 		})
-		nilErr(t, err)
+		assertErrorIsNil(t, err)
 
 		if resp != nil && resp.IsError() {
 			t.Fatal(resp.Error())
@@ -672,4 +669,15 @@ func TestCredentialInteg(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+}
+
+func assertClientSecret(tb testing.TB, data map[string]interface{}) {
+	assertKeyExists(tb, data, "client_secret")
+	actualPassword, ok := data["client_secret"].(string)
+	if !ok {
+		tb.Fatalf("client_secret is not a string")
+	}
+	if len(actualPassword) != passwordLength {
+		tb.Fatalf("client_secret is not the correct length: expected %d but was %d", passwordLength, len(actualPassword))
+	}
 }
