@@ -46,7 +46,7 @@ function cleanup {
 trap cleanup EXIT
 
 echo "    Authing"
-vault auth root &>/dev/null
+vault login root &>/dev/null
 
 echo "--> Building"
 go build -o "$SCRATCH/plugins/$PLUGIN_NAME" "./cmd/$PLUGIN_NAME" 

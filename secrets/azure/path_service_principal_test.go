@@ -11,8 +11,10 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-uuid"
+	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/logging"
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/mitchellh/mapstructure"
 )
 
 var (
@@ -48,6 +50,99 @@ var (
 		"application_object_id": "00000000-0000-0000-0000-000000000000",
 	}
 )
+
+// TestSP_WAL_Cleanup tests that any Service Principal that gets created, but
+// fails to have roles associated with it, gets cleaned up by the periodic WAL
+// function.
+func TestSP_WAL_Cleanup(t *testing.T) {
+	b, s := getTestBackend(t, true)
+
+	// overwrite the normal test backend provider with the errMockProvider
+	errMockProvider := newErrMockProvider()
+	b.getProvider = func(s *clientSettings) (AzureProvider, error) {
+		return errMockProvider, nil
+	}
+
+	// verify basic cred issuance
+	t.Run("Role assign fail", func(t *testing.T) {
+		name := generateUUID()
+		testRoleCreate(t, b, s, name, testRole)
+
+		// create a short timeout to short-circuit the retry process and trigger the
+		// deadline error
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		resp, err := b.HandleRequest(ctx, &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "creds/" + name,
+			Storage:   s,
+		})
+
+		if err == nil || !strings.Contains(err.Error(), "context deadline exceeded") {
+			t.Fatalf("expected deadline error, but got '%s'", err.Error())
+		}
+		if resp.IsError() {
+			t.Fatalf("expected no response error, actual:%#v", resp.Error())
+		}
+
+		assertEmptyWAL(t, b, errMockProvider, s)
+	})
+}
+
+func assertEmptyWAL(t *testing.T, b *azureSecretBackend, emp AzureProvider, s logical.Storage) {
+	t.Helper()
+
+	wal, err := framework.ListWAL(context.Background(), s)
+	if err != nil {
+		t.Fatalf("error listing wal: %s", err)
+	}
+	req := &logical.Request{
+		Storage: s,
+	}
+
+	// loop of WAL entries and trigger the rollback method for each, simulating
+	// Vault's rollback mechanism
+	for _, v := range wal {
+		ctx := context.Background()
+		entry, err := framework.GetWAL(ctx, s, v)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Decode the WAL data
+		var app walApp
+		d, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			DecodeHook: mapstructure.StringToTimeHookFunc(time.RFC3339),
+			Result:     &app,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = d.Decode(entry.Data)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = emp.GetApplication(context.Background(), app.AppObjID)
+		if err != nil {
+			t.Fatalf("expected to find application (%s), but wasn't found", app.AppObjID)
+		}
+
+		err = b.walRollback(ctx, req, entry.Kind, entry.Data)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := framework.DeleteWAL(ctx, s, v); err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = emp.GetApplication(context.Background(), app.AppObjID)
+		if err == nil {
+			t.Fatalf("expected error getting application")
+		}
+	}
+}
 
 func TestSPRead(t *testing.T) {
 	b, s := getTestBackend(t, true)

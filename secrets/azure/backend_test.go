@@ -73,6 +73,42 @@ type mockProvider struct {
 	failNextCreateApplication bool
 }
 
+// errMockProvider simulates a normal provider which fails to associate a role,
+// returning an error
+type errMockProvider struct {
+	*mockProvider
+}
+
+// CreateRoleAssignment for the errMockProvider intentionally fails
+func (e *errMockProvider) CreateRoleAssignment(ctx context.Context, scope string, roleAssignmentName string, parameters authorization.RoleAssignmentCreateParameters) (authorization.RoleAssignment, error) {
+	return authorization.RoleAssignment{}, errors.New("PrincipalNotFound")
+}
+
+// GetApplication for the errMockProvider only returns an application if that
+// key is found, unlike mockProvider which returns the same application object
+// id each time. Existing tests depend on the mockProvider behavior, which is
+// why errMockProvider has it's own version.
+func (e *errMockProvider) GetApplication(ctx context.Context, applicationObjectID string) (graphrbac.Application, error) {
+	for s := range e.applications {
+		if s == applicationObjectID {
+			return graphrbac.Application{
+				AppID: to.StringPtr(s),
+			}, nil
+		}
+	}
+	return graphrbac.Application{}, errors.New("not found")
+}
+
+func newErrMockProvider() AzureProvider {
+	return &errMockProvider{
+		mockProvider: &mockProvider{
+			subscriptionID: generateUUID(),
+			applications:   make(map[string]bool),
+			passwords:      make(map[string]bool),
+		},
+	}
+}
+
 func newMockProvider() AzureProvider {
 	return &mockProvider{
 		subscriptionID: generateUUID(),
