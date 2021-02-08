@@ -2,7 +2,7 @@ version: 2.1
 
 references:
   images:
-    golang: &GO_IMAGE circleci/golang:1.12
+    golang: &GO_IMAGE circleci/golang:1.15
 
 jobs:
   make-test:

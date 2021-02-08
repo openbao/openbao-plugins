@@ -36,7 +36,8 @@ func NewLogAnalyticsClient(subscriptionID string) LogAnalyticsClient {
 	return NewLogAnalyticsClientWithBaseURI(DefaultBaseURI, subscriptionID)
 }
 
-// NewLogAnalyticsClientWithBaseURI creates an instance of the LogAnalyticsClient client.
+// NewLogAnalyticsClientWithBaseURI creates an instance of the LogAnalyticsClient client using a custom endpoint.  Use
+// this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
 func NewLogAnalyticsClientWithBaseURI(baseURI string, subscriptionID string) LogAnalyticsClient {
 	return LogAnalyticsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
@@ -71,7 +72,7 @@ func (client LogAnalyticsClient) ExportRequestRateByInterval(ctx context.Context
 
 	result, err = client.ExportRequestRateByIntervalSender(req)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "compute.LogAnalyticsClient", "ExportRequestRateByInterval", result.Response(), "Failure sending request")
+		err = autorest.NewErrorWithError(err, "compute.LogAnalyticsClient", "ExportRequestRateByInterval", nil, "Failure sending request")
 		return
 	}
 
@@ -103,13 +104,34 @@ func (client LogAnalyticsClient) ExportRequestRateByIntervalPreparer(ctx context
 // ExportRequestRateByIntervalSender sends the ExportRequestRateByInterval request. The method will close the
 // http.Response Body if it receives an error.
 func (client LogAnalyticsClient) ExportRequestRateByIntervalSender(req *http.Request) (future LogAnalyticsExportRequestRateByIntervalFuture, err error) {
-	sd := autorest.GetSendDecorators(req.Context(), azure.DoRetryWithRegistration(client.Client))
 	var resp *http.Response
-	resp, err = autorest.SendWithSender(client, req, sd...)
+	resp, err = client.Send(req, azure.DoRetryWithRegistration(client.Client))
 	if err != nil {
 		return
 	}
-	future.Future, err = azure.NewFutureFromResponse(resp)
+	var azf azure.Future
+	azf, err = azure.NewFutureFromResponse(resp)
+	future.FutureAPI = &azf
+	future.Result = func(client LogAnalyticsClient) (laor LogAnalyticsOperationResult, err error) {
+		var done bool
+		done, err = future.DoneWithContext(context.Background(), client)
+		if err != nil {
+			err = autorest.NewErrorWithError(err, "compute.LogAnalyticsExportRequestRateByIntervalFuture", "Result", future.Response(), "Polling failure")
+			return
+		}
+		if !done {
+			err = azure.NewAsyncOpIncompleteError("compute.LogAnalyticsExportRequestRateByIntervalFuture")
+			return
+		}
+		sender := autorest.DecorateSender(client, autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...))
+		if laor.Response.Response, err = future.GetResult(sender); err == nil && laor.Response.Response.StatusCode != http.StatusNoContent {
+			laor, err = client.ExportRequestRateByIntervalResponder(laor.Response.Response)
+			if err != nil {
+				err = autorest.NewErrorWithError(err, "compute.LogAnalyticsExportRequestRateByIntervalFuture", "Result", laor.Response.Response, "Failure responding to request")
+			}
+		}
+		return
+	}
 	return
 }
 
@@ -118,7 +140,6 @@ func (client LogAnalyticsClient) ExportRequestRateByIntervalSender(req *http.Req
 func (client LogAnalyticsClient) ExportRequestRateByIntervalResponder(resp *http.Response) (result LogAnalyticsOperationResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -156,7 +177,7 @@ func (client LogAnalyticsClient) ExportThrottledRequests(ctx context.Context, pa
 
 	result, err = client.ExportThrottledRequestsSender(req)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "compute.LogAnalyticsClient", "ExportThrottledRequests", result.Response(), "Failure sending request")
+		err = autorest.NewErrorWithError(err, "compute.LogAnalyticsClient", "ExportThrottledRequests", nil, "Failure sending request")
 		return
 	}
 
@@ -188,13 +209,34 @@ func (client LogAnalyticsClient) ExportThrottledRequestsPreparer(ctx context.Con
 // ExportThrottledRequestsSender sends the ExportThrottledRequests request. The method will close the
 // http.Response Body if it receives an error.
 func (client LogAnalyticsClient) ExportThrottledRequestsSender(req *http.Request) (future LogAnalyticsExportThrottledRequestsFuture, err error) {
-	sd := autorest.GetSendDecorators(req.Context(), azure.DoRetryWithRegistration(client.Client))
 	var resp *http.Response
-	resp, err = autorest.SendWithSender(client, req, sd...)
+	resp, err = client.Send(req, azure.DoRetryWithRegistration(client.Client))
 	if err != nil {
 		return
 	}
-	future.Future, err = azure.NewFutureFromResponse(resp)
+	var azf azure.Future
+	azf, err = azure.NewFutureFromResponse(resp)
+	future.FutureAPI = &azf
+	future.Result = func(client LogAnalyticsClient) (laor LogAnalyticsOperationResult, err error) {
+		var done bool
+		done, err = future.DoneWithContext(context.Background(), client)
+		if err != nil {
+			err = autorest.NewErrorWithError(err, "compute.LogAnalyticsExportThrottledRequestsFuture", "Result", future.Response(), "Polling failure")
+			return
+		}
+		if !done {
+			err = azure.NewAsyncOpIncompleteError("compute.LogAnalyticsExportThrottledRequestsFuture")
+			return
+		}
+		sender := autorest.DecorateSender(client, autorest.DoRetryForStatusCodes(client.RetryAttempts, client.RetryDuration, autorest.StatusCodesForRetry...))
+		if laor.Response.Response, err = future.GetResult(sender); err == nil && laor.Response.Response.StatusCode != http.StatusNoContent {
+			laor, err = client.ExportThrottledRequestsResponder(laor.Response.Response)
+			if err != nil {
+				err = autorest.NewErrorWithError(err, "compute.LogAnalyticsExportThrottledRequestsFuture", "Result", laor.Response.Response, "Failure responding to request")
+			}
+		}
+		return
+	}
 	return
 }
 
@@ -203,7 +245,6 @@ func (client LogAnalyticsClient) ExportThrottledRequestsSender(req *http.Request
 func (client LogAnalyticsClient) ExportThrottledRequestsResponder(resp *http.Response) (result LogAnalyticsOperationResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())

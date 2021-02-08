@@ -8,14 +8,14 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute"
-	oidc "github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc"
 )
 
 // mockKeySet is used in tests to bypass signature validation and return only
 // the jwt payload
 type mockKeySet struct{}
 
-func (s *mockKeySet) VerifySignature(ctx context.Context, idToken string) ([]byte, error) {
+func (s *mockKeySet) VerifySignature(_ context.Context, idToken string) ([]byte, error) {
 	parts := strings.Split(idToken, ".")
 	if len(parts) != 3 {
 		return nil, errors.New("invalid jwt")
@@ -44,14 +44,14 @@ type mockVMSSClient struct {
 	vmssClientFunc func(vmssName string) (compute.VirtualMachineScaleSet, error)
 }
 
-func (c *mockComputeClient) Get(ctx context.Context, resourceGroup, vmName string, instanceView compute.InstanceViewTypes) (compute.VirtualMachine, error) {
+func (c *mockComputeClient) Get(_ context.Context, _, vmName string, _ compute.InstanceViewTypes) (compute.VirtualMachine, error) {
 	if c.computeClientFunc != nil {
 		return c.computeClientFunc(vmName)
 	}
 	return compute.VirtualMachine{}, nil
 }
 
-func (c *mockVMSSClient) Get(ctx context.Context, resourceGroup, vmssName string) (compute.VirtualMachineScaleSet, error) {
+func (c *mockVMSSClient) Get(_ context.Context, _, vmssName string) (compute.VirtualMachineScaleSet, error) {
 	if c.vmssClientFunc != nil {
 		return c.vmssClientFunc(vmssName)
 	}

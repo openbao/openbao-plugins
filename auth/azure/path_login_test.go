@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute"
-	oidc "github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc"
 	"github.com/hashicorp/vault/sdk/helper/policyutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -222,7 +222,7 @@ func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
 	c := func(vmName string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
 			UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
-				"mockuserassignedmsi": &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
+				"mockuserassignedmsi": {
 					PrincipalID: &principalID,
 				},
 			},
@@ -234,7 +234,7 @@ func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
 	v := func(vmName string) (compute.VirtualMachineScaleSet, error) {
 		id := compute.VirtualMachineScaleSetIdentity{
 			UserAssignedIdentities: map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{
-				"mockuserassignedmsi": &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{
+				"mockuserassignedmsi": {
 					PrincipalID: &principalID,
 				},
 			},
@@ -504,7 +504,7 @@ func testJWT(t *testing.T, payload map[string]interface{}) string {
 		t.Fatalf("err: %v", err)
 	}
 
-	fixedHeader := base64.RawURLEncoding.EncodeToString([]byte(headersJSON))
+	fixedHeader := base64.RawURLEncoding.EncodeToString(headersJSON)
 	encodedPayload := base64.RawURLEncoding.EncodeToString(payloadJSON)
 	fixedSignature := base64.RawURLEncoding.EncodeToString([]byte("signature"))
 
