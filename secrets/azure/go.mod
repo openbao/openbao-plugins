@@ -17,6 +17,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/go-retryablehttp v0.6.6 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
+	github.com/hashicorp/go-secure-stdlib/base62 v0.1.1
 	github.com/hashicorp/go-uuid v1.0.2
 	github.com/hashicorp/vault/api v1.0.5-0.20200215224050-f6547fa8e820
 	github.com/hashicorp/vault/sdk v0.1.14-0.20200527182800-ad90e0b39d2f
