@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -477,16 +478,89 @@ func TestVerifyClaims(t *testing.T) {
 	if err := idToken.Claims(claims); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	err = b.verifyClaims(claims, new(azureRole))
+	role := new(azureRole)
+	err = b.verifyClaims(claims, role)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	claims.NotBefore = jsonTime(time.Now().Add(10 * time.Second))
-	err = b.verifyClaims(claims, new(azureRole))
+	err = b.verifyClaims(claims, role)
 	if err == nil {
 		t.Fatal("expected claim verification error")
+	}
+
+	claims = new(additionalClaims)
+	if err = idToken.Claims(claims); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	testCases := map[string]struct {
+		bgIds  []string
+		bspIds []string
+		claims additionalClaims
+		error  string
+	}{
+		"Should error since both fields can't be globbed together": {
+			bgIds:  []string{"*"},
+			bspIds: []string{"*"},
+			claims: *claims,
+			error:  "both cannot be '*'",
+		},
+		"Should error since claim GroupID not in role GroupIDs": {
+			bgIds:  []string{"test-group-1"},
+			bspIds: []string{"*"},
+			claims: additionalClaims{
+				claims.NotBefore,
+				claims.ObjectID,
+				[]string{"test-group-2"},
+			},
+			error: "groups not authorized",
+		},
+		"Should pass. Claim GroupID added": {
+			bgIds:  []string{"test-group-1", "test-group2"},
+			bspIds: []string{"*"},
+			claims: additionalClaims{
+				claims.NotBefore,
+				claims.ObjectID,
+				[]string{"test-group-2"},
+			},
+			error: "",
+		},
+		"Should error since claims OID not in role SPIDs": {
+			bgIds:  []string{"*"},
+			bspIds: []string{"spId1"},
+			claims: additionalClaims{
+				claims.NotBefore,
+				"test-oid",
+				claims.GroupIDs,
+			},
+			error: "service principal not authorized",
+		},
+		"Should pass. Claim OID added": {
+			bgIds:  []string{"*"},
+			bspIds: []string{"spId1", "test-oid"},
+			claims: additionalClaims{
+				claims.NotBefore,
+				"test-oid",
+				claims.GroupIDs,
+			},
+			error: "",
+		},
+	}
+
+	for test, testCase := range testCases {
+		t.Run(test, func(t *testing.T) {
+			role.BoundGroupIDs = testCase.bgIds
+			role.BoundServicePrincipalIDs = testCase.bspIds
+			claims = &testCase.claims
+
+			err = b.verifyClaims(claims, role)
+
+			if err != nil && testCase.error != "" && !strings.Contains(err.Error(), testCase.error) {
+				t.Fatalf("expected an error %s, got %v", testCase.error, err)
+			}
+		})
 	}
 }
 
