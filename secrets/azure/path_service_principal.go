@@ -105,7 +105,7 @@ func (b *azureSecretBackend) createSPSecret(ctx context.Context, s logical.Stora
 		return nil, err
 	}
 	appID := to.String(app.AppID)
-	appObjID := to.String(app.ObjectID)
+	appObjID := to.String(app.ID)
 
 	// Write a WAL entry in case the SP create process doesn't complete
 	walID, err := framework.PutWAL(ctx, s, walAppKey, &walApp{
@@ -118,19 +118,19 @@ func (b *azureSecretBackend) createSPSecret(ctx context.Context, s logical.Stora
 	}
 
 	// Create a service principal associated with the new App
-	sp, password, err := c.createSP(ctx, app, spExpiration)
+	spID, password, err := c.createSP(ctx, app, spExpiration)
 	if err != nil {
 		return nil, err
 	}
 
 	// Assign Azure roles to the new SP
-	raIDs, err := c.assignRoles(ctx, sp, role.AzureRoles)
+	raIDs, err := c.assignRoles(ctx, spID, role.AzureRoles)
 	if err != nil {
 		return nil, err
 	}
 
 	// Assign Azure group memberships to the new SP
-	if err := c.addGroupMemberships(ctx, sp, role.AzureGroups); err != nil {
+	if err := c.addGroupMemberships(ctx, spID, role.AzureGroups); err != nil {
 		return nil, err
 	}
 
@@ -145,7 +145,7 @@ func (b *azureSecretBackend) createSPSecret(ctx context.Context, s logical.Stora
 	}
 	internalData := map[string]interface{}{
 		"app_object_id":        appObjID,
-		"sp_object_id":         sp.ObjectID,
+		"sp_object_id":         spID,
 		"role_assignment_ids":  raIDs,
 		"group_membership_ids": groupObjectIDs(role.AzureGroups),
 		"role":                 roleName,

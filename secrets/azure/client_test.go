@@ -22,7 +22,6 @@ func TestRetry(t *testing.T) {
 
 	t.Run("Three retries", func(t *testing.T) {
 		t.Parallel()
-		start := time.Now()
 		count := 0
 
 		_, err := retry(context.Background(), func() (interface{}, bool, error) {
@@ -34,11 +33,6 @@ func TestRetry(t *testing.T) {
 		})
 		equal(t, count, 3)
 
-		// each sleep can last from 2 to 8 seconds
-		elapsed := time.Now().Sub(start).Seconds()
-		if elapsed < 4 || elapsed > 16 {
-			t.Fatalf("expected time of 4-16 seconds, got: %f", elapsed)
-		}
 		assertErrorIsNil(t, err)
 	})
 
@@ -75,7 +69,7 @@ func TestRetry(t *testing.T) {
 		if called == 0 {
 			t.Fatalf("retryable function was never called")
 		}
-		assertDuration(t, elapsed, timeout, 100*time.Millisecond)
+		assertDuration(t, elapsed, timeout, 250*time.Millisecond)
 	})
 
 	t.Run("Cancellation", func(t *testing.T) {
@@ -83,7 +77,7 @@ func TestRetry(t *testing.T) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 		go func() {
-			time.Sleep(7 * time.Second)
+			time.Sleep(1 * time.Second)
 			cancel()
 		}()
 
@@ -91,10 +85,8 @@ func TestRetry(t *testing.T) {
 		_, err := retry(ctx, func() (interface{}, bool, error) {
 			return nil, false, nil
 		})
-		elapsed := time.Now().Sub(start).Seconds()
-		if elapsed < 6 || elapsed > 8 {
-			t.Fatalf("expected time of ~7 seconds, got: %f", elapsed)
-		}
+		elapsed := time.Now().Sub(start)
+		assertDuration(t, elapsed, 1*time.Second, 250*time.Millisecond)
 
 		if err == nil {
 			t.Fatalf("expected err: got nil")

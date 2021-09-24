@@ -12,11 +12,12 @@ func TestConfig(t *testing.T) {
 
 	// Test valid config
 	config := map[string]interface{}{
-		"subscription_id": "a228ceec-bf1a-4411-9f95-39678d8cdb34",
-		"tenant_id":       "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
-		"client_id":       "testClientId",
-		"client_secret":   "testClientSecret",
-		"environment":     "AZURECHINACLOUD",
+		"subscription_id":         "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+		"tenant_id":               "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+		"client_id":               "testClientId",
+		"client_secret":           "testClientSecret",
+		"environment":             "AZURECHINACLOUD",
+		"use_microsoft_graph_api": false,
 	}
 
 	testConfigCreate(t, b, s, config)
@@ -54,11 +55,12 @@ func TestConfigDelete(t *testing.T) {
 
 	// Test valid config
 	config := map[string]interface{}{
-		"subscription_id": "a228ceec-bf1a-4411-9f95-39678d8cdb34",
-		"tenant_id":       "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
-		"client_id":       "testClientId",
-		"client_secret":   "testClientSecret",
-		"environment":     "AZURECHINACLOUD",
+		"subscription_id":         "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+		"tenant_id":               "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+		"client_id":               "testClientId",
+		"client_secret":           "testClientSecret",
+		"environment":             "AZURECHINACLOUD",
+		"use_microsoft_graph_api": false,
 	}
 
 	testConfigCreate(t, b, s, config)
@@ -79,10 +81,11 @@ func TestConfigDelete(t *testing.T) {
 	}
 
 	config = map[string]interface{}{
-		"subscription_id": "",
-		"tenant_id":       "",
-		"client_id":       "",
-		"environment":     "",
+		"subscription_id":         "",
+		"tenant_id":               "",
+		"client_id":               "",
+		"environment":             "",
+		"use_microsoft_graph_api": false,
 	}
 	testConfigRead(t, b, s, config)
 }

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac"
-	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization"
+	"github.com/Azure/azure-sdk-for-go/profiles/latest/authorization/mgmt/authorization"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/hashicorp/errwrap"
+	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/jsonutil"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -203,7 +203,7 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 	for _, r := range role.AzureRoles {
 		var roleDef authorization.RoleDefinition
 		if r.RoleID != "" {
-			roleDef, err = client.provider.GetRoleByID(ctx, r.RoleID)
+			roleDef, err = client.provider.GetRoleDefinitionByID(ctx, r.RoleID)
 			if err != nil {
 				if strings.Contains(err.Error(), "RoleDefinitionDoesNotExist") {
 					return logical.ErrorResponse("no role found for role_id: '%s'", r.RoleID), nil
@@ -238,7 +238,7 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 	// update and verify Azure groups, including looking up each group by ID or name.
 	groupSet := make(map[string]bool)
 	for _, r := range role.AzureGroups {
-		var groupDef graphrbac.ADGroup
+		var groupDef api.Group
 		if r.ObjectID != "" {
 			groupDef, err = client.provider.GetGroup(ctx, r.ObjectID)
 			if err != nil {
@@ -260,9 +260,8 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 			groupDef = defs[0]
 		}
 
-		groupDefID := to.String(groupDef.ObjectID)
-		groupDefName := to.String(groupDef.DisplayName)
-		r.GroupName, r.ObjectID = groupDefName, groupDefID
+		r.ObjectID = groupDef.ID
+		r.GroupName = groupDef.DisplayName
 
 		if groupSet[r.ObjectID] {
 			return logical.ErrorResponse("duplicate object_id '%s'", r.ObjectID), nil

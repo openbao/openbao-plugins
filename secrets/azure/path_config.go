@@ -24,6 +24,7 @@ type azureConfig struct {
 	ClientSecret   string `json:"client_secret"`
 	Environment    string `json:"environment"`
 	PasswordPolicy string `json:"password_policy"`
+	UseMsGraphAPI  bool   `json:"use_microsoft_graph_api"`
 }
 
 func pathConfig(b *azureSecretBackend) *framework.Path {
@@ -58,6 +59,10 @@ func pathConfig(b *azureSecretBackend) *framework.Path {
 			"password_policy": &framework.FieldSchema{
 				Type:        framework.TypeString,
 				Description: "Name of the password policy to use to generate passwords for dynamic credentials.",
+			},
+			"use_microsoft_graph_api": &framework.FieldSchema{
+				Type:        framework.TypeBool,
+				Description: "Enable usage of the Microsoft Graph API over the deprecated Azure AD Graph API.",
 			},
 		},
 		Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -112,6 +117,10 @@ func (b *azureSecretBackend) pathConfigWrite(ctx context.Context, req *logical.R
 		config.ClientSecret = clientSecret.(string)
 	}
 
+	if useMsGraphApi, ok := data.GetOk("use_microsoft_graph_api"); ok {
+		config.UseMsGraphAPI = useMsGraphApi.(bool)
+	}
+
 	config.PasswordPolicy = data.Get("password_policy").(string)
 
 	if merr.ErrorOrNil() != nil {
@@ -136,10 +145,11 @@ func (b *azureSecretBackend) pathConfigRead(ctx context.Context, req *logical.Re
 
 	resp := &logical.Response{
 		Data: map[string]interface{}{
-			"subscription_id": config.SubscriptionID,
-			"tenant_id":       config.TenantID,
-			"environment":     config.Environment,
-			"client_id":       config.ClientID,
+			"subscription_id":         config.SubscriptionID,
+			"tenant_id":               config.TenantID,
+			"environment":             config.Environment,
+			"client_id":               config.ClientID,
+			"use_microsoft_graph_api": config.UseMsGraphAPI,
 		},
 	}
 	return resp, nil
