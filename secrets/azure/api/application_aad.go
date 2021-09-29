@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac"
-	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-uuid"
 )
 
@@ -51,8 +50,16 @@ func (a *ActiveDirectoryApplicationClient) CreateApplication(ctx context.Context
 	}, nil
 }
 
-func (a *ActiveDirectoryApplicationClient) DeleteApplication(ctx context.Context, applicationObjectID string) (autorest.Response, error) {
-	return a.Client.Delete(ctx, applicationObjectID)
+func (a *ActiveDirectoryApplicationClient) DeleteApplication(ctx context.Context, applicationObjectID string) error {
+	resp, err := a.Client.Delete(ctx, applicationObjectID)
+	if resp.Response != nil && resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *ActiveDirectoryApplicationClient) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime date.Time) (result PasswordCredentialResult, err error) {
@@ -81,7 +88,7 @@ func (a *ActiveDirectoryApplicationClient) AddApplicationPassword(ctx context.Co
 	// Load current credentials
 	resp, err := a.Client.ListPasswordCredentials(ctx, applicationObjectID)
 	if err != nil {
-		return PasswordCredentialResult{}, errwrap.Wrapf("error fetching credentials: {{err}}", err)
+		return PasswordCredentialResult{}, fmt.Errorf("error fetching credentials: %w", err)
 	}
 	curCreds := *resp.Value
 
@@ -96,10 +103,10 @@ func (a *ActiveDirectoryApplicationClient) AddApplicationPassword(ctx context.Co
 		if strings.Contains(err.Error(), "size of the object has exceeded its limit") {
 			err = errors.New("maximum number of Application passwords reached")
 		}
-		return PasswordCredentialResult{}, errwrap.Wrapf("error updating credentials: {{err}}", err)
+		return PasswordCredentialResult{}, fmt.Errorf("error updating credentials: %w", err)
 	}
 
-	return PasswordCredentialResult{
+	result = PasswordCredentialResult{
 		PasswordCredential: PasswordCredential{
 			DisplayName: to.StringPtr(displayName),
 			StartDate:   &now,
@@ -107,14 +114,15 @@ func (a *ActiveDirectoryApplicationClient) AddApplicationPassword(ctx context.Co
 			KeyID:       to.StringPtr(keyID),
 			SecretText:  to.StringPtr(password),
 		},
-	}, nil
+	}
+	return result, nil
 }
 
-func (a *ActiveDirectoryApplicationClient) RemoveApplicationPassword(ctx context.Context, applicationObjectID string, keyID string) (result autorest.Response, err error) {
+func (a *ActiveDirectoryApplicationClient) RemoveApplicationPassword(ctx context.Context, applicationObjectID string, keyID string) (err error) {
 	// Load current credentials
 	resp, err := a.Client.ListPasswordCredentials(ctx, applicationObjectID)
 	if err != nil {
-		return autorest.Response{}, errwrap.Wrapf("error fetching credentials: {{err}}", err)
+		return fmt.Errorf("error fetching credentials: %w", err)
 	}
 	curCreds := *resp.Value
 
@@ -131,17 +139,18 @@ func (a *ActiveDirectoryApplicationClient) RemoveApplicationPassword(ctx context
 
 	// KeyID is not present, so nothing to do
 	if !found {
-		return autorest.Response{}, nil
+		return nil
 	}
 
 	// Save new credentials list
-	if _, err := a.Client.UpdatePasswordCredentials(ctx, applicationObjectID,
+	_, err = a.Client.UpdatePasswordCredentials(ctx, applicationObjectID,
 		graphrbac.PasswordCredentialsUpdateParameters{
 			Value: &curCreds,
 		},
-	); err != nil {
-		return autorest.Response{}, errwrap.Wrapf("error updating credentials: {{err}}", err)
+	)
+	if err != nil {
+		return fmt.Errorf("error updating credentials: %w", err)
 	}
 
-	return autorest.Response{}, nil
+	return nil
 }

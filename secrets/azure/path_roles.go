@@ -9,7 +9,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/authorization/mgmt/authorization"
 	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/jsonutil"
@@ -134,7 +133,7 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 	name := d.Get("name").(string)
 	role, err := getRole(ctx, name, req.Storage)
 	if err != nil {
-		return nil, errwrap.Wrapf("error reading role: {{err}}", err)
+		return nil, fmt.Errorf("error reading role: %w", err)
 	}
 
 	if role == nil {
@@ -171,7 +170,7 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 	if role.ApplicationObjectID != "" {
 		app, err := client.provider.GetApplication(ctx, role.ApplicationObjectID)
 		if err != nil {
-			return nil, errwrap.Wrapf("error loading Application: {{err}}", err)
+			return nil, fmt.Errorf("error loading Application: %w", err)
 		}
 		role.ApplicationID = to.String(app.AppID)
 	}
@@ -208,12 +207,12 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 				if strings.Contains(err.Error(), "RoleDefinitionDoesNotExist") {
 					return logical.ErrorResponse("no role found for role_id: '%s'", r.RoleID), nil
 				}
-				return nil, errwrap.Wrapf("unable to lookup Azure role: {{err}}", err)
+				return nil, fmt.Errorf("unable to lookup Azure role: %w", err)
 			}
 		} else {
 			defs, err := client.findRoles(ctx, r.RoleName)
 			if err != nil {
-				return nil, errwrap.Wrapf("unable to lookup Azure role: {{err}}", err)
+				return nil, fmt.Errorf("unable to lookup Azure role: %w", err)
 			}
 			if l := len(defs); l == 0 {
 				return logical.ErrorResponse("no role found for role_name: '%s'", r.RoleName), nil
@@ -245,12 +244,12 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 				if strings.Contains(err.Error(), "Request_ResourceNotFound") {
 					return logical.ErrorResponse("no group found for object_id: '%s'", r.ObjectID), nil
 				}
-				return nil, errwrap.Wrapf("unable to lookup Azure group: {{err}}", err)
+				return nil, fmt.Errorf("unable to lookup Azure group: %w", err)
 			}
 		} else {
 			defs, err := client.findGroups(ctx, r.GroupName)
 			if err != nil {
-				return nil, errwrap.Wrapf("unable to lookup Azure group: {{err}}", err)
+				return nil, fmt.Errorf("unable to lookup Azure group: %w", err)
 			}
 			if l := len(defs); l == 0 {
 				return logical.ErrorResponse("no group found for group_name: '%s'", r.GroupName), nil
@@ -276,7 +275,7 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 	// save role
 	err = saveRole(ctx, req.Storage, role, name)
 	if err != nil {
-		return nil, errwrap.Wrapf("error storing role: {{err}}", err)
+		return nil, fmt.Errorf("error storing role: %w", err)
 	}
 
 	return resp, nil
@@ -289,7 +288,7 @@ func (b *azureSecretBackend) pathRoleRead(ctx context.Context, req *logical.Requ
 
 	r, err := getRole(ctx, name, req.Storage)
 	if err != nil {
-		return nil, errwrap.Wrapf("error reading role: {{err}}", err)
+		return nil, fmt.Errorf("error reading role: %w", err)
 	}
 
 	if r == nil {
@@ -310,7 +309,7 @@ func (b *azureSecretBackend) pathRoleRead(ctx context.Context, req *logical.Requ
 func (b *azureSecretBackend) pathRoleList(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	roles, err := req.Storage.List(ctx, rolesStoragePath+"/")
 	if err != nil {
-		return nil, errwrap.Wrapf("error listing roles: {{err}}", err)
+		return nil, fmt.Errorf("error listing roles: %w", err)
 	}
 
 	return logical.ListResponse(roles), nil
@@ -321,7 +320,7 @@ func (b *azureSecretBackend) pathRoleDelete(ctx context.Context, req *logical.Re
 
 	err := req.Storage.Delete(ctx, fmt.Sprintf("%s/%s", rolesStoragePath, name))
 	if err != nil {
-		return nil, errwrap.Wrapf("error deleting role: {{err}}", err)
+		return nil, fmt.Errorf("error deleting role: %w", err)
 	}
 
 	return nil, nil
@@ -332,7 +331,7 @@ func (b *azureSecretBackend) pathRoleExistenceCheck(ctx context.Context, req *lo
 
 	role, err := getRole(ctx, name, req.Storage)
 	if err != nil {
-		return false, errwrap.Wrapf("error reading role: {{err}}", err)
+		return false, fmt.Errorf("error reading role: %w", err)
 	}
 
 	return role != nil, nil

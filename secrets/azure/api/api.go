@@ -24,15 +24,15 @@ type AzureProvider interface {
 	DeleteRoleAssignmentByID(ctx context.Context, roleID string) (authorization.RoleAssignment, error)
 
 	ListRoleDefinitions(ctx context.Context, scope string, filter string) ([]authorization.RoleDefinition, error)
-	GetRoleDefinitionByID(ctx context.Context, roleID string) (result authorization.RoleDefinition, err error)
+	GetRoleDefinitionByID(ctx context.Context, roleID string) (authorization.RoleDefinition, error)
 }
 
 type ApplicationsClient interface {
-	GetApplication(ctx context.Context, applicationObjectID string) (result ApplicationResult, err error)
-	CreateApplication(ctx context.Context, displayName string) (result ApplicationResult, err error)
-	DeleteApplication(ctx context.Context, applicationObjectID string) (autorest.Response, error)
-	AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime date.Time) (result PasswordCredentialResult, err error)
-	RemoveApplicationPassword(ctx context.Context, applicationObjectID string, keyID string) (result autorest.Response, err error)
+	GetApplication(ctx context.Context, applicationObjectID string) (ApplicationResult, error)
+	CreateApplication(ctx context.Context, displayName string) (ApplicationResult, error)
+	DeleteApplication(ctx context.Context, applicationObjectID string) error
+	AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime date.Time) (PasswordCredentialResult, error)
+	RemoveApplicationPassword(ctx context.Context, applicationObjectID string, keyID string) error
 }
 
 type PasswordCredential struct {

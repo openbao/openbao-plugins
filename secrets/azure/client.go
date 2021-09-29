@@ -13,7 +13,6 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/hashicorp/errwrap"
 	multierror "github.com/hashicorp/go-multierror"
 	uuid "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/vault-plugin-secrets-azure/api"
@@ -86,7 +85,7 @@ func (c *client) createSP(
 	})
 
 	if err != nil {
-		return "", "", errwrap.Wrapf("error creating service principal: {{err}}", err)
+		return "", "", fmt.Errorf("error creating service principal: %w", err)
 	}
 
 	result := resultRaw.(idPass)
@@ -102,7 +101,7 @@ func (c *client) addAppPassword(ctx context.Context, appObjID string, expiresIn 
 		if strings.Contains(err.Error(), "size of the object has exceeded its limit") {
 			err = errors.New("maximum number of Application passwords reached")
 		}
-		return "", "", errwrap.Wrapf("error updating credentials: {{err}}", err)
+		return "", "", fmt.Errorf("error updating credentials: %w", err)
 	}
 
 	return to.String(resp.KeyID), to.String(resp.SecretText), nil
@@ -110,11 +109,12 @@ func (c *client) addAppPassword(ctx context.Context, appObjID string, expiresIn 
 
 // deleteAppPassword removes a password, if present, from an App's credentials list.
 func (c *client) deleteAppPassword(ctx context.Context, appObjID, keyID string) error {
-	if _, err := c.provider.RemoveApplicationPassword(ctx, appObjID, keyID); err != nil {
+	err := c.provider.RemoveApplicationPassword(ctx, appObjID, keyID)
+	if err != nil {
 		if strings.Contains(err.Error(), "No password credential found with keyId") {
 			return nil
 		}
-		return errwrap.Wrapf("error removing credentials: {{err}}", err)
+		return fmt.Errorf("error removing credentials: %w", err)
 	}
 
 	return nil
@@ -122,14 +122,7 @@ func (c *client) deleteAppPassword(ctx context.Context, appObjID, keyID string) 
 
 // deleteApp deletes an Azure application.
 func (c *client) deleteApp(ctx context.Context, appObjectID string) error {
-	resp, err := c.provider.DeleteApplication(ctx, appObjectID)
-
-	// Don't consider it an error if the object wasn't present
-	if err != nil && resp.Response != nil && resp.StatusCode == 404 {
-		return nil
-	}
-
-	return err
+	return c.provider.DeleteApplication(ctx, appObjectID)
 }
 
 // assignRoles assigns Azure roles to a service principal.
@@ -160,7 +153,7 @@ func (c *client) assignRoles(ctx context.Context, spID string, roles []*AzureRol
 		})
 
 		if err != nil {
-			return nil, errwrap.Wrapf("error while assigning roles: {{err}}", err)
+			return nil, fmt.Errorf("error while assigning roles: %w", err)
 		}
 
 		ids = append(ids, resultRaw.(string))
@@ -178,7 +171,7 @@ func (c *client) unassignRoles(ctx context.Context, roleIDs []string) error {
 
 	for _, id := range roleIDs {
 		if _, err := c.provider.DeleteRoleAssignmentByID(ctx, id); err != nil {
-			merr = multierror.Append(merr, errwrap.Wrapf("error unassigning role: {{err}}", err))
+			merr = multierror.Append(merr, fmt.Errorf("error unassigning role: %w", err))
 		}
 	}
 
@@ -200,7 +193,7 @@ func (c *client) addGroupMemberships(ctx context.Context, spID string, groups []
 		})
 
 		if err != nil {
-			return errwrap.Wrapf("error while adding group membership: {{err}}", err)
+			return fmt.Errorf("error while adding group membership: %w", err)
 		}
 	}
 
@@ -216,7 +209,7 @@ func (c *client) removeGroupMemberships(ctx context.Context, servicePrincipalObj
 
 	for _, id := range groupIDs {
 		if err := c.provider.RemoveGroupMember(ctx, servicePrincipalObjectID, id); err != nil {
-			merr = multierror.Append(merr, errwrap.Wrapf("error removing group membership: {{err}}", err))
+			merr = multierror.Append(merr, fmt.Errorf("error removing group membership: %w", err))
 		}
 	}
 
@@ -292,7 +285,7 @@ func (b *azureSecretBackend) getClientSettings(ctx context.Context, config *azur
 
 	pluginEnv, err := b.System().PluginEnv(ctx)
 	if err != nil {
-		return nil, errwrap.Wrapf("error loading plugin environment: {{err}}", err)
+		return nil, fmt.Errorf("error loading plugin environment: %w", err)
 	}
 	settings.PluginEnv = pluginEnv
 

@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/authorization/mgmt/authorization"
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/compute/mgmt/compute"
-	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/hashicorp/vault-plugin-secrets-azure/api"
@@ -35,7 +33,7 @@ func newMockProvider() api.AzureProvider {
 }
 
 // ListRoles returns a single fake role based on the inbound filter
-func (m *mockProvider) ListRoleDefinitions(_ context.Context, _ string, filter string) (result []authorization.RoleDefinition, err error) {
+func (m *mockProvider) ListRoleDefinitions(_ context.Context, _ string, filter string) ([]authorization.RoleDefinition, error) {
 	reRoleName := regexp.MustCompile("roleName eq '(.*)'")
 
 	match := reRoleName.FindAllStringSubmatch(filter, -1)
@@ -72,7 +70,7 @@ func (m *mockProvider) ListRoleDefinitions(_ context.Context, _ string, filter s
 
 // GetRoleByID will returns a fake role definition from the povided ID
 // Assumes an ID format of: .*FAKE_ROLE-{rolename}
-func (m *mockProvider) GetRoleDefinitionByID(_ context.Context, roleID string) (result authorization.RoleDefinition, err error) {
+func (m *mockProvider) GetRoleDefinitionByID(_ context.Context, roleID string) (authorization.RoleDefinition, error) {
 	d := authorization.RoleDefinition{}
 	s := strings.Split(roleID, "FAKE_ROLE-")
 	if len(s) > 1 {
@@ -85,7 +83,7 @@ func (m *mockProvider) GetRoleDefinitionByID(_ context.Context, roleID string) (
 	return d, nil
 }
 
-func (m *mockProvider) CreateServicePrincipal(_ context.Context, _ string, _ time.Time, _ time.Time) (string, string, error) {
+func (m *mockProvider) CreateServicePrincipal(_ context.Context, _ string, _ time.Time, _ time.Time) (spID string, password string, err error) {
 	id := generateUUID()
 	pass := generateUUID()
 	return id, pass, nil
@@ -115,12 +113,12 @@ func (m *mockProvider) GetApplication(_ context.Context, _ string) (api.Applicat
 	}, nil
 }
 
-func (m *mockProvider) DeleteApplication(_ context.Context, applicationObjectID string) (autorest.Response, error) {
+func (m *mockProvider) DeleteApplication(_ context.Context, applicationObjectID string) error {
 	delete(m.applications, applicationObjectID)
-	return autorest.Response{}, nil
+	return nil
 }
 
-func (m *mockProvider) AddApplicationPassword(_ context.Context, _ string, displayName string, endDateTime date.Time) (result api.PasswordCredentialResult, err error) {
+func (m *mockProvider) AddApplicationPassword(_ context.Context, _ string, displayName string, endDateTime date.Time) (api.PasswordCredentialResult, error) {
 	keyID := generateUUID()
 	cred := api.PasswordCredential{
 		DisplayName: to.StringPtr(displayName),
@@ -139,13 +137,13 @@ func (m *mockProvider) AddApplicationPassword(_ context.Context, _ string, displ
 	}, nil
 }
 
-func (m *mockProvider) RemoveApplicationPassword(_ context.Context, _ string, keyID string) (result autorest.Response, err error) {
+func (m *mockProvider) RemoveApplicationPassword(_ context.Context, _ string, keyID string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	delete(m.passwords, keyID)
 
-	return autorest.Response{}, nil
+	return nil
 }
 
 func (m *mockProvider) appExists(s string) bool {
@@ -157,31 +155,23 @@ func (m *mockProvider) passwordExists(s string) bool {
 	return ok
 }
 
-func (m *mockProvider) VMGet(_ context.Context, _ string, _ string, _ compute.InstanceViewTypes) (result compute.VirtualMachine, err error) {
-	return compute.VirtualMachine{}, nil
-}
-
-func (m *mockProvider) VMUpdate(_ context.Context, _ string, _ string, _ compute.VirtualMachineUpdate) (result compute.VirtualMachinesUpdateFuture, err error) {
-	return compute.VirtualMachinesUpdateFuture{}, nil
-}
-
 func (m *mockProvider) CreateRoleAssignment(_ context.Context, _ string, _ string, _ authorization.RoleAssignmentCreateParameters) (authorization.RoleAssignment, error) {
 	return authorization.RoleAssignment{
 		ID: to.StringPtr(generateUUID()),
 	}, nil
 }
 
-func (m *mockProvider) DeleteRoleAssignmentByID(_ context.Context, _ string) (result authorization.RoleAssignment, err error) {
+func (m *mockProvider) DeleteRoleAssignmentByID(_ context.Context, _ string) (authorization.RoleAssignment, error) {
 	return authorization.RoleAssignment{}, nil
 }
 
 // AddGroupMember adds a member to a AAD Group.
-func (m *mockProvider) AddGroupMember(_ context.Context, _ string, _ string) (err error) {
+func (m *mockProvider) AddGroupMember(_ context.Context, _ string, _ string) error {
 	return nil
 }
 
 // RemoveGroupMember removes a member from a AAD Group.
-func (m *mockProvider) RemoveGroupMember(_ context.Context, _ string, _ string) (err error) {
+func (m *mockProvider) RemoveGroupMember(_ context.Context, _ string, _ string) error {
 	return nil
 }
 
@@ -199,7 +189,7 @@ func (m *mockProvider) GetGroup(_ context.Context, objectID string) (api.Group, 
 }
 
 // ListGroups gets list of groups for the current tenant.
-func (m *mockProvider) ListGroups(_ context.Context, filter string) (result []api.Group, err error) {
+func (m *mockProvider) ListGroups(_ context.Context, filter string) ([]api.Group, error) {
 	reGroupName := regexp.MustCompile("displayName eq '(.*)'")
 
 	match := reGroupName.FindAllStringSubmatch(filter, -1)
@@ -246,7 +236,7 @@ func newErrMockProvider() api.AzureProvider {
 }
 
 // CreateRoleAssignment for the errMockProvider intentionally fails
-func (e *errMockProvider) CreateRoleAssignment(ctx context.Context, scope string, roleAssignmentName string, parameters authorization.RoleAssignmentCreateParameters) (authorization.RoleAssignment, error) {
+func (e *errMockProvider) CreateRoleAssignment(_ context.Context, _ string, _ string, _ authorization.RoleAssignmentCreateParameters) (authorization.RoleAssignment, error) {
 	return authorization.RoleAssignment{}, errors.New("PrincipalNotFound")
 }
 
@@ -254,7 +244,7 @@ func (e *errMockProvider) CreateRoleAssignment(ctx context.Context, scope string
 // key is found, unlike mockProvider which returns the same application object
 // id each time. Existing tests depend on the mockProvider behavior, which is
 // why errMockProvider has it's own version.
-func (e *errMockProvider) GetApplication(ctx context.Context, applicationObjectID string) (api.ApplicationResult, error) {
+func (e *errMockProvider) GetApplication(_ context.Context, applicationObjectID string) (api.ApplicationResult, error) {
 	for s := range e.applications {
 		if s == applicationObjectID {
 			return api.ApplicationResult{

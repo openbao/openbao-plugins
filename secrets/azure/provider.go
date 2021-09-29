@@ -166,7 +166,7 @@ func (p *provider) GetApplication(ctx context.Context, applicationObjectID strin
 
 // DeleteApplication deletes an Azure application object.
 // This will in turn remove the service principal (but not the role assignments).
-func (p *provider) DeleteApplication(ctx context.Context, applicationObjectID string) (autorest.Response, error) {
+func (p *provider) DeleteApplication(ctx context.Context, applicationObjectID string) error {
 	return p.appClient.DeleteApplication(ctx, applicationObjectID)
 }
 
@@ -174,7 +174,7 @@ func (p *provider) AddApplicationPassword(ctx context.Context, applicationObject
 	return p.appClient.AddApplicationPassword(ctx, applicationObjectID, displayName, endDateTime)
 }
 
-func (p *provider) RemoveApplicationPassword(ctx context.Context, applicationObjectID string, keyID string) (result autorest.Response, err error) {
+func (p *provider) RemoveApplicationPassword(ctx context.Context, applicationObjectID string, keyID string) (err error) {
 	return p.appClient.RemoveApplicationPassword(ctx, applicationObjectID, keyID)
 }
 

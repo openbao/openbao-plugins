@@ -52,114 +52,107 @@ func (c *AppClient) AddToUserAgent(extension string) error {
 func (c *AppClient) GetApplication(ctx context.Context, applicationObjectID string) (result ApplicationResult, err error) {
 	req, err := c.getApplicationPreparer(ctx, applicationObjectID)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "provider", "GetApplication", nil, "Failure preparing request")
-		return
+		return result, autorest.NewErrorWithError(err, "provider", "GetApplication", nil, "Failure preparing request")
 	}
 
 	resp, err := c.getApplicationSender(req)
 	if err != nil {
-		result.Response = autorest.Response{Response: resp}
-		err = autorest.NewErrorWithError(err, "provider", "GetApplication", resp, "Failure sending request")
-		return
+		result = ApplicationResult{
+			Response: autorest.Response{Response: resp},
+		}
+		return result, autorest.NewErrorWithError(err, "provider", "GetApplication", resp, "Failure sending request")
 	}
 
 	result, err = c.getApplicationResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "provider", "GetApplication", resp, "Failure responding to request")
+		return result, autorest.NewErrorWithError(err, "provider", "GetApplication", resp, "Failure responding to request")
 	}
 
-	return
+	return result, nil
 }
 
 // CreateApplication create a new Azure application object.
 func (c *AppClient) CreateApplication(ctx context.Context, displayName string) (result ApplicationResult, err error) {
 	req, err := c.createApplicationPreparer(ctx, displayName)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "provider", "CreateApplication", nil, "Failure preparing request")
-		return
+		return result, autorest.NewErrorWithError(err, "provider", "CreateApplication", nil, "Failure preparing request")
 	}
 
 	resp, err := c.createApplicationSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		err = autorest.NewErrorWithError(err, "provider", "CreateApplication", resp, "Failure sending request")
-		return
+		return result, autorest.NewErrorWithError(err, "provider", "CreateApplication", resp, "Failure sending request")
 	}
 
 	result, err = c.createApplicationResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "provider", "CreateApplication", resp, "Failure responding to request")
+		return result, autorest.NewErrorWithError(err, "provider", "CreateApplication", resp, "Failure responding to request")
+
 	}
 
-	return
+	return result, nil
 }
 
 // DeleteApplication deletes an Azure application object.
 // This will in turn remove the service principal (but not the role assignments).
-func (c *AppClient) DeleteApplication(ctx context.Context, applicationObjectID string) (result autorest.Response, err error) {
+func (c *AppClient) DeleteApplication(ctx context.Context, applicationObjectID string) (err error) {
 	req, err := c.deleteApplicationPreparer(ctx, applicationObjectID)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "provider", "DeleteApplication", nil, "Failure preparing request")
-		return
+		return autorest.NewErrorWithError(err, "provider", "DeleteApplication", nil, "Failure preparing request")
 	}
 
 	resp, err := c.deleteApplicationSender(req)
 	if err != nil {
-		result.Response = resp
-		err = autorest.NewErrorWithError(err, "provider", "DeleteApplication", resp, "Failure sending request")
-		return
+		return autorest.NewErrorWithError(err, "provider", "DeleteApplication", resp, "Failure sending request")
 	}
 
-	result, err = c.deleteApplicationResponder(resp)
-	if err != nil {
-		err = autorest.NewErrorWithError(err, "provider", "DeleteApplication", resp, "Failure responding to request")
-	}
-
-	return
+	err = autorest.Respond(
+		resp,
+		c.client.ByInspecting(),
+		azure.WithErrorUnlessStatusCode(http.StatusNoContent, http.StatusNotFound),
+		autorest.ByClosing())
+	return autorest.NewErrorWithError(err, "provider", "DeleteApplication", resp, "Failure responding to request")
 }
 
 func (c *AppClient) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime date.Time) (result PasswordCredentialResult, err error) {
 	req, err := c.addPasswordPreparer(ctx, applicationObjectID, displayName, endDateTime)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "provider", "AddApplicationPassword", nil, "Failure preparing request")
-		return
+		return PasswordCredentialResult{}, autorest.NewErrorWithError(err, "provider", "AddApplicationPassword", nil, "Failure preparing request")
 	}
 
 	resp, err := c.addPasswordSender(req)
 	if err != nil {
-		result.Response = autorest.Response{Response: resp}
-		err = autorest.NewErrorWithError(err, "provider", "AddApplicationPassword", resp, "Failure sending request")
-		return
+		result = PasswordCredentialResult{
+			Response: autorest.Response{Response: resp},
+		}
+		return result, autorest.NewErrorWithError(err, "provider", "AddApplicationPassword", resp, "Failure sending request")
 	}
 
 	result, err = c.addPasswordResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "provider", "AddApplicationPassword", resp, "Failure responding to request")
+		return result, autorest.NewErrorWithError(err, "provider", "AddApplicationPassword", resp, "Failure responding to request")
 	}
 
-	return
+	return result, nil
 }
 
-func (c *AppClient) RemoveApplicationPassword(ctx context.Context, applicationObjectID string, keyID string) (result autorest.Response, err error) {
+func (c *AppClient) RemoveApplicationPassword(ctx context.Context, applicationObjectID string, keyID string) (err error) {
 	req, err := c.removePasswordPreparer(ctx, applicationObjectID, keyID)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "provider", "RemoveApplicationPassword", nil, "Failure preparing request")
-		return
+		return autorest.NewErrorWithError(err, "provider", "RemoveApplicationPassword", nil, "Failure preparing request")
 	}
 
 	resp, err := c.removePasswordSender(req)
 	if err != nil {
-		result.Response = resp
-		err = autorest.NewErrorWithError(err, "provider", "RemoveApplicationPassword", resp, "Failure sending request")
-		return
+		return autorest.NewErrorWithError(err, "provider", "RemoveApplicationPassword", resp, "Failure sending request")
 	}
 
-	result, err = c.removePasswordResponder(resp)
+	_, err = c.removePasswordResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "provider", "RemoveApplicationPassword", resp, "Failure responding to request")
+		return autorest.NewErrorWithError(err, "provider", "RemoveApplicationPassword", resp, "Failure responding to request")
 	}
 
-	return
+	return nil
 }
 
 func (c AppClient) getApplicationPreparer(ctx context.Context, applicationObjectID string) (*http.Request, error) {
@@ -229,7 +222,7 @@ func (c AppClient) addPasswordResponder(resp *http.Response) (result PasswordCre
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
 	result.Response = autorest.Response{Response: resp}
-	return
+	return result, err
 }
 
 func (c AppClient) removePasswordPreparer(ctx context.Context, applicationObjectID string, keyID string) (*http.Request, error) {
@@ -266,7 +259,7 @@ func (c AppClient) removePasswordResponder(resp *http.Response) (result autorest
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
 	result.Response = resp
-	return
+	return result, err
 }
 
 func (c AppClient) createApplicationPreparer(ctx context.Context, displayName string) (*http.Request, error) {
@@ -299,7 +292,7 @@ func (c AppClient) createApplicationResponder(resp *http.Response) (result Appli
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
 	result.Response = autorest.Response{Response: resp}
-	return
+	return result, nil
 }
 
 func (c AppClient) deleteApplicationPreparer(ctx context.Context, applicationObjectID string) (*http.Request, error) {
@@ -319,17 +312,6 @@ func (c AppClient) deleteApplicationPreparer(ctx context.Context, applicationObj
 func (c AppClient) deleteApplicationSender(req *http.Request) (*http.Response, error) {
 	sd := autorest.GetSendDecorators(req.Context(), autorest.DoRetryForStatusCodes(c.client.RetryAttempts, c.client.RetryDuration, autorest.StatusCodesForRetry...))
 	return autorest.SendWithSender(c.client, req, sd...)
-}
-
-func (c AppClient) deleteApplicationResponder(resp *http.Response) (result autorest.Response, err error) {
-	err = autorest.Respond(
-		resp,
-		c.client.ByInspecting(),
-		azure.WithErrorUnlessStatusCode(http.StatusNoContent),
-		autorest.ByUnmarshallingJSON(&result),
-		autorest.ByClosing())
-	result.Response = resp
-	return
 }
 
 func (c AppClient) AddGroupMember(ctx context.Context, groupObjectID string, memberObjectID string) error {

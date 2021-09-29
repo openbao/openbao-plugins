@@ -12,7 +12,6 @@ require (
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/frankban/quicktest v1.10.0 // indirect
 	github.com/go-test/deep v1.0.2-0.20181118220953-042da051cf31
-	github.com/hashicorp/errwrap v1.0.0
 	github.com/hashicorp/go-hclog v0.14.1
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/go-retryablehttp v0.6.6 // indirect
