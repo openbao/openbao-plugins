@@ -292,7 +292,7 @@ func (c AppClient) createApplicationResponder(resp *http.Response) (result Appli
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
 	result.Response = autorest.Response{Response: resp}
-	return result, nil
+	return result, err
 }
 
 func (c AppClient) deleteApplicationPreparer(ctx context.Context, applicationObjectID string) (*http.Request, error) {
