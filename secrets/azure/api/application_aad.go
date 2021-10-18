@@ -19,7 +19,7 @@ type ActiveDirectoryApplicationClient struct {
 	Passwords Passwords
 }
 
-func (a *ActiveDirectoryApplicationClient) GetApplication(ctx context.Context, applicationObjectID string) (result ApplicationResult, err error) {
+func (a *ActiveDirectoryApplicationClient) GetApplication(ctx context.Context, applicationObjectID string) (ApplicationResult, error) {
 	app, err := a.Client.Get(ctx, applicationObjectID)
 	if err != nil {
 		return ApplicationResult{}, err
@@ -31,7 +31,7 @@ func (a *ActiveDirectoryApplicationClient) GetApplication(ctx context.Context, a
 	}, nil
 }
 
-func (a *ActiveDirectoryApplicationClient) CreateApplication(ctx context.Context, displayName string) (result ApplicationResult, err error) {
+func (a *ActiveDirectoryApplicationClient) CreateApplication(ctx context.Context, displayName string) (ApplicationResult, error) {
 	appURL := fmt.Sprintf("https://%s", displayName)
 
 	app, err := a.Client.Create(ctx, graphrbac.ApplicationCreateParameters{
@@ -62,7 +62,7 @@ func (a *ActiveDirectoryApplicationClient) DeleteApplication(ctx context.Context
 	return nil
 }
 
-func (a *ActiveDirectoryApplicationClient) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime date.Time) (result PasswordCredentialResult, err error) {
+func (a *ActiveDirectoryApplicationClient) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime date.Time) (PasswordCredentialResult, error) {
 	keyID, err := uuid.GenerateUUID()
 	if err != nil {
 		return PasswordCredentialResult{}, err
@@ -106,7 +106,7 @@ func (a *ActiveDirectoryApplicationClient) AddApplicationPassword(ctx context.Co
 		return PasswordCredentialResult{}, fmt.Errorf("error updating credentials: %w", err)
 	}
 
-	result = PasswordCredentialResult{
+	result := PasswordCredentialResult{
 		PasswordCredential: PasswordCredential{
 			DisplayName: to.StringPtr(displayName),
 			StartDate:   &now,
@@ -118,7 +118,7 @@ func (a *ActiveDirectoryApplicationClient) AddApplicationPassword(ctx context.Co
 	return result, nil
 }
 
-func (a *ActiveDirectoryApplicationClient) RemoveApplicationPassword(ctx context.Context, applicationObjectID string, keyID string) (err error) {
+func (a *ActiveDirectoryApplicationClient) RemoveApplicationPassword(ctx context.Context, applicationObjectID string, keyID string) error {
 	// Load current credentials
 	resp, err := a.Client.ListPasswordCredentials(ctx, applicationObjectID)
 	if err != nil {
