@@ -31,6 +31,39 @@ func (a *ActiveDirectoryApplicationClient) GetApplication(ctx context.Context, a
 	}, nil
 }
 
+func (a *ActiveDirectoryApplicationClient) ListApplications(ctx context.Context, filter string) ([]ApplicationResult, error) {
+	resp, err := a.Client.List(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	results := []ApplicationResult{}
+	for resp.NotDone() {
+		for _, app := range resp.Values() {
+			passCreds := []*PasswordCredential{}
+			for _, rawPC := range *app.PasswordCredentials {
+				pc := &PasswordCredential{
+					StartDate: rawPC.StartDate,
+					EndDate:   rawPC.EndDate,
+					KeyID:     rawPC.KeyID,
+				}
+				passCreds = append(passCreds, pc)
+			}
+			appResult := ApplicationResult{
+				AppID:               app.AppID,
+				ID:                  app.ObjectID,
+				PasswordCredentials: passCreds,
+			}
+			results = append(results, appResult)
+		}
+		err = resp.NextWithContext(ctx)
+		if err != nil {
+			return results, fmt.Errorf("failed to get all results: %w", err)
+		}
+	}
+	return results, nil
+}
+
 func (a *ActiveDirectoryApplicationClient) CreateApplication(ctx context.Context, displayName string) (ApplicationResult, error) {
 	appURL := fmt.Sprintf("https://%s", displayName)
 
@@ -62,7 +95,7 @@ func (a *ActiveDirectoryApplicationClient) DeleteApplication(ctx context.Context
 	return nil
 }
 
-func (a *ActiveDirectoryApplicationClient) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime date.Time) (PasswordCredentialResult, error) {
+func (a *ActiveDirectoryApplicationClient) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime time.Time) (PasswordCredentialResult, error) {
 	keyID, err := uuid.GenerateUUID()
 	if err != nil {
 		return PasswordCredentialResult{}, err
@@ -80,7 +113,7 @@ func (a *ActiveDirectoryApplicationClient) AddApplicationPassword(ctx context.Co
 	now := date.Time{Time: time.Now().UTC()}
 	cred := graphrbac.PasswordCredential{
 		StartDate: &now,
-		EndDate:   &endDateTime,
+		EndDate:   &date.Time{endDateTime},
 		KeyID:     to.StringPtr(keyID),
 		Value:     to.StringPtr(password),
 	}
@@ -110,7 +143,7 @@ func (a *ActiveDirectoryApplicationClient) AddApplicationPassword(ctx context.Co
 		PasswordCredential: PasswordCredential{
 			DisplayName: to.StringPtr(displayName),
 			StartDate:   &now,
-			EndDate:     &endDateTime,
+			EndDate:     &date.Time{endDateTime},
 			KeyID:       to.StringPtr(keyID),
 			SecretText:  to.StringPtr(password),
 		},

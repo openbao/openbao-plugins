@@ -18,6 +18,11 @@ const (
 	defaultTestMaxTTL = 3600
 )
 
+var (
+	testClientID     = "testClientId"
+	testClientSecret = "testClientSecret"
+)
+
 func getTestBackend(t *testing.T, initConfig bool) (*azureSecretBackend, logical.Storage) {
 	b := backend()
 
@@ -44,8 +49,8 @@ func getTestBackend(t *testing.T, initConfig bool) (*azureSecretBackend, logical
 		cfg := map[string]interface{}{
 			"subscription_id": generateUUID(),
 			"tenant_id":       generateUUID(),
-			"client_id":       "testClientId",
-			"client_secret":   "testClientSecret",
+			"client_id":       testClientID,
+			"client_secret":   testClientSecret,
 			"environment":     "AZURECHINACLOUD",
 			"ttl":             defaultTestTTL,
 			"max_ttl":         defaultTestMaxTTL,

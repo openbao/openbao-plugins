@@ -9,7 +9,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
-	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 	"github.com/hashicorp/vault/sdk/helper/useragent"
 	"github.com/hashicorp/vault/sdk/version"
@@ -33,11 +32,6 @@ type provider struct {
 // newAzureProvider creates an azureProvider, backed by Azure client objects for underlying services.
 func newAzureProvider(settings *clientSettings, useMsGraphApi bool, passwords api.Passwords) (api.AzureProvider, error) {
 	// build clients that use the GraphRBAC endpoint
-	graphAuthorizer, err := getAuthorizer(settings, settings.Environment.GraphEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
 	userAgent := getUserAgent(settings)
 
 	var appClient api.ApplicationsClient
@@ -58,6 +52,11 @@ func newAzureProvider(settings *clientSettings, useMsGraphApi bool, passwords ap
 		groupsClient = msGraphAppClient
 		spClient = msGraphAppClient
 	} else {
+		graphAuthorizer, err := getAuthorizer(settings, settings.Environment.GraphEndpoint)
+		if err != nil {
+			return nil, err
+		}
+
 		aadGraphClient := graphrbac.NewApplicationsClient(settings.TenantID)
 		aadGraphClient.Authorizer = graphAuthorizer
 		aadGraphClient.AddToUserAgent(userAgent)
@@ -164,13 +163,17 @@ func (p *provider) GetApplication(ctx context.Context, applicationObjectID strin
 	return p.appClient.GetApplication(ctx, applicationObjectID)
 }
 
+func (p *provider) ListApplications(ctx context.Context, filter string) ([]api.ApplicationResult, error) {
+	return p.appClient.ListApplications(ctx, filter)
+}
+
 // DeleteApplication deletes an Azure application object.
 // This will in turn remove the service principal (but not the role assignments).
 func (p *provider) DeleteApplication(ctx context.Context, applicationObjectID string) error {
 	return p.appClient.DeleteApplication(ctx, applicationObjectID)
 }
 
-func (p *provider) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime date.Time) (result api.PasswordCredentialResult, err error) {
+func (p *provider) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime time.Time) (result api.PasswordCredentialResult, err error) {
 	return p.appClient.AddApplicationPassword(ctx, applicationObjectID, displayName, endDateTime)
 }
 

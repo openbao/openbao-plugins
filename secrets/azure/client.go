@@ -11,7 +11,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/authorization/mgmt/authorization"
 	"github.com/Azure/go-autorest/autorest/azure"
-	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/Azure/go-autorest/autorest/to"
 	multierror "github.com/hashicorp/go-multierror"
 	uuid "github.com/hashicorp/go-uuid"
@@ -44,6 +43,7 @@ func (c *client) Valid() bool {
 // An Application is a needed to create service principals used by
 // the caller for authentication.
 func (c *client) createApp(ctx context.Context) (app *api.ApplicationResult, err error) {
+	// TODO: Make this name customizable with the same logic as username customization
 	name, err := uuid.GenerateUUID()
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (c *client) createSP(
 
 // addAppPassword adds a new password to an App's credentials list.
 func (c *client) addAppPassword(ctx context.Context, appObjID string, expiresIn time.Duration) (string, string, error) {
-	exp := date.Time{Time: time.Now().Add(expiresIn)}
+	exp := time.Now().Add(expiresIn)
 	resp, err := c.provider.AddApplicationPassword(ctx, appObjID, "vault-plugin-secrets-azure", exp)
 	if err != nil {
 		if strings.Contains(err.Error(), "size of the object has exceeded its limit") {

@@ -17,13 +17,13 @@ type AADServicePrincipalsClient struct {
 	Passwords Passwords
 }
 
-func (c AADServicePrincipalsClient) CreateServicePrincipal(ctx context.Context, appID string, startDate time.Time, endDate time.Time) (id string, password string, err error) {
+func (c AADServicePrincipalsClient) CreateServicePrincipal(ctx context.Context, appID string, startDate time.Time, endDate time.Time) (string, string, error) {
 	keyID, err := uuid.GenerateUUID()
 	if err != nil {
 		return "", "", err
 	}
 
-	password, err = c.Passwords.Generate(ctx)
+	password, err := c.Passwords.Generate(ctx)
 	if err != nil {
 		return "", "", err
 	}

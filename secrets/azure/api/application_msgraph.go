@@ -72,6 +72,31 @@ func (c *AppClient) GetApplication(ctx context.Context, applicationObjectID stri
 	return result, nil
 }
 
+type listApplicationsResponse struct {
+	Value []ApplicationResult `json:"value"`
+}
+
+func (c *AppClient) ListApplications(ctx context.Context, filter string) ([]ApplicationResult, error) {
+	filterArgs := url.Values{}
+	if filter != "" {
+		filterArgs.Set("$filter", filter)
+	}
+	preparer := c.GetPreparer(
+		autorest.AsGet(),
+		autorest.WithPath(fmt.Sprintf("/v1.0/applications?%s", filterArgs.Encode())),
+	)
+	listAppResp := listApplicationsResponse{}
+	err := c.SendRequest(ctx, preparer,
+		azure.WithErrorUnlessStatusCode(http.StatusOK),
+		autorest.ByUnmarshallingJSON(&listAppResp),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return listAppResp.Value, nil
+}
+
 // CreateApplication create a new Azure application object.
 func (c *AppClient) CreateApplication(ctx context.Context, displayName string) (ApplicationResult, error) {
 	var result ApplicationResult
@@ -90,6 +115,7 @@ func (c *AppClient) CreateApplication(ctx context.Context, displayName string) (
 	result, err = c.createApplicationResponder(resp)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "provider", "CreateApplication", resp, "Failure responding to request")
+
 	}
 
 	return result, nil
@@ -117,27 +143,24 @@ func (c *AppClient) DeleteApplication(ctx context.Context, applicationObjectID s
 	if err != nil {
 		return autorest.NewErrorWithError(err, "provider", "DeleteApplication", resp, "Failure responding to request")
 	}
-
 	return nil
 }
 
-func (c *AppClient) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime date.Time) (PasswordCredentialResult, error) {
-	var result PasswordCredentialResult
-
-	req, err := c.addPasswordPreparer(ctx, applicationObjectID, displayName, endDateTime)
+func (c *AppClient) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime time.Time) (PasswordCredentialResult, error) {
+	req, err := c.addPasswordPreparer(ctx, applicationObjectID, displayName, date.Time{endDateTime})
 	if err != nil {
 		return PasswordCredentialResult{}, autorest.NewErrorWithError(err, "provider", "AddApplicationPassword", nil, "Failure preparing request")
 	}
 
 	resp, err := c.addPasswordSender(req)
 	if err != nil {
-		result = PasswordCredentialResult{
+		result := PasswordCredentialResult{
 			Response: autorest.Response{Response: resp},
 		}
 		return result, autorest.NewErrorWithError(err, "provider", "AddApplicationPassword", resp, "Failure sending request")
 	}
 
-	result, err = c.addPasswordResponder(resp)
+	result, err := c.addPasswordResponder(resp)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "provider", "AddApplicationPassword", resp, "Failure responding to request")
 	}
@@ -487,7 +510,7 @@ func (c *AppClient) setPasswordForServicePrincipal(ctx context.Context, spID str
 	}
 	reqBody := map[string]interface{}{
 		"startDateTime": startDate.UTC().Format("2006-01-02T15:04:05Z"),
-		"endDateTime":   startDate.UTC().Format("2006-01-02T15:04:05Z"),
+		"endDateTime":   endDate.UTC().Format("2006-01-02T15:04:05Z"),
 	}
 
 	preparer := c.GetPreparer(

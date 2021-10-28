@@ -108,8 +108,20 @@ func (m *mockProvider) CreateApplication(_ context.Context, _ string) (api.Appli
 }
 
 func (m *mockProvider) GetApplication(_ context.Context, _ string) (api.ApplicationResult, error) {
+	appObjID := generateUUID()
 	return api.ApplicationResult{
 		AppID: to.StringPtr("00000000-0000-0000-0000-000000000000"),
+		ID:    &appObjID,
+	}, nil
+}
+
+func (m *mockProvider) ListApplications(_ context.Context, _ string) ([]api.ApplicationResult, error) {
+	appObjID := generateUUID()
+	return []api.ApplicationResult{
+		{
+			AppID: to.StringPtr("00000000-0000-0000-0000-000000000000"),
+			ID:    &appObjID,
+		},
 	}, nil
 }
 
@@ -118,12 +130,12 @@ func (m *mockProvider) DeleteApplication(_ context.Context, applicationObjectID 
 	return nil
 }
 
-func (m *mockProvider) AddApplicationPassword(_ context.Context, _ string, displayName string, endDateTime date.Time) (api.PasswordCredentialResult, error) {
+func (m *mockProvider) AddApplicationPassword(_ context.Context, _ string, displayName string, endDateTime time.Time) (result api.PasswordCredentialResult, err error) {
 	keyID := generateUUID()
 	cred := api.PasswordCredential{
 		DisplayName: to.StringPtr(displayName),
 		StartDate:   &date.Time{Time: time.Now()},
-		EndDate:     &endDateTime,
+		EndDate:     &date.Time{endDateTime},
 		KeyID:       to.StringPtr(keyID),
 		SecretText:  to.StringPtr(generateUUID()),
 	}
@@ -137,7 +149,7 @@ func (m *mockProvider) AddApplicationPassword(_ context.Context, _ string, displ
 	}, nil
 }
 
-func (m *mockProvider) RemoveApplicationPassword(_ context.Context, _ string, keyID string) error {
+func (m *mockProvider) RemoveApplicationPassword(_ context.Context, _ string, keyID string) (err error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 

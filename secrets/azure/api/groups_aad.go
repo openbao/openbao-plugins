@@ -38,7 +38,7 @@ func (a ActiveDirectoryApplicationGroupsClient) RemoveGroupMember(ctx context.Co
 	return err
 }
 
-func (a ActiveDirectoryApplicationGroupsClient) GetGroup(ctx context.Context, objectID string) (result Group, err error) {
+func (a ActiveDirectoryApplicationGroupsClient) GetGroup(ctx context.Context, objectID string) (Group, error) {
 	resp, err := a.Client.Get(ctx, objectID)
 	if err != nil {
 		return Group{}, err
@@ -57,7 +57,7 @@ func getGroupFromRBAC(resp graphrbac.ADGroup) Group {
 	return grp
 }
 
-func (a ActiveDirectoryApplicationGroupsClient) ListGroups(ctx context.Context, filter string) (result []Group, err error) {
+func (a ActiveDirectoryApplicationGroupsClient) ListGroups(ctx context.Context, filter string) ([]Group, error) {
 	resp, err := a.Client.List(ctx, filter)
 	if err != nil {
 		return nil, err

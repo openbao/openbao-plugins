@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/authorization/mgmt/authorization"
 	"github.com/Azure/go-autorest/autorest"
@@ -31,20 +32,17 @@ type ApplicationsClient interface {
 	GetApplication(ctx context.Context, applicationObjectID string) (ApplicationResult, error)
 	CreateApplication(ctx context.Context, displayName string) (ApplicationResult, error)
 	DeleteApplication(ctx context.Context, applicationObjectID string) error
-	AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime date.Time) (PasswordCredentialResult, error)
+	ListApplications(ctx context.Context, filter string) ([]ApplicationResult, error)
+	AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime time.Time) (PasswordCredentialResult, error)
 	RemoveApplicationPassword(ctx context.Context, applicationObjectID string, keyID string) error
 }
 
 type PasswordCredential struct {
-	DisplayName *string `json:"displayName"`
-	// StartDate - Start date.
-	StartDate *date.Time `json:"startDateTime,omitempty"`
-	// EndDate - End date.
-	EndDate *date.Time `json:"endDateTime,omitempty"`
-	// KeyID - Key ID.
-	KeyID *string `json:"keyId,omitempty"`
-	// Value - Key value.
-	SecretText *string `json:"secretText,omitempty"`
+	DisplayName *string    `json:"displayName"`
+	StartDate   *date.Time `json:"startDateTime,omitempty"`
+	EndDate     *date.Time `json:"endDateTime,omitempty"`
+	KeyID       *string    `json:"keyId,omitempty"`
+	SecretText  *string    `json:"secretText,omitempty"`
 }
 
 type PasswordCredentialResult struct {

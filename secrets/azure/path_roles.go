@@ -124,6 +124,11 @@ func pathsRole(b *azureSecretBackend) []*framework.Path {
 func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	var resp *logical.Response
 
+	config, err := b.getConfig(ctx, req.Storage)
+	if err != nil {
+		return nil, err
+	}
+
 	client, err := b.getClient(ctx, req.Storage)
 	if err != nil {
 		return nil, err
@@ -278,13 +283,16 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 		return nil, fmt.Errorf("error storing role: %w", err)
 	}
 
-	return resp, nil
+	return addAADWarning(resp, config), nil
 }
 
 func (b *azureSecretBackend) pathRoleRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	var data = make(map[string]interface{})
-
 	name := d.Get("name").(string)
+
+	config, err := b.getConfig(ctx, req.Storage)
+	if err != nil {
+		return nil, err
+	}
 
 	r, err := getRole(ctx, name, req.Storage)
 	if err != nil {
@@ -295,15 +303,16 @@ func (b *azureSecretBackend) pathRoleRead(ctx context.Context, req *logical.Requ
 		return nil, nil
 	}
 
-	data["ttl"] = r.TTL / time.Second
-	data["max_ttl"] = r.MaxTTL / time.Second
-	data["azure_roles"] = r.AzureRoles
-	data["azure_groups"] = r.AzureGroups
-	data["application_object_id"] = r.ApplicationObjectID
-
-	return &logical.Response{
-		Data: data,
-	}, nil
+	resp := &logical.Response{
+		Data: map[string]interface{}{
+			"ttl":                   r.TTL / time.Second,
+			"max_ttl":               r.MaxTTL / time.Second,
+			"azure_roles":           r.AzureRoles,
+			"azure_groups":          r.AzureGroups,
+			"application_object_id": r.ApplicationObjectID,
+		},
+	}
+	return addAADWarning(resp, config), nil
 }
 
 func (b *azureSecretBackend) pathRoleList(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {

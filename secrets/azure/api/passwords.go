@@ -20,7 +20,7 @@ type Passwords struct {
 	PolicyName      string
 }
 
-func (p Passwords) Generate(ctx context.Context) (password string, err error) {
+func (p Passwords) Generate(ctx context.Context) (string, error) {
 	if p.PolicyName == "" {
 		return base62.Random(PasswordLength)
 	}
