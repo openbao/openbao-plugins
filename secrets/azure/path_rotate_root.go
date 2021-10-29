@@ -34,6 +34,10 @@ func (b *azureSecretBackend) pathRotateRoot(ctx context.Context, req *logical.Re
 		return nil, err
 	}
 
+	if config == nil {
+		return nil, fmt.Errorf("config is nil")
+	}
+
 	expDur := config.RootPasswordTTL
 	if expDur == 0 {
 		expDur = defaultRootPasswordTTL

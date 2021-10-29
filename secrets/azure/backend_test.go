@@ -61,3 +61,34 @@ func getTestBackend(t *testing.T, initConfig bool) (*azureSecretBackend, logical
 
 	return b, config.StorageView
 }
+
+func TestPeriodicFuncNilConfig(t *testing.T) {
+	b := backend()
+
+	config := &logical.BackendConfig{
+		Logger: logging.NewVaultLogger(log.Trace),
+		System: &logical.StaticSystemView{
+			DefaultLeaseTTLVal: defaultLeaseTTLHr,
+			MaxLeaseTTLVal:     maxLeaseTTLHr,
+		},
+		StorageView: &logical.InmemStorage{},
+	}
+	err := b.Setup(context.Background(), config)
+	if err != nil {
+		t.Fatalf("unable to create backend: %v", err)
+	}
+
+	b.settings = new(clientSettings)
+	mockProvider := newMockProvider()
+	b.getProvider = func(s *clientSettings, usMsGraphApi bool, p api.Passwords) (api.AzureProvider, error) {
+		return mockProvider, nil
+	}
+
+	err = b.periodicFunc(context.Background(), &logical.Request{
+		Storage: config.StorageView,
+	})
+
+	if err != nil {
+		t.Fatalf("periodicFunc error not nil, it should have been: %v", err)
+	}
+}

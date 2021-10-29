@@ -87,6 +87,12 @@ func (b *azureSecretBackend) periodicFunc(ctx context.Context, sys *logical.Requ
 		return err
 	}
 
+	// Config can be nil if deleted or when the engine is enabled
+	// but not yet configured.
+	if config == nil {
+		return nil
+	}
+
 	// Password should be at least a minute old before we process it
 	if config.NewClientSecret == "" || (time.Since(config.NewClientSecretCreated) < time.Minute) {
 		return nil
@@ -194,6 +200,10 @@ func (b *azureSecretBackend) getClient(ctx context.Context, s logical.Storage) (
 			return nil, err
 		}
 		b.settings = settings
+	}
+
+	if config == nil {
+		return nil, fmt.Errorf("config is nil")
 	}
 
 	passwords := api.Passwords{

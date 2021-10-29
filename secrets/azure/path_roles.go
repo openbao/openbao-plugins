@@ -129,6 +129,10 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 		return nil, err
 	}
 
+	if config == nil {
+		return nil, fmt.Errorf("config is nil")
+	}
+
 	client, err := b.getClient(ctx, req.Storage)
 	if err != nil {
 		return nil, err
@@ -292,6 +296,10 @@ func (b *azureSecretBackend) pathRoleRead(ctx context.Context, req *logical.Requ
 	config, err := b.getConfig(ctx, req.Storage)
 	if err != nil {
 		return nil, err
+	}
+
+	if config == nil {
+		return nil, fmt.Errorf("config is nil")
 	}
 
 	r, err := getRole(ctx, name, req.Storage)
