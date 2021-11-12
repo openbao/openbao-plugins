@@ -122,3 +122,15 @@ You can also specify a `TESTARGS` variable to filter tests like so:
 $ make test TESTARGS='--run=TestConfig'
 ```
 
+Acceptance tests requires Azure access, and the following to be installed:
+- [Docker](https://docs.docker.com/get-docker/)
+- [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
+- [Terraform](https://learn.hashicorp.com/tutorials/terraform/install-cli)
+- [bats](https://bats-core.readthedocs.io/en/stable)
+
+_You will need to be properly logged in to Azure with your subscription set. See
+['Azure Provider: Authenticating using the Azure CLI'](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/guides/azure_cli)_
+for more information.
+```sh
+$ make test-acceptance AZURE_TENANT_ID=<your_tenant_id>
+```
