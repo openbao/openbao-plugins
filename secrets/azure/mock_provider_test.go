@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 	time "time"
 
-	authorization "github.com/Azure/azure-sdk-for-go/services/authorization/mgmt/2015-07-01/authorization"
+	authorization "github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization"
 	gomock "github.com/golang/mock/gomock"
 	api "github.com/hashicorp/vault-plugin-secrets-azure/api"
 )

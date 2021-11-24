@@ -497,9 +497,19 @@ func TestCredentialInteg_aad(t *testing.T) {
 	t.Run("service principals", func(t *testing.T) {
 		t.Parallel()
 
+		skipIfMissingEnvVars(t,
+			"AZURE_SUBSCRIPTION_ID",
+			"AZURE_CLIENT_ID",
+			"AZURE_CLIENT_SECRET",
+			"AZURE_TENANT_ID",
+		)
+
 		b := backend()
 		s := new(logical.InmemStorage)
 		subscriptionID := os.Getenv("AZURE_SUBSCRIPTION_ID")
+		clientID := os.Getenv("AZURE_CLIENT_ID")
+		clientSecret := os.Getenv("AZURE_CLIENT_SECRET")
+		tenantID := os.Getenv("AZURE_TENANT_ID")
 
 		config := &logical.BackendConfig{
 			Logger: logging.NewVaultLogger(log.Trace),
@@ -511,6 +521,22 @@ func TestCredentialInteg_aad(t *testing.T) {
 		}
 		err := b.Setup(context.Background(), config)
 		assertErrorIsNil(t, err)
+
+		configData := map[string]interface{}{
+			"subscription_id":         subscriptionID,
+			"client_id":               clientID,
+			"client_secret":           clientSecret,
+			"tenant_id":               tenantID,
+			"use_microsoft_graph_api": false,
+		}
+
+		configResp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "config",
+			Data:      configData,
+			Storage:   s,
+		})
+		assertRespNoError(t, configResp, err)
 
 		// Add a Vault role that will provide creds with Azure "Reader" permissions
 		// Resources groups "vault-azure-secrets-test1" and "vault-azure-secrets-test2"
@@ -565,7 +591,7 @@ func TestCredentialInteg_aad(t *testing.T) {
 		roleDefs, err := provider.ListRoleDefinitions(context.Background(), fmt.Sprintf("subscriptions/%s", subscriptionID), "")
 		assertErrorIsNil(t, err)
 
-		defID := *ra.Properties.RoleDefinitionID
+		defID := *ra.RoleAssignmentPropertiesWithScope.RoleDefinitionID
 		found := false
 		for _, def := range roleDefs {
 			if *def.ID == defID && *def.RoleName == "Reader" {
@@ -598,8 +624,19 @@ func TestCredentialInteg_aad(t *testing.T) {
 	t.Run("static service principals", func(t *testing.T) {
 		t.Parallel()
 
+		skipIfMissingEnvVars(t,
+			"AZURE_SUBSCRIPTION_ID",
+			"AZURE_CLIENT_ID",
+			"AZURE_CLIENT_SECRET",
+			"AZURE_TENANT_ID",
+		)
+
 		b := backend()
 		s := new(logical.InmemStorage)
+		subscriptionID := os.Getenv("AZURE_SUBSCRIPTION_ID")
+		clientID := os.Getenv("AZURE_CLIENT_ID")
+		clientSecret := os.Getenv("AZURE_CLIENT_SECRET")
+		tenantID := os.Getenv("AZURE_TENANT_ID")
 
 		config := &logical.BackendConfig{
 			Logger: logging.NewVaultLogger(log.Trace),
@@ -612,8 +649,21 @@ func TestCredentialInteg_aad(t *testing.T) {
 		err := b.Setup(context.Background(), config)
 		assertErrorIsNil(t, err)
 
-		// Add a Vault role that will provide creds with Azure "Reader" permissions
-		subscriptionID := os.Getenv("AZURE_SUBSCRIPTION_ID")
+		configData := map[string]interface{}{
+			"subscription_id":         subscriptionID,
+			"client_id":               clientID,
+			"client_secret":           clientSecret,
+			"tenant_id":               tenantID,
+			"use_microsoft_graph_api": false,
+		}
+
+		configResp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "config",
+			Data:      configData,
+			Storage:   s,
+		})
+		assertRespNoError(t, configResp, err)
 
 		rolename := "static_test_role"
 		role := map[string]interface{}{
@@ -781,7 +831,7 @@ func TestCredentialInteg_msgraph(t *testing.T) {
 		roleData := map[string]interface{}{
 			"azure_roles": fmt.Sprintf(`[
 			{
-				"role_name": "Reader",
+				"role_name": "Storage Blob Data Owner",
 				"scope":  "/subscriptions/%s/resourceGroups/vault-azure-secrets-test1"
 			},
 			{
@@ -826,17 +876,17 @@ func TestCredentialInteg_msgraph(t *testing.T) {
 		roleDefs, err := provider.ListRoleDefinitions(context.Background(), fmt.Sprintf("subscriptions/%s", subscriptionID), "")
 		assertErrorIsNil(t, err)
 
-		defID := *ra.Properties.RoleDefinitionID
+		defID := *ra.RoleAssignmentPropertiesWithScope.RoleDefinitionID
 		found := false
 		for _, def := range roleDefs {
-			if *def.ID == defID && *def.RoleName == "Reader" {
+			if *def.ID == defID && *def.RoleName == "Storage Blob Data Owner" {
 				found = true
 				break
 			}
 		}
 
 		if !found {
-			t.Fatal("'Reader' role assignment not found")
+			t.Fatal("'Storage Blob Data Owner' role assignment not found")
 		}
 
 		// Serialize and deserialize the secret to remove typing, as will really happen.

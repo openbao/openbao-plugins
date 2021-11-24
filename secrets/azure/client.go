@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/authorization/mgmt/authorization"
+	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
 	multierror "github.com/hashicorp/go-multierror"
@@ -138,7 +138,7 @@ func (c *client) assignRoles(ctx context.Context, spID string, roles []*AzureRol
 		resultRaw, err := retry(ctx, func() (interface{}, bool, error) {
 			ra, err := c.provider.CreateRoleAssignment(ctx, role.Scope, assignmentID,
 				authorization.RoleAssignmentCreateParameters{
-					Properties: &authorization.RoleAssignmentProperties{
+					RoleAssignmentProperties: &authorization.RoleAssignmentProperties{
 						RoleDefinitionID: &role.RoleID,
 						PrincipalID:      &spID,
 					},
