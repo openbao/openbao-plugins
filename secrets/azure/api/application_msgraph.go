@@ -15,21 +15,33 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-const (
-	// DefaultGraphMicrosoftComURI is the default URI used for the service MS Graph API
-	DefaultGraphMicrosoftComURI = "https://graph.microsoft.com"
-)
-
 var _ ApplicationsClient = (*AppClient)(nil)
 var _ GroupsClient = (*AppClient)(nil)
 var _ ServicePrincipalClient = (*AppClient)(nil)
 
 type AppClient struct {
-	client authorization.BaseClient
+	client   authorization.BaseClient
+	graphURI string
 }
 
-func NewMSGraphApplicationClient(subscriptionId string, userAgentExtension string, auth autorest.Authorizer) (*AppClient, error) {
-	client := authorization.NewWithBaseURI(DefaultGraphMicrosoftComURI, subscriptionId)
+// Reference: https://docs.microsoft.com/en-us/graph/deployments#microsoft-graph-and-graph-explorer-service-root-endpoints
+func GetGraphURI(env string) (string, error) {
+	switch env {
+	case "AzurePublicCloud", "":
+		return "https://graph.microsoft.com/", nil
+	case "AzureUSGovernmentCloud":
+		return "https://graph.microsoft.us/", nil
+	case "AzureGermanCloud":
+		return "https://graph.microsoft.de", nil
+	case "AzureChinaCloud":
+		return "https://microsoftgraph.chinacloudapi.cn", nil
+	default:
+		return "", fmt.Errorf("environment '%s' unknown", env)
+	}
+}
+
+func NewMSGraphApplicationClient(subscriptionId string, userAgentExtension string, graphURI string, auth autorest.Authorizer) (*AppClient, error) {
+	client := authorization.NewWithBaseURI(graphURI, subscriptionId)
 	client.Authorizer = auth
 
 	if userAgentExtension != "" {
@@ -40,7 +52,8 @@ func NewMSGraphApplicationClient(subscriptionId string, userAgentExtension strin
 	}
 
 	ac := &AppClient{
-		client: client,
+		client:   client,
+		graphURI: graphURI,
 	}
 	return ac, nil
 }
@@ -358,7 +371,7 @@ func (c AppClient) AddGroupMember(ctx context.Context, groupObjectID string, mem
 		"groupObjectID": groupObjectID,
 	}
 	body := map[string]interface{}{
-		"@odata.id": fmt.Sprintf("%s/v1.0/directoryObjects/%s", DefaultGraphMicrosoftComURI, memberObjectID),
+		"@odata.id": fmt.Sprintf("%s/v1.0/directoryObjects/%s", c.graphURI, memberObjectID),
 	}
 	preparer := c.GetPreparer(
 		autorest.AsPost(),

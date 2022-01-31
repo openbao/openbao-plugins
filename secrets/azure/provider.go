@@ -38,12 +38,17 @@ func newAzureProvider(settings *clientSettings, useMsGraphApi bool, passwords ap
 	var groupsClient api.GroupsClient
 	var spClient api.ServicePrincipalClient
 	if useMsGraphApi {
-		graphApiAuthorizer, err := getAuthorizer(settings, api.DefaultGraphMicrosoftComURI)
+		graphURI, err := api.GetGraphURI(settings.Environment.Name)
 		if err != nil {
 			return nil, err
 		}
 
-		msGraphAppClient, err := api.NewMSGraphApplicationClient(settings.SubscriptionID, userAgent, graphApiAuthorizer)
+		graphApiAuthorizer, err := getAuthorizer(settings, graphURI)
+		if err != nil {
+			return nil, err
+		}
+
+		msGraphAppClient, err := api.NewMSGraphApplicationClient(settings.SubscriptionID, userAgent, graphURI, graphApiAuthorizer)
 		if err != nil {
 			return nil, err
 		}

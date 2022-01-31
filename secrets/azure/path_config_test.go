@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -35,21 +36,74 @@ func TestConfig(t *testing.T) {
 	}
 	testConfigCreate(t, b, s, configSubset)
 	testConfigUpdate(t, b, s, expectedConfig)
+}
 
-	// Test bad environment
-	expectedConfig = map[string]interface{}{
-		"environment": "invalidEnv",
+func TestConfigEnvironmentClouds(t *testing.T) {
+	b, s := getTestBackend(t, false)
+
+	config := map[string]interface{}{
+		"subscription_id":         "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+		"tenant_id":               "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+		"client_id":               "testClientId",
+		"client_secret":           "testClientSecret",
+		"environment":             "AZURECHINACLOUD",
+		"use_microsoft_graph_api": false,
+		"root_password_ttl":       int((24 * time.Hour).Seconds()),
 	}
 
-	resp, _ := b.HandleRequest(context.Background(), &logical.Request{
-		Operation: logical.UpdateOperation,
-		Path:      "config",
-		Data:      expectedConfig,
-		Storage:   s,
-	})
+	testConfigCreate(t, b, s, config)
 
-	if !resp.IsError() {
-		t.Fatal("expected a response error")
+	tests := []struct {
+		env      string
+		url      string
+		expError bool
+	}{
+		{"AZURECHINACLOUD", "https://microsoftgraph.chinacloudapi.cn", false},
+		{"AZUREPUBLICCLOUD", "https://graph.microsoft.com/", false},
+		{"AZUREUSGOVERNMENTCLOUD", "https://graph.microsoft.us/", false},
+		{"AZUREGERMANCLOUD", "https://graph.microsoft.de", false},
+		{"invalidEnv", "", true},
+	}
+
+	for _, test := range tests {
+		expectedConfig := map[string]interface{}{
+			"environment": test.env,
+		}
+
+		// Error is in the response, not in the error variable.
+		resp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.UpdateOperation,
+			Path:      "config",
+			Data:      expectedConfig,
+			Storage:   s,
+		})
+
+		if resp.Error() == nil && test.expError {
+			t.Fatal("expected error, got none")
+		} else if err != nil && !test.expError {
+			t.Fatalf("expected no errors: %s", err)
+		}
+
+		if !test.expError {
+			config, err := b.getConfig(context.Background(), s)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			clientSettings, err := b.getClientSettings(context.Background(), config)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			url, err := api.GetGraphURI(clientSettings.Environment.Name)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if url != test.url {
+				t.Fatalf("expected url %s, got %s", test.url, url)
+			}
+		}
 	}
 }
 
