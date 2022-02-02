@@ -28,9 +28,9 @@ type AppClient struct {
 func GetGraphURI(env string) (string, error) {
 	switch env {
 	case "AzurePublicCloud", "":
-		return "https://graph.microsoft.com/", nil
+		return "https://graph.microsoft.com", nil
 	case "AzureUSGovernmentCloud":
-		return "https://graph.microsoft.us/", nil
+		return "https://graph.microsoft.us", nil
 	case "AzureGermanCloud":
 		return "https://graph.microsoft.de", nil
 	case "AzureChinaCloud":

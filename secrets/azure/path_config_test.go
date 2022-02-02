@@ -59,8 +59,8 @@ func TestConfigEnvironmentClouds(t *testing.T) {
 		expError bool
 	}{
 		{"AZURECHINACLOUD", "https://microsoftgraph.chinacloudapi.cn", false},
-		{"AZUREPUBLICCLOUD", "https://graph.microsoft.com/", false},
-		{"AZUREUSGOVERNMENTCLOUD", "https://graph.microsoft.us/", false},
+		{"AZUREPUBLICCLOUD", "https://graph.microsoft.com", false},
+		{"AZUREUSGOVERNMENTCLOUD", "https://graph.microsoft.us", false},
 		{"AZUREGERMANCLOUD", "https://graph.microsoft.de", false},
 		{"invalidEnv", "", true},
 	}
