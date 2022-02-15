@@ -25,7 +25,7 @@ func getTestBackendWithComputeClient(t *testing.T, c computeClientFunc, v vmssCl
 		},
 		StorageView: &logical.InmemStorage{},
 	}
-	b := backend(config)
+	b := backend()
 	err := b.Setup(context.Background(), config)
 	if err != nil {
 		t.Fatalf("unable to create backend: %v", err)

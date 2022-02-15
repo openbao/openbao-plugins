@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-11-01/compute"
 	"github.com/coreos/go-oidc"
 	"github.com/hashicorp/vault/sdk/helper/policyutil"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -104,7 +104,7 @@ func TestLogin_BoundGroupID(t *testing.T) {
 
 func TestLogin_BoundSubscriptionID(t *testing.T) {
 	principalID := "prinID"
-	c := func(vmName string) (compute.VirtualMachine, error) {
+	c := func(_ string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
 			PrincipalID: &principalID,
 		}
@@ -112,7 +112,7 @@ func TestLogin_BoundSubscriptionID(t *testing.T) {
 			Identity: &id,
 		}, nil
 	}
-	v := func(vmssName string) (compute.VirtualMachineScaleSet, error) {
+	v := func(_ string) (compute.VirtualMachineScaleSet, error) {
 		id := compute.VirtualMachineScaleSetIdentity{
 			PrincipalID: &principalID,
 		}
@@ -162,7 +162,7 @@ func TestLogin_BoundSubscriptionID(t *testing.T) {
 
 func TestLogin_BoundResourceGroup(t *testing.T) {
 	principalID := "prinID"
-	c := func(vmName string) (compute.VirtualMachine, error) {
+	c := func(_ string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
 			PrincipalID: &principalID,
 		}
@@ -170,7 +170,7 @@ func TestLogin_BoundResourceGroup(t *testing.T) {
 			Identity: &id,
 		}, nil
 	}
-	v := func(vmName string) (compute.VirtualMachineScaleSet, error) {
+	v := func(_ string) (compute.VirtualMachineScaleSet, error) {
 		id := compute.VirtualMachineScaleSetIdentity{
 			PrincipalID: &principalID,
 		}
@@ -220,7 +220,7 @@ func TestLogin_BoundResourceGroup(t *testing.T) {
 func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
 	principalID := "prinID"
 	badPrincipalID := "badID"
-	c := func(vmName string) (compute.VirtualMachine, error) {
+	c := func(_ string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
 			UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
 				"mockuserassignedmsi": {
@@ -232,7 +232,7 @@ func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
 			Identity: &id,
 		}, nil
 	}
-	v := func(vmName string) (compute.VirtualMachineScaleSet, error) {
+	v := func(_ string) (compute.VirtualMachineScaleSet, error) {
 		id := compute.VirtualMachineScaleSetIdentity{
 			UserAssignedIdentities: map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{
 				"mockuserassignedmsi": {
@@ -372,7 +372,7 @@ func TestLogin_BoundLocation(t *testing.T) {
 
 func TestLogin_BoundScaleSet(t *testing.T) {
 	principalID := "prinID"
-	c := func(vmName string) (compute.VirtualMachine, error) {
+	c := func(_ string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
 			PrincipalID: &principalID,
 		}
@@ -380,7 +380,7 @@ func TestLogin_BoundScaleSet(t *testing.T) {
 			Identity: &id,
 		}, nil
 	}
-	v := func(vmssName string) (compute.VirtualMachineScaleSet, error) {
+	v := func(_ string) (compute.VirtualMachineScaleSet, error) {
 		id := compute.VirtualMachineScaleSetIdentity{
 			PrincipalID: &principalID,
 		}

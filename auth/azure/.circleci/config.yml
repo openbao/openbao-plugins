@@ -2,7 +2,7 @@ version: 2.1
 
 references:
   images:
-    golang: &GO_IMAGE docker.mirror.hashicorp.services/cimg/go:1.17.2
+    golang: &GO_IMAGE docker.mirror.hashicorp.services/cimg/go:1.17.6
 
 jobs:
   make-test:

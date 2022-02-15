@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-11-01/compute"
 	"github.com/coreos/go-oidc"
 )
 
@@ -51,7 +51,7 @@ func (c *mockComputeClient) Get(_ context.Context, _, vmName string, _ compute.I
 	return compute.VirtualMachine{}, nil
 }
 
-func (c *mockVMSSClient) Get(_ context.Context, _, vmssName string) (compute.VirtualMachineScaleSet, error) {
+func (c *mockVMSSClient) Get(_ context.Context, _, vmssName string, _ compute.ExpandTypesForGetVMScaleSets) (compute.VirtualMachineScaleSet, error) {
 	if c.vmssClientFunc != nil {
 		return c.vmssClientFunc(vmssName)
 	}

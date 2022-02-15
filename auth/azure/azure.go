@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-11-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
@@ -28,7 +28,7 @@ type computeClient interface {
 }
 
 type vmssClient interface {
-	Get(ctx context.Context, resourceGroup, vmssName string) (compute.VirtualMachineScaleSet, error)
+	Get(ctx context.Context, resourceGroup, vmssName string, expandTypes compute.ExpandTypesForGetVMScaleSets) (compute.VirtualMachineScaleSet, error)
 }
 
 type tokenVerifier interface {

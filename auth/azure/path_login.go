@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-07-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-11-01/compute"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/sdk/framework"
@@ -232,7 +232,8 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 			return errwrap.Wrapf("unable to create vmss client: {{err}}", err)
 		}
 
-		vmss, err := client.Get(ctx, resourceGroupName, vmssName)
+		// Omit compute.ExpandTypesForGetVMScaleSetsUserData since we do not need that information for purpose of authenticating an instance
+		vmss, err := client.Get(ctx, resourceGroupName, vmssName, "")
 		if err != nil {
 			return errwrap.Wrapf("unable to retrieve virtual machine scale set metadata: {{err}}", err)
 		}
@@ -250,7 +251,6 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		// if system-assigned identity's principal id is available
 		if vmss.Identity.PrincipalID != nil {
 			principalIDs[to.String(vmss.Identity.PrincipalID)] = struct{}{}
-			break
 		}
 		// if not, look for user-assigned identities
 		for _, userIdentity := range vmss.Identity.UserAssignedIdentities {
@@ -262,7 +262,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 			return errwrap.Wrapf("unable to create compute client: {{err}}", err)
 		}
 
-		vm, err := client.Get(ctx, resourceGroupName, vmName, compute.InstanceView)
+		vm, err := client.Get(ctx, resourceGroupName, vmName, compute.InstanceViewTypesInstanceView)
 		if err != nil {
 			return errwrap.Wrapf("unable to retrieve virtual machine metadata: {{err}}", err)
 		}
@@ -279,7 +279,6 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		// if system-assigned identity's principal id is available
 		if vm.Identity.PrincipalID != nil {
 			principalIDs[to.String(vm.Identity.PrincipalID)] = struct{}{}
-			break
 		}
 		// if not, look for user-assigned identities
 		for _, userIdentity := range vm.Identity.UserAssignedIdentities {

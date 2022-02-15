@@ -10,7 +10,7 @@ import (
 
 // Factory is used by framework
 func Factory(ctx context.Context, c *logical.BackendConfig) (logical.Backend, error) {
-	b := backend(c)
+	b := backend()
 	if err := b.Setup(ctx, c); err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ type azureAuthBackend struct {
 	provider provider
 }
 
-func backend(c *logical.BackendConfig) *azureAuthBackend {
+func backend() *azureAuthBackend {
 	b := new(azureAuthBackend)
 
 	b.Backend = &framework.Backend{

@@ -38,7 +38,7 @@ func (j *jsonTime) UnmarshalJSON(b []byte) error {
 // list for the value
 func strListContains(haystack []string, needle string) bool {
 	for _, item := range haystack {
-		if strings.ToLower(item) == strings.ToLower(needle) {
+		if strings.EqualFold(item, needle) {
 			return true
 		}
 	}
