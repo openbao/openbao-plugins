@@ -13,29 +13,117 @@ import (
 func TestConfig(t *testing.T) {
 	b, s := getTestBackend(t, false)
 
-	// Test valid config
-	expectedConfig := map[string]interface{}{
-		"subscription_id":         "a228ceec-bf1a-4411-9f95-39678d8cdb34",
-		"tenant_id":               "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
-		"client_id":               "testClientId",
-		"client_secret":           "testClientSecret",
-		"environment":             "AZURECHINACLOUD",
-		"use_microsoft_graph_api": false,
-		"root_password_ttl":       int((24 * time.Hour).Seconds()),
+	tests := []struct {
+		name     string
+		config   map[string]interface{}
+		expected map[string]interface{}
+		wantErr  bool
+	}{
+		{
+			name: "use_microsoft_graph_api defaults to true",
+			config: map[string]interface{}{
+				"subscription_id": "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+				"tenant_id":       "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+				"client_id":       "testClientId",
+				"client_secret":   "testClientSecret",
+			},
+			expected: map[string]interface{}{
+				"subscription_id":         "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+				"tenant_id":               "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+				"client_id":               "testClientId",
+				"environment":             "",
+				"use_microsoft_graph_api": true,
+				"root_password_ttl":       15768000,
+			},
+		},
+		{
+			name: "use_microsoft_graph_api set if provided",
+			config: map[string]interface{}{
+				"subscription_id":         "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+				"tenant_id":               "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+				"client_id":               "testClientId",
+				"client_secret":           "testClientSecret",
+				"use_microsoft_graph_api": false,
+			},
+			expected: map[string]interface{}{
+				"subscription_id":         "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+				"tenant_id":               "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+				"client_id":               "testClientId",
+				"environment":             "",
+				"use_microsoft_graph_api": false,
+				"root_password_ttl":       15768000,
+			},
+		},
+		{
+			name: "root_password_ttl defaults to 6 months",
+			config: map[string]interface{}{
+				"subscription_id": "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+				"tenant_id":       "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+				"client_id":       "testClientId",
+				"client_secret":   "testClientSecret",
+			},
+			expected: map[string]interface{}{
+				"subscription_id":         "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+				"tenant_id":               "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+				"client_id":               "testClientId",
+				"environment":             "",
+				"use_microsoft_graph_api": true,
+				"root_password_ttl":       15768000,
+			},
+		},
+		{
+			name: "root_password_ttl set if provided",
+			config: map[string]interface{}{
+				"subscription_id":   "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+				"tenant_id":         "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+				"client_id":         "testClientId",
+				"client_secret":     "testClientSecret",
+				"root_password_ttl": "1m",
+			},
+			expected: map[string]interface{}{
+				"subscription_id":         "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+				"tenant_id":               "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+				"client_id":               "testClientId",
+				"environment":             "",
+				"use_microsoft_graph_api": true,
+				"root_password_ttl":       60,
+			},
+		},
+		{
+			name: "environment set if provided",
+			config: map[string]interface{}{
+				"subscription_id": "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+				"tenant_id":       "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+				"client_id":       "testClientId",
+				"client_secret":   "testClientSecret",
+				"environment":     "AZURECHINACLOUD",
+			},
+			expected: map[string]interface{}{
+				"subscription_id":         "a228ceec-bf1a-4411-9f95-39678d8cdb34",
+				"tenant_id":               "7ac36e27-80fc-4209-a453-e8ad83dc18c2",
+				"client_id":               "testClientId",
+				"use_microsoft_graph_api": true,
+				"root_password_ttl":       15768000,
+				"environment":             "AZURECHINACLOUD",
+			},
+		},
 	}
 
-	testConfigCreate(t, b, s, expectedConfig)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			testConfigCreate(t, b, s, tc.config)
+			testConfigRead(t, b, s, tc.expected)
 
-	delete(expectedConfig, "client_secret")
-	testConfigRead(t, b, s, expectedConfig)
+			// Test that updating one element retains the others
+			tc.expected["tenant_id"] = "800e371d-ee51-4145-9ac8-5c43e4ceb79b"
+			configSubset := map[string]interface{}{
+				"tenant_id": "800e371d-ee51-4145-9ac8-5c43e4ceb79b",
+			}
 
-	// Test test updating one element retains the others
-	expectedConfig["tenant_id"] = "800e371d-ee51-4145-9ac8-5c43e4ceb79b"
-	configSubset := map[string]interface{}{
-		"tenant_id": "800e371d-ee51-4145-9ac8-5c43e4ceb79b",
+			testConfigUpdate(t, b, s, configSubset)
+			testConfigRead(t, b, s, tc.expected)
+		})
 	}
-	testConfigCreate(t, b, s, configSubset)
-	testConfigUpdate(t, b, s, expectedConfig)
 }
 
 func TestConfigEnvironmentClouds(t *testing.T) {

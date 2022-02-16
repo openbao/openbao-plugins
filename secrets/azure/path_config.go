@@ -16,7 +16,7 @@ const (
 	// The default password expiration duration is 6 months in
 	// the Azure UI, so we're setting it to 6 months (in hours)
 	// as the default.
-	defaultRootPasswordTTL = 4380
+	defaultRootPasswordTTL = 4380 * time.Hour
 )
 
 // azureConfig contains values to configure Azure clients and
@@ -74,7 +74,8 @@ func pathConfig(b *azureSecretBackend) *framework.Path {
 			},
 			"use_microsoft_graph_api": &framework.FieldSchema{
 				Type:        framework.TypeBool,
-				Description: "Enable usage of the Microsoft Graph API over the deprecated Azure AD Graph API.",
+				Description: "Enable usage of the Microsoft Graph API over the deprecated Azure AD Graph API. Defaults to 'true'.",
+				Default:     true,
 			},
 			"root_password_ttl": &framework.FieldSchema{
 				Type:        framework.TypeDurationSecond,
@@ -145,14 +146,16 @@ func (b *azureSecretBackend) pathConfigWrite(ctx context.Context, req *logical.R
 
 	if useMsGraphApi, ok := data.GetOk("use_microsoft_graph_api"); ok {
 		config.UseMsGraphAPI = useMsGraphApi.(bool)
+	} else if req.Operation == logical.CreateOperation {
+		config.UseMsGraphAPI = data.Get("use_microsoft_graph_api").(bool)
 	}
 
 	config.PasswordPolicy = data.Get("password_policy").(string)
 
-	config.RootPasswordTTL = defaultRootPasswordTTL * time.Hour
-	rootExpirationRaw, ok := data.GetOk("root_password_ttl")
-	if ok {
+	if rootExpirationRaw, ok := data.GetOk("root_password_ttl"); ok {
 		config.RootPasswordTTL = time.Second * time.Duration(rootExpirationRaw.(int))
+	} else if req.Operation == logical.CreateOperation {
+		config.RootPasswordTTL = defaultRootPasswordTTL
 	}
 
 	if merr.ErrorOrNil() != nil {
