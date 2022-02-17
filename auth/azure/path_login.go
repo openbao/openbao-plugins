@@ -126,9 +126,9 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	}
 
 	auth := &logical.Auth{
-		DisplayName: idToken.Subject,
+		DisplayName: claims.ObjectID,
 		Alias: &logical.Alias{
-			Name: idToken.Subject,
+			Name: claims.ObjectID,
 			Metadata: map[string]string{
 				"resource_group_name": resourceGroupName,
 				"subscription_id":     subscriptionID,
