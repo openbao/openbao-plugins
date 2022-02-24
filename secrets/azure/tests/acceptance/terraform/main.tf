@@ -90,6 +90,21 @@ resource "azuread_application" "vault_azure_secrets" {
         id   = "b4e74841-8e56-480b-be8b-910348b18b4c" # User.ReadWrite
         type = "Scope"
       }
+
+      resource_access {
+        id   = "1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9" # Application.ReadWrite.All
+        type = "Role"
+      }
+
+      resource_access {
+        id   = "19dbc75e-c2e2-444c-a770-ec69d8559fc7" # Directory.ReadWrite.All
+        type = "Role"
+      }
+
+      resource_access {
+        id   = "62a82d76-70ea-41e2-9197-370581804d09" # Group.ReadWrite.All
+        type = "Role"
+      }
     }
   }
   # Legacy Azure Active Directory Graph (AADG)
@@ -155,7 +170,7 @@ data "azurerm_role_definition" "builtin" {
 }
 
 resource "azurerm_role_assignment" "vault_azure_secrets" {
-  scope              = azurerm_resource_group.vault_azure_secrets.id
+  scope              = data.azurerm_subscription.primary.id
   principal_id       = azuread_service_principal.vault_azure_secrets.object_id
   role_definition_id = "/subscriptions/${data.azurerm_subscription.primary.subscription_id}${data.azurerm_role_definition.builtin.id}"
 }
@@ -176,6 +191,22 @@ HERE
   }
 }
 
+resource "null_resource" "wait_grants" {
+  depends_on = [
+    null_resource.admin_consent
+  ]
+  provisioner "local-exec" {
+    command = <<HERE
+for i in {0..60} ; do
+  len=$(az ad app permission list-grants --id "${azuread_application.vault_azure_secrets.application_id}" | jq '. | length')
+  [ "$len" -gt 0 ] && exit 0
+  sleep .5
+done
+exit 1
+HERE
+  }
+}
+
 output "application_id" {
   value = azuread_application.vault_azure_secrets.application_id
 }
@@ -186,7 +217,8 @@ output "application_password_value" {
 }
 
 output "application_password_id" {
-  value = azuread_application_password.vault_azure_secrets.id
+  sensitive = true
+  value     = azuread_application_password.vault_azure_secrets.id
 }
 
 output "role_assignment_principal_type" {
@@ -206,11 +238,13 @@ output "resource_group_name" {
 }
 
 output "tenant_id" {
-  value = var.tenant_id
+  sensitive = true
+  value     = var.tenant_id
 }
 
 output "subscription_id" {
-  value = data.azurerm_subscription.primary.subscription_id
+  sensitive = true
+  value     = data.azurerm_subscription.primary.subscription_id
 }
 
 output "name" {

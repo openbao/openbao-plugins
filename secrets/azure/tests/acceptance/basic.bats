@@ -1,23 +1,29 @@
 #!/usr/bin/env bats
 
+load common.sh
+
 # based off of the "Vault Ecosystem - Testing Best Practices" Confluence page.
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 PLUGIN_NAME="${REPO_ROOT##*/}"
-VAULT_IMAGE="${VAULT_IMAGE:-hashicorp/vault:1.9.0-rc1}"
+VAULT_IMAGE="${VAULT_IMAGE:-hashicorp/vault:1.9.3}"
 CONTAINER_NAME=''
 VAULT_TOKEN='root'
 
 TESTS_OUT_DIR="$(mktemp -d /tmp/${PLUGIN_NAME}.XXXXXXXXX)"
-TESTS_OUT_FILE="${TESTS_OUT_DIR}/output.log"
+TESTS_OUT_FILE="${TESTS_OUT_FILE:-${TESTS_OUT_DIR}/output.log}"
 
 PLUGIN_TYPE=''
 case ${PLUGIN_NAME} in
   *-secrets-*)
     PLUGIN_TYPE='secret'
+    # short name e.g. `azure`
+    ENGINE_NAME="${PLUGIN_NAME##*-secrets-}"
     ;;
   *-auth-*)
     PLUGIN_TYPE='auth'
+    # short name e.g. `azure`
+    ENGINE_NAME="${PLUGIN_NAME##*-auth-}"
     ;;
   *)
     echo "could not determine plugin type from ${PLUGIN_NAME}" >&2
@@ -30,15 +36,16 @@ if [[ -z "${AZURE_TENANT_ID}" ]]; then
     exit 1
 fi
 
-
 if [[ -n "${WITH_DEV_PLUGIN}" ]]; then
-    PLUGIN=${REPO_ROOT}/bin/${PLUGIN_NAME}
-    PLUGIN_SHA256="$(sha256sum ${PLUGIN} | cut -d ' ' -f 1)"
+    PLUGIN=${REPO_ROOT}/pkg/linux_amd64/${PLUGIN_NAME}
+    PLUGIN_SHA256="$(sha256sum ${PLUGIN} | cut -d ' ' -f 1)" || exit 1
 fi
 
 setup(){
     { # Braces used to redirect all setup logs.
     # 1. Configure Vault.
+
+    log "SetUp"
 
     export CONFIG_DIR="$(mktemp -d ${TESTS_OUT_DIR}/test-XXXXXXX)"
     export CONTAINER_NAME="${CONFIG_DIR##*/}"
@@ -73,9 +80,9 @@ HERE
         HOST_PORT="$(docker inspect ${CONTAINER_NAME} | \
             jq -er '.[0].NetworkSettings.Ports."8200/tcp"[0].HostPort')"
 
-        if nc -z localhost ${HOST_PORT} ; then
+        if nc -z localhost ${HOST_PORT} &> /dev/null ; then
             export VAULT_ADDR="http://localhost:${HOST_PORT?}"
-            vault login ${VAULT_TOKEN?} || continue
+            vault login ${VAULT_TOKEN?} &> /dev/null || continue
             break
         fi
 
@@ -90,16 +97,21 @@ HERE
     if [[ -n "${WITH_DEV_PLUGIN}" ]]; then
         cp -a ${PLUGIN} ${CONFIG_DIR}/plugins/.
         # replace the builtin plugin with a local build
-        vault plugin register -sha256="${PLUGIN_SHA256}" ${PLUGIN_TYPE} ${PLUGIN_NAME}
-        vault plugin reload -plugin=${PLUGIN_NAME}
+        vault plugin register -sha256="${PLUGIN_SHA256}" -command=${PLUGIN_NAME} ${PLUGIN_TYPE} ${ENGINE_NAME}
+        vault plugin reload -plugin=${ENGINE_NAME}
     fi
 
+    log "SetUp successful"
     } >> $TESTS_OUT_FILE
 }
 
 teardown(){
+    log "TearDown"
+
     if [[ -n $SKIP_TEARDOWN ]]; then
-        echo "Skipping teardown"
+        logWarn "Skipping teardown"
+        logWarn "Clean up required, please run '(cd ${CONFIG_DIR}/terraform && terraform apply -destroy)'"
+        logWarn "See ${TESTS_OUT_FILE} for more details"
         return
     fi
 
@@ -115,120 +127,64 @@ teardown(){
 
     printenv | sort
 
-    pushd ${CONFIG_DIR}/terraform
-    terraform apply -destroy -input=false -auto-approve
-    popd
+    terraformDestroy ${CONFIG_DIR}
 
     rm -rf "${CONFIG_DIR}"
+
+    echo "See ${TESTS_OUT_FILE} for more details" >&2
+    log "TearDown successful"
 
     } >> $TESTS_OUT_FILE
 }
 
 @test "Azure Secrets Engine - Legacy AAD" {
-    pushd ${CONFIG_DIR}/terraform
-    terraform init && terraform apply -input=false -auto-approve -var legacy_aad_resource_access=true
-    local tf_output=$(terraform output -json | tee ${CONFIG_DIR}/tf-output.json)
-    popd
+    local tf_output_file=${CONFIG_DIR}/tf-output.json
+    terraformInitApply ${CONFIG_DIR} -var=legacy_aad_resource_access=true
+    terraformOutput ${CONFIG_DIR} > ${tf_output_file}
 
-    # TODO: remove this sleep, tests periodically fail if the credentials created during infrastructure
-    # provisioning are not considered valid by Azure. Need to find a way to poll for the creds status.
-    sleep 10
+    tfOutputLocalEnv ${tf_output_file} > ${CONFIG_DIR}/local.env
+    . ${CONFIG_DIR}/local.env
+    local >&2
 
-    local client_id="$(echo ${tf_output} | jq -er .application_id.value)"
-    local client_secret="$(echo ${tf_output} | jq -er .application_password_value.value)"
-    local subscription_id="$(echo ${tf_output} | jq -er .subscription_id.value)"
-    local resource_group_name="$(echo ${tf_output} | jq -er .resource_group_name.value)"
-    local tenant_id="$(echo ${tf_output} | jq -er .tenant_id.value)"
-
-    vault secrets enable azure
-
-    vault write azure/config \
+    vault secrets enable ${ENGINE_NAME}
+    vault write "${ENGINE_NAME}/config" \
+        use_microsoft_graph_api=false \
         subscription_id=${subscription_id} \
         tenant_id="${tenant_id}" \
         client_id="${client_id}" \
         client_secret="${client_secret}"
 
-    local ttl=10
-    vault write azure/roles/my-role ttl="${ttl}" azure_roles=-<<EOF
-[
-    {
-        "role_name": "Reader",
-        "scope":  "/subscriptions/${subscription_id}/resourceGroups/${resource_group_name}"
-    }
-]
-EOF
-    local secret="$(vault read azure/creds/my-role -format=json)"
-    local sp_id="$(echo ${secret} | jq -er .data.client_id)"
-    local sp="$(az ad sp show --id "${sp_id}")"
-    echo ${secret} | jq
-    echo ${sp} | jq
+    # Azure API access provisioning seems to be delayed for whatever reason, so sleep a bit.
+    sleep 30
 
-    sleep ${ttl}
-    local tries=0
-    # wait for the service principal to expire and be removed by Vault - adds a 5 second buffer.
-    until ! az ad sp show --id "${sp_id}" > /dev/null
-    do
-        if [[ "${tries}" -ge 10 ]]; then
-            echo "vault failed to remove service principal ${sp_id}, ttl=${ttl}" >&2
-            exit 1
-        fi
-        ((++tries))
-        sleep .5
+    local roles=('Reader' 'Storage Blob Data Owner')
+    for ((i=0; i < ${#roles[@]}; i++)); do
+        testAzureSecret "${roles[$i]}" ${subscription_id} ${resource_group_name} "role-${i}" ${CONFIG_DIR} ${ENGINE_NAME}
     done
-
 } >> $TESTS_OUT_FILE
 
 @test "Azure Secrets Engine - MS Graph" {
-    pushd ${CONFIG_DIR}/terraform
-    terraform init && terraform apply -input=false -auto-approve -var legacy_aad_resource_access=false
-    local tf_output=$(terraform output -json | tee ${CONFIG_DIR}/tf-output.json)
-    popd
+    local tf_output_file=${CONFIG_DIR}/tf-output.json
+    terraformInitApply ${CONFIG_DIR}
+    terraformOutput ${CONFIG_DIR} > ${tf_output_file}
 
-    # TODO: remove this sleep, tests periodically fail if the credentials created during infrastructure
-    # provisioning are not considered valid by Azure. Need to find a way to poll for the creds status.
-    sleep 10
+    tfOutputLocalEnv ${tf_output_file} > ${CONFIG_DIR}/local.env
+    . ${CONFIG_DIR}/local.env
+    local >&2
 
-    local client_id="$(echo ${tf_output} | jq -er .application_id.value)"
-    local client_secret="$(echo ${tf_output} | jq -er .application_password_value.value)"
-    local subscription_id="$(echo ${tf_output} | jq -er .subscription_id.value)"
-    local resource_group_name="$(echo ${tf_output} | jq -er .resource_group_name.value)"
-    local tenant_id="$(echo ${tf_output} | jq -er .tenant_id.value)"
-
-    vault secrets enable azure
-
-    vault write azure/config \
+    vault secrets enable ${ENGINE_NAME}
+    vault write "${ENGINE_NAME}/config" \
         use_microsoft_graph_api=true \
         subscription_id="${subscription_id}" \
         tenant_id="${tenant_id}" \
         client_id="${client_id}" \
         client_secret="${client_secret}"
 
-    local ttl=10
-    vault write azure/roles/my-role ttl="${ttl}" azure_roles=-<<EOF
-[
-    {
-        "role_name": "Reader",
-        "scope":  "/subscriptions/${subscription_id}/resourceGroups/${resource_group_name}"
-    }
-]
-EOF
-    local secret="$(vault read azure/creds/my-role -format=json)"
-    local sp_id="$(echo ${secret} | jq -er .data.client_id)"
-    local sp="$(az ad sp show --id "${sp_id}")"
-    echo ${secret} | jq
-    echo ${sp} | jq
+    # Azure API access provisioning seems to be delayed for whatever reason, so sleep a bit.
+    sleep 30
 
-    sleep ${ttl}
-    local tries=0
-    # wait for the service principal to expire and be removed by Vault - adds a 5 second buffer.
-    until ! az ad sp show --id "${sp_id}" > /dev/null
-    do
-        if [[ "${tries}" -ge 10 ]]; then
-            echo "vault failed to remove service principal ${sp_id}, ttl=${ttl}" >&2
-            exit 1
-        fi
-        ((++tries))
-        sleep .5
+    local roles=('Reader' 'Storage Blob Data Owner')
+    for ((i=0; i < ${#roles[@]}; i++)); do
+        testAzureSecret "${roles[$i]}" ${subscription_id} ${resource_group_name} "role-${i}" ${CONFIG_DIR} ${ENGINE_NAME}
     done
-
 } >> $TESTS_OUT_FILE

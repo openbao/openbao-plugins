@@ -122,6 +122,8 @@ You can also specify a `TESTARGS` variable to filter tests like so:
 $ make test TESTARGS='--run=TestConfig'
 ```
 
+#### Acceptance Tests
+
 Acceptance tests requires Azure access, and the following to be installed:
 - [Docker](https://docs.docker.com/get-docker/)
 - [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
@@ -136,6 +138,13 @@ for more information.
 $ make test-acceptance AZURE_TENANT_ID=<your_tenant_id>
 ```
 
+Setting `WITH_DEV_PLUGIN=1` will first build the local plugin, and automatically register
+it with the test Vault instance.
+
+```sh
+$ make test-acceptance AZURE_TENANT_ID=<your_tenant_id> WITH_DEV_PLUGIN=1
+```
+
 Running tests against Vault Enterprise requires a valid license, and specifying an enterprise docker image:
 
 ```sh
@@ -143,3 +152,7 @@ $ make test-acceptance AZURE_TENANT_ID=<your_tenant_id> \
   VAULT_LICENSE=........ \
   VAULT_IMAGE=hashicorp/vault-enterprise:latest
 ```
+
+The `test-acceptance` make target also accepts the following environment based directives:
+
+* `TESTS_FILTER`: a regex of Bats tests to run, useful when you only want to run a subset of the tests.

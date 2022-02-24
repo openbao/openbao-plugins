@@ -7,6 +7,13 @@ EXTERNAL_TOOLS=\
 BUILD_TAGS?=${TOOL}
 GOFMT_FILES?=$$(find . -name '*.go' | grep -v vendor)
 
+# Acceptance test variables
+WITH_DEV_PLUGIN?=
+AZURE_TENANT_ID?=
+SKIP_TEARDOWN?=
+TESTS_OUT_FILE?=
+TESTS_FILTER?='.*'
+
 # bin generates the releaseable binaries for this plugin
 bin: fmtcheck generate
 	@CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/build.sh'"
@@ -22,6 +29,8 @@ dev: fmtcheck generate
 	@CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' VAULT_DEV_BUILD=1 sh -c "'$(CURDIR)/scripts/build.sh'"
 dev-dynamic: generate
 	@CGO_ENABLED=1 BUILD_TAGS='$(BUILD_TAGS)' VAULT_DEV_BUILD=1 sh -c "'$(CURDIR)/scripts/build.sh'"
+dev-acceptance: fmtcheck generate
+	@CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' VAULT_DEV_BUILD= XC_OSARCH=linux/amd64 sh -c "'$(CURDIR)/scripts/build.sh'"
 
 testcompile: fmtcheck generate
 	@for pkg in $(TEST) ; do \
@@ -37,8 +46,8 @@ test: fmtcheck generate
 	VAULT_ACC=1 go test -tags='$(BUILD_TAGS)' $(TEST) -v $(TESTARGS) -timeout 45m
 
 # test-acceptance runs all acceptance tests
-test-acceptance:
-	bats $(CURDIR)/tests/acceptance/basic.bats
+test-acceptance: $(if $(WITH_DEV_PLUGIN), dev-acceptance)
+	bats -f $(TESTS_FILTER) $(CURDIR)/tests/acceptance/basic.bats
 
 # generate runs `go generate` to build the dynamically generated
 # source files.
