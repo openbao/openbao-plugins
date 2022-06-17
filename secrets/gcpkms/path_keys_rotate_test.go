@@ -8,10 +8,9 @@ import (
 )
 
 func TestPathKeysRotate_Write(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.CreateOperation, "keys/rotate/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "keys/rotate/my-key")
 	})
@@ -61,7 +60,6 @@ func TestPathKeysRotate_Write(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
 
 				ctx := context.Background()
 				resp, err := b.HandleRequest(ctx, &logical.Request{

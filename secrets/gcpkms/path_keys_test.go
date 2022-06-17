@@ -13,10 +13,9 @@ import (
 )
 
 func TestPathKeys_List(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.ListOperation, "keys")
 	})
 
@@ -45,10 +44,9 @@ func TestPathKeys_List(t *testing.T) {
 }
 
 func TestPathKeys_Read(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.ReadOperation, "keys/my-key")
 	})
 
@@ -97,7 +95,6 @@ func TestPathKeys_Read(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
 
 				ctx := context.Background()
 				resp, err := b.HandleRequest(ctx, &logical.Request{
@@ -127,10 +124,9 @@ func TestPathKeys_Read(t *testing.T) {
 }
 
 func TestPathKeys_Write(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.CreateOperation, "keys/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "keys/my-key")
 	})
@@ -307,7 +303,6 @@ func TestPathKeys_Write(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
 
 				b, storage := testBackend(t)
 
@@ -355,10 +350,9 @@ func TestPathKeys_Write(t *testing.T) {
 }
 
 func TestPathKeys_Delete(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.DeleteOperation, "keys/my-key")
 	})
 
@@ -407,7 +401,6 @@ func TestPathKeys_Delete(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
 
 				ctx := context.Background()
 				if _, err := b.HandleRequest(ctx, &logical.Request{

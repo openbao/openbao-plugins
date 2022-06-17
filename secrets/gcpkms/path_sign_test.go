@@ -21,16 +21,14 @@ import (
 )
 
 func TestPathSign_Write(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.CreateOperation, "sign/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "sign/my-key")
 	})
 
 	t.Run("asymmetric", func(t *testing.T) {
-		t.Parallel()
 
 		algorithms := []kmspb.CryptoKeyVersion_CryptoKeyVersionAlgorithm{
 			kmspb.CryptoKeyVersion_RSA_SIGN_PSS_2048_SHA256,
@@ -48,7 +46,6 @@ func TestPathSign_Write(t *testing.T) {
 			name := strings.ToLower(algo.String())
 
 			t.Run(name, func(t *testing.T) {
-				t.Parallel()
 
 				cryptoKey, cleanup := testCreateKMSCryptoKeyAsymmetricSign(t, algo)
 				defer cleanup()

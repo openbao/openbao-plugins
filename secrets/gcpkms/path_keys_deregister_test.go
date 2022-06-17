@@ -8,10 +8,9 @@ import (
 )
 
 func TestPathKeysDeregister_Write(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.CreateOperation, "keys/deregister/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "keys/deregister/my-key")
 	})
@@ -38,7 +37,6 @@ func TestPathKeysDeregister_Write(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
 
 				b, storage := testBackend(t)
 

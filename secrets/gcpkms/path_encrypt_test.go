@@ -11,10 +11,9 @@ import (
 )
 
 func TestPathEncrypt_Write(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.CreateOperation, "encrypt/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "encrypt/my-key")
 	})
@@ -65,7 +64,6 @@ func TestPathEncrypt_Write(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
 
 				ctx := context.Background()
 				resp, err := b.HandleRequest(ctx, &logical.Request{
@@ -112,7 +110,6 @@ func TestPathEncrypt_Write(t *testing.T) {
 	})
 
 	t.Run("less_min_version", func(t *testing.T) {
-		t.Parallel()
 
 		ctx := context.Background()
 		_, err := b.HandleRequest(ctx, &logical.Request{
@@ -130,7 +127,6 @@ func TestPathEncrypt_Write(t *testing.T) {
 	})
 
 	t.Run("greater_max_version", func(t *testing.T) {
-		t.Parallel()
 
 		ctx := context.Background()
 		_, err := b.HandleRequest(ctx, &logical.Request{

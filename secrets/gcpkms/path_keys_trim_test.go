@@ -11,10 +11,9 @@ import (
 )
 
 func TestPathKeysTrim_Write(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.CreateOperation, "keys/trim/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "keys/trim/my-key")
 		testFieldValidation(t, logical.DeleteOperation, "keys/trim/my-key")

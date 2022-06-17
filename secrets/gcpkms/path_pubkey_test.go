@@ -13,15 +13,13 @@ import (
 )
 
 func TestPathPubkey_Read(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.ReadOperation, "pubkey/my-key")
 	})
 
 	t.Run("asymmetric_decrypt", func(t *testing.T) {
-		t.Parallel()
 
 		algorithms := []kmspb.CryptoKeyVersion_CryptoKeyVersionAlgorithm{
 			kmspb.CryptoKeyVersion_RSA_DECRYPT_OAEP_2048_SHA256,
@@ -34,7 +32,6 @@ func TestPathPubkey_Read(t *testing.T) {
 			name := strings.ToLower(algo.String())
 
 			t.Run(name, func(t *testing.T) {
-				t.Parallel()
 
 				cryptoKey, cleanup := testCreateKMSCryptoKeyAsymmetricDecrypt(t, algo)
 				defer cleanup()
@@ -84,7 +81,6 @@ func TestPathPubkey_Read(t *testing.T) {
 	})
 
 	t.Run("asymmetric_sign", func(t *testing.T) {
-		t.Parallel()
 
 		algorithms := []kmspb.CryptoKeyVersion_CryptoKeyVersionAlgorithm{
 			kmspb.CryptoKeyVersion_RSA_SIGN_PSS_2048_SHA256,
@@ -102,7 +98,6 @@ func TestPathPubkey_Read(t *testing.T) {
 			name := strings.ToLower(algo.String())
 
 			t.Run(name, func(t *testing.T) {
-				t.Parallel()
 
 				cryptoKey, cleanup := testCreateKMSCryptoKeyAsymmetricSign(t, algo)
 				defer cleanup()

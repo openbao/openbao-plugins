@@ -40,7 +40,7 @@ dev:
 
 # test runs the tests
 test:
-	@go test -timeout=60s -parallel=10 ./...
+	@go test -timeout=240s ./... $(TESTARGS)
 .PHONY: test
 
 # xc compiles all the binaries using the local go installation

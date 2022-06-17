@@ -9,7 +9,6 @@ import (
 )
 
 func TestKey_Key(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		name string
@@ -44,7 +43,6 @@ func TestKey_Key(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			b, storage := testBackend(t)
 
@@ -70,7 +68,6 @@ func TestKey_Key(t *testing.T) {
 }
 
 func TestKey_Keys(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		name string
@@ -96,7 +93,6 @@ func TestKey_Keys(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			b, storage := testBackend(t)
 

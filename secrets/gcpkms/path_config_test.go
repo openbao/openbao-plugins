@@ -9,15 +9,13 @@ import (
 )
 
 func TestBackend_PathConfigRead(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.ReadOperation, "config")
 	})
 
 	t.Run("not_exist", func(t *testing.T) {
-		t.Parallel()
 
 		b, storage := testBackend(t)
 		ctx := context.Background()
@@ -36,7 +34,6 @@ func TestBackend_PathConfigRead(t *testing.T) {
 	})
 
 	t.Run("exist", func(t *testing.T) {
-		t.Parallel()
 
 		b, storage := testBackend(t)
 
@@ -72,15 +69,13 @@ func TestBackend_PathConfigRead(t *testing.T) {
 }
 
 func TestBackend_PathConfigUpdate(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.UpdateOperation, "config")
 	})
 
 	t.Run("not_exist", func(t *testing.T) {
-		t.Parallel()
 
 		b, storage := testBackend(t)
 		if _, err := b.HandleRequest(context.Background(), &logical.Request{
@@ -110,7 +105,6 @@ func TestBackend_PathConfigUpdate(t *testing.T) {
 	})
 
 	t.Run("exist", func(t *testing.T) {
-		t.Parallel()
 
 		b, storage := testBackend(t)
 
@@ -153,15 +147,13 @@ func TestBackend_PathConfigUpdate(t *testing.T) {
 }
 
 func TestBackend_PathConfigDelete(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.DeleteOperation, "config")
 	})
 
 	t.Run("not_exist", func(t *testing.T) {
-		t.Parallel()
 
 		b, storage := testBackend(t)
 		if _, err := b.HandleRequest(context.Background(), &logical.Request{
@@ -183,7 +175,6 @@ func TestBackend_PathConfigDelete(t *testing.T) {
 	})
 
 	t.Run("exist", func(t *testing.T) {
-		t.Parallel()
 
 		b, storage := testBackend(t)
 

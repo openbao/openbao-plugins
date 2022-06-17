@@ -9,10 +9,9 @@ import (
 )
 
 func TestPathKeysConfig_Read(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.ReadOperation, "keys/config/my-key")
 	})
 
@@ -55,7 +54,6 @@ func TestPathKeysConfig_Read(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
 
 				b, storage := testBackend(t)
 
@@ -90,10 +88,9 @@ func TestPathKeysConfig_Read(t *testing.T) {
 }
 
 func TestPathKeysConfig_Write(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.ReadOperation, "keys/config/my-key")
 	})
 
@@ -180,7 +177,6 @@ func TestPathKeysConfig_Write(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
 
 				b, storage := testBackend(t)
 
@@ -218,7 +214,6 @@ func TestPathKeysConfig_Write(t *testing.T) {
 	})
 
 	t.Run("ignores_if_not_specified", func(t *testing.T) {
-		t.Parallel()
 
 		b, storage := testBackend(t)
 

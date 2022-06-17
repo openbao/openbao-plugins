@@ -8,7 +8,6 @@ import (
 )
 
 func TestConfig_Update(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		name    string
@@ -126,7 +125,6 @@ func TestConfig_Update(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			if tc.d != nil {
 				var b backend

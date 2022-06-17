@@ -9,10 +9,9 @@ import (
 )
 
 func TestPathKeysRegister_Write(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.CreateOperation, "keys/register/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "keys/register/my-key")
 	})
@@ -57,7 +56,6 @@ func TestPathKeysRegister_Write(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
 
 				key := path.Base(tc.cryptoKey)
 

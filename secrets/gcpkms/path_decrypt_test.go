@@ -17,16 +17,14 @@ import (
 )
 
 func TestPathDecrypt_Write(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.CreateOperation, "decrypt/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "decrypt/my-key")
 	})
 
 	t.Run("asymmetric", func(t *testing.T) {
-		t.Parallel()
 
 		algorithms := []kmspb.CryptoKeyVersion_CryptoKeyVersionAlgorithm{
 			kmspb.CryptoKeyVersion_RSA_DECRYPT_OAEP_2048_SHA256,
@@ -39,7 +37,6 @@ func TestPathDecrypt_Write(t *testing.T) {
 			name := strings.ToLower(algo.String())
 
 			t.Run(name, func(t *testing.T) {
-				t.Parallel()
 
 				cryptoKey, cleanup := testCreateKMSCryptoKeyAsymmetricDecrypt(t, algo)
 				defer cleanup()
@@ -106,7 +103,6 @@ func TestPathDecrypt_Write(t *testing.T) {
 	})
 
 	t.Run("symmetric", func(t *testing.T) {
-		t.Parallel()
 
 		cases := []struct {
 			name string
@@ -129,7 +125,6 @@ func TestPathDecrypt_Write(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-				t.Parallel()
 
 				cryptoKey, cleanup := testCreateKMSCryptoKeySymmetric(t)
 				defer cleanup()

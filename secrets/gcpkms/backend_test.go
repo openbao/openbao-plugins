@@ -261,10 +261,8 @@ func testCleanupKeyRing(tb testing.TB, keyRing string) {
 }
 
 func TestBackend_KMSClient(t *testing.T) {
-	t.Parallel()
 
 	t.Run("allows_concurrent_reads", func(t *testing.T) {
-		t.Parallel()
 
 		b, storage := testBackend(t)
 
@@ -292,7 +290,6 @@ func TestBackend_KMSClient(t *testing.T) {
 	})
 
 	t.Run("caches", func(t *testing.T) {
-		t.Parallel()
 
 		b, storage := testBackend(t)
 
@@ -315,7 +312,6 @@ func TestBackend_KMSClient(t *testing.T) {
 	})
 
 	t.Run("expires", func(t *testing.T) {
-		t.Parallel()
 
 		b, storage := testBackend(t)
 		b.kmsClientLifetime = 50 * time.Millisecond
@@ -341,10 +337,8 @@ func TestBackend_KMSClient(t *testing.T) {
 }
 
 func TestBackend_ResetClient(t *testing.T) {
-	t.Parallel()
 
 	t.Run("closes_client", func(t *testing.T) {
-		t.Parallel()
 
 		b, storage := testBackend(t)
 
@@ -372,7 +366,6 @@ func TestBackend_ResetClient(t *testing.T) {
 }
 
 func TestBackend_Config(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		name string
@@ -407,7 +400,6 @@ func TestBackend_Config(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 
 			b, storage := testBackend(t)
 

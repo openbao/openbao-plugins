@@ -9,10 +9,9 @@ import (
 )
 
 func TestPathReencrypt_Write(t *testing.T) {
-	t.Parallel()
 
 	t.Run("field_validation", func(t *testing.T) {
-		t.Parallel()
+
 		testFieldValidation(t, logical.CreateOperation, "reencrypt/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "reencrypt/my-key")
 	})
@@ -38,7 +37,6 @@ func TestPathReencrypt_Write(t *testing.T) {
 
 	t.Run("group", func(t *testing.T) {
 		t.Run("integration", func(t *testing.T) {
-			t.Parallel()
 
 			// Generate some ciphertext
 			plaintext := "hello world"
@@ -149,7 +147,6 @@ func TestPathReencrypt_Write(t *testing.T) {
 		})
 
 		t.Run("less_min_version", func(t *testing.T) {
-			t.Parallel()
 
 			ctx := context.Background()
 			_, err := b.HandleRequest(ctx, &logical.Request{
@@ -167,7 +164,6 @@ func TestPathReencrypt_Write(t *testing.T) {
 		})
 
 		t.Run("greater_max_version", func(t *testing.T) {
-			t.Parallel()
 
 			ctx := context.Background()
 			_, err := b.HandleRequest(ctx, &logical.Request{
