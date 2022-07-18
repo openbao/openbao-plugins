@@ -2,7 +2,6 @@ package azuresecrets
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac"
@@ -11,7 +10,6 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 	"github.com/hashicorp/vault/sdk/helper/useragent"
-	"github.com/hashicorp/vault/sdk/version"
 )
 
 var _ api.AzureProvider = (*provider)(nil)
@@ -122,25 +120,6 @@ func getUserAgent(settings *clientSettings) string {
 	} else {
 		userAgent = useragent.String()
 	}
-
-	// Sets a unique ID in the user-agent
-	// Normal user-agent looks like this:
-	//
-	// Vault/1.6.0 (+https://www.vaultproject.io/; azure-secrets; go1.15.7)
-	//
-	// Here we append a unique code if it's an enterprise version, where
-	// VersionMetadata will contain a non-empty string like "ent" or "prem".
-	// Otherwise use the default identifier for OSS Vault. The end result looks
-	// like so:
-	//
-	// Vault/1.6.0 (+https://www.vaultproject.io/; azure-secrets; go1.15.7; b2c13ec1-60e8-4733-9a76-88dbb2ce2471)
-	vaultIDString := "; 15cd22ce-24af-43a4-aa83-4c1a36a4b177)"
-	ver := version.GetVersion()
-	if ver.VersionMetadata != "" {
-		vaultIDString = "; b2c13ec1-60e8-4733-9a76-88dbb2ce2471)"
-	}
-	userAgent = strings.Replace(userAgent, ")", vaultIDString, 1)
-
 	return userAgent
 }
 
