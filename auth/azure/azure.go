@@ -18,6 +18,7 @@ import (
 	"github.com/coreos/go-oidc"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/vault/sdk/logical"
 	"golang.org/x/oauth2"
 )
 
@@ -55,9 +56,9 @@ type oidcDiscoveryInfo struct {
 	JWKSURL string `json:"jwks_uri"`
 }
 
-func newAzureProvider(config *azureConfig) (*azureProvider, error) {
+func (b *azureAuthBackend) newAzureProvider(ctx context.Context, config *azureConfig) (*azureProvider, error) {
 	httpClient := cleanhttp.DefaultClient()
-	settings, err := getAzureSettings(config)
+	settings, err := b.getAzureSettings(ctx, config)
 	if err != nil {
 		return nil, err
 	}
@@ -67,11 +68,11 @@ func newAzureProvider(config *azureConfig) (*azureProvider, error) {
 	// makes a request to the discovery URL to determine the issuer and key set information to configure
 	// the OIDC verifier
 	discoveryURL := fmt.Sprintf("%s%s/.well-known/openid-configuration", settings.Environment.ActiveDirectoryEndpoint, settings.TenantID)
-	req, err := http.NewRequest("GET", discoveryURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", discoveryURL, nil)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", userAgent())
+	req.Header.Set("User-Agent", userAgent(settings.PluginEnv))
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -92,8 +93,8 @@ func newAzureProvider(config *azureConfig) (*azureProvider, error) {
 	}
 
 	// Create a remote key set from the discovery endpoint
-	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)
-	remoteKeySet := oidc.NewRemoteKeySet(ctx, discoveryInfo.JWKSURL)
+	keySetCtx := context.WithValue(context.Background(), oauth2.HTTPClient, httpClient)
+	remoteKeySet := oidc.NewRemoteKeySet(keySetCtx, discoveryInfo.JWKSURL)
 
 	verifierConfig := &oidc.Config{
 		ClientID:             settings.Resource,
@@ -121,7 +122,7 @@ func (p *azureProvider) ComputeClient(subscriptionID string) (computeClient, err
 	client := compute.NewVirtualMachinesClientWithBaseURI(p.settings.Environment.ResourceManagerEndpoint, subscriptionID)
 	client.Authorizer = authorizer
 	client.Sender = p.httpClient
-	client.AddToUserAgent(userAgent())
+	client.AddToUserAgent(userAgent(p.settings.PluginEnv))
 	return client, nil
 }
 
@@ -134,7 +135,7 @@ func (p *azureProvider) VMSSClient(subscriptionID string) (vmssClient, error) {
 	client := compute.NewVirtualMachineScaleSetsClientWithBaseURI(p.settings.Environment.ResourceManagerEndpoint, subscriptionID)
 	client.Authorizer = authorizer
 	client.Sender = p.httpClient
-	client.AddToUserAgent(userAgent())
+	client.AddToUserAgent(userAgent(p.settings.PluginEnv))
 	return client, nil
 }
 
@@ -189,9 +190,10 @@ type azureSettings struct {
 	ClientSecret string
 	Environment  azure.Environment
 	Resource     string
+	PluginEnv    *logical.PluginEnvironment
 }
 
-func getAzureSettings(config *azureConfig) (*azureSettings, error) {
+func (b *azureAuthBackend) getAzureSettings(ctx context.Context, config *azureConfig) (*azureSettings, error) {
 	settings := new(azureSettings)
 
 	envTenantID := os.Getenv("AZURE_TENANT_ID")
@@ -239,6 +241,12 @@ func getAzureSettings(config *azureConfig) (*azureSettings, error) {
 			return nil, err
 		}
 	}
+
+	pluginEnv, err := b.System().PluginEnv(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error loading plugin environment: %w", err)
+	}
+	settings.PluginEnv = pluginEnv
 
 	return settings, nil
 }

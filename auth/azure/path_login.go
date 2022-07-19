@@ -99,7 +99,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 		config = new(azureConfig)
 	}
 
-	provider, err := b.getProvider(config)
+	provider, err := b.getProvider(ctx, config)
 	if err != nil {
 		return nil, err
 	}

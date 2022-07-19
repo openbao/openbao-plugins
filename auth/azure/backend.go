@@ -60,7 +60,7 @@ func (b *azureAuthBackend) invalidate(ctx context.Context, key string) {
 	}
 }
 
-func (b *azureAuthBackend) getProvider(config *azureConfig) (provider, error) {
+func (b *azureAuthBackend) getProvider(ctx context.Context, config *azureConfig) (provider, error) {
 	b.l.RLock()
 	unlockFunc := b.l.RUnlock
 	defer func() { unlockFunc() }()
@@ -78,7 +78,7 @@ func (b *azureAuthBackend) getProvider(config *azureConfig) (provider, error) {
 		return b.provider, nil
 	}
 
-	provider, err := newAzureProvider(config)
+	provider, err := b.newAzureProvider(ctx, config)
 	if err != nil {
 		return nil, err
 	}

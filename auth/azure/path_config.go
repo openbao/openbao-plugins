@@ -127,7 +127,7 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 
 	// Create a settings object to validate all required settings
 	// are available
-	if _, err := getAzureSettings(config); err != nil {
+	if _, err := b.getAzureSettings(ctx, config); err != nil {
 		return nil, err
 	}
 
