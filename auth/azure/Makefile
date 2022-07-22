@@ -1,7 +1,6 @@
 TOOL?=vault-plugin-auth-azure
 TEST?=$$(go list ./...)
-EXTERNAL_TOOLS=\
-	github.com/mitchellh/gox
+EXTERNAL_TOOLS=
 BUILD_TAGS?=${TOOL}
 GOFMT_FILES?=$$(find . -name '*.go' | grep -v vendor)
 
@@ -39,9 +38,9 @@ generate:
 
 # bootstrap the build by downloading additional tools
 bootstrap:
-	@for tool in  $(EXTERNAL_TOOLS) ; do \
+	@for tool in $(EXTERNAL_TOOLS) ; do \
 		echo "Installing/Updating $$tool" ; \
-		go get -u $$tool; \
+		go install $$tool@latest; \
 	done
 
 fmt:
