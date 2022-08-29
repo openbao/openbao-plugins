@@ -41,7 +41,7 @@ func getTestBackend(t *testing.T, initConfig bool) (*azureSecretBackend, logical
 
 	b.settings = new(clientSettings)
 	mockProvider := newMockProvider()
-	b.getProvider = func(s *clientSettings, usMsGraphApi bool, p api.Passwords) (api.AzureProvider, error) {
+	b.getProvider = func(s *clientSettings, p api.Passwords) (api.AzureProvider, error) {
 		return mockProvider, nil
 	}
 
@@ -80,7 +80,7 @@ func TestPeriodicFuncNilConfig(t *testing.T) {
 
 	b.settings = new(clientSettings)
 	mockProvider := newMockProvider()
-	b.getProvider = func(s *clientSettings, usMsGraphApi bool, p api.Passwords) (api.AzureProvider, error) {
+	b.getProvider = func(s *clientSettings, p api.Passwords) (api.AzureProvider, error) {
 		return mockProvider, nil
 	}
 

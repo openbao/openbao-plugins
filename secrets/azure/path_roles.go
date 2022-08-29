@@ -287,7 +287,7 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 		return nil, fmt.Errorf("error storing role: %w", err)
 	}
 
-	return addAADWarning(resp, config), nil
+	return resp, nil
 }
 
 func (b *azureSecretBackend) pathRoleRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
@@ -320,7 +320,7 @@ func (b *azureSecretBackend) pathRoleRead(ctx context.Context, req *logical.Requ
 			"application_object_id": r.ApplicationObjectID,
 		},
 	}
-	return addAADWarning(resp, config), nil
+	return resp, nil
 }
 
 func (b *azureSecretBackend) pathRoleList(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {

@@ -102,7 +102,7 @@ func (b *azureSecretBackend) pathRotateRoot(ctx context.Context, req *logical.Re
 		b.Logger().Error("rotate root", "delete wal", err)
 	}
 
-	return addAADWarning(&logical.Response{}, config), nil
+	return nil, err
 }
 
 type passwordRemover interface {

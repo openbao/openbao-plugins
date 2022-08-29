@@ -137,32 +137,6 @@ teardown(){
     } >> $TESTS_OUT_FILE
 }
 
-@test "Azure Secrets Engine - Legacy AAD" {
-    local tf_output_file=${CONFIG_DIR}/tf-output.json
-    terraformInitApply ${CONFIG_DIR} -var=legacy_aad_resource_access=true
-    terraformOutput ${CONFIG_DIR} > ${tf_output_file}
-
-    tfOutputLocalEnv ${tf_output_file} > ${CONFIG_DIR}/local.env
-    . ${CONFIG_DIR}/local.env
-    local >&2
-
-    vault secrets enable ${ENGINE_NAME}
-    vault write "${ENGINE_NAME}/config" \
-        use_microsoft_graph_api=false \
-        subscription_id=${subscription_id} \
-        tenant_id="${tenant_id}" \
-        client_id="${client_id}" \
-        client_secret="${client_secret}"
-
-    # Azure API access provisioning seems to be delayed for whatever reason, so sleep a bit.
-    sleep 30
-
-    local roles=('Reader' 'Storage Blob Data Owner')
-    for ((i=0; i < ${#roles[@]}; i++)); do
-        testAzureSecret "${roles[$i]}" ${subscription_id} ${resource_group_name} "role-${i}" ${CONFIG_DIR} ${ENGINE_NAME}
-    done
-} >> $TESTS_OUT_FILE
-
 @test "Azure Secrets Engine - MS Graph" {
     local tf_output_file=${CONFIG_DIR}/tf-output.json
     terraformInitApply ${CONFIG_DIR}
@@ -174,7 +148,6 @@ teardown(){
 
     vault secrets enable ${ENGINE_NAME}
     vault write "${ENGINE_NAME}/config" \
-        use_microsoft_graph_api=true \
         subscription_id="${subscription_id}" \
         tenant_id="${tenant_id}" \
         client_id="${client_id}" \

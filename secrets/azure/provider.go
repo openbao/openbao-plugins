@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/graphrbac/1.6/graphrbac"
 	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
@@ -28,63 +27,32 @@ type provider struct {
 }
 
 // newAzureProvider creates an azureProvider, backed by Azure client objects for underlying services.
-func newAzureProvider(settings *clientSettings, useMsGraphApi bool, passwords api.Passwords) (api.AzureProvider, error) {
+func newAzureProvider(settings *clientSettings, passwords api.Passwords) (api.AzureProvider, error) {
 	// build clients that use the GraphRBAC endpoint
 	userAgent := getUserAgent(settings)
 
 	var appClient api.ApplicationsClient
 	var groupsClient api.GroupsClient
 	var spClient api.ServicePrincipalClient
-	if useMsGraphApi {
-		graphURI, err := api.GetGraphURI(settings.Environment.Name)
-		if err != nil {
-			return nil, err
-		}
 
-		graphApiAuthorizer, err := getAuthorizer(settings, graphURI)
-		if err != nil {
-			return nil, err
-		}
-
-		msGraphAppClient, err := api.NewMSGraphApplicationClient(settings.SubscriptionID, userAgent, graphURI, graphApiAuthorizer)
-		if err != nil {
-			return nil, err
-		}
-
-		appClient = msGraphAppClient
-		groupsClient = msGraphAppClient
-		spClient = msGraphAppClient
-	} else {
-		graphAuthorizer, err := getAuthorizer(settings, settings.Environment.GraphEndpoint)
-		if err != nil {
-			return nil, err
-		}
-
-		aadGraphClient := graphrbac.NewApplicationsClient(settings.TenantID)
-		aadGraphClient.Authorizer = graphAuthorizer
-		aadGraphClient.AddToUserAgent(userAgent)
-
-		appClient = &api.ActiveDirectoryApplicationClient{Client: &aadGraphClient, Passwords: passwords}
-
-		aadGroupsClient := graphrbac.NewGroupsClient(settings.TenantID)
-		aadGroupsClient.Authorizer = graphAuthorizer
-		aadGroupsClient.AddToUserAgent(userAgent)
-
-		groupsClient = api.ActiveDirectoryApplicationGroupsClient{
-			BaseURI:  aadGroupsClient.BaseURI,
-			TenantID: aadGroupsClient.TenantID,
-			Client:   aadGroupsClient,
-		}
-
-		servicePrincipalClient := graphrbac.NewServicePrincipalsClient(settings.TenantID)
-		servicePrincipalClient.Authorizer = graphAuthorizer
-		servicePrincipalClient.AddToUserAgent(userAgent)
-
-		spClient = api.AADServicePrincipalsClient{
-			Client:    servicePrincipalClient,
-			Passwords: passwords,
-		}
+	graphURI, err := api.GetGraphURI(settings.Environment.Name)
+	if err != nil {
+		return nil, err
 	}
+
+	graphApiAuthorizer, err := getAuthorizer(settings, graphURI)
+	if err != nil {
+		return nil, err
+	}
+
+	msGraphAppClient, err := api.NewMSGraphApplicationClient(settings.SubscriptionID, userAgent, graphURI, graphApiAuthorizer)
+	if err != nil {
+		return nil, err
+	}
+
+	appClient = msGraphAppClient
+	groupsClient = msGraphAppClient
+	spClient = msGraphAppClient
 
 	// build clients that use the Resource Manager endpoint
 	resourceManagerAuthorizer, err := getAuthorizer(settings, settings.Environment.ResourceManagerEndpoint)
@@ -203,7 +171,7 @@ func (p *provider) DeleteRoleAssignmentByID(ctx context.Context, roleAssignmentI
 }
 
 // ListRoleAssignments lists all role assignments.
-// There is no need for paging; the caller only cares about the the first match and whether
+// There is no need for paging; the caller only cares about the first match and whether
 // there are 0, 1 or >1 items. Unpacking here is a simpler interface.
 func (p *provider) ListRoleAssignments(ctx context.Context, filter string) ([]authorization.RoleAssignment, error) {
 	page, err := p.raClient.List(ctx, filter)
@@ -215,12 +183,12 @@ func (p *provider) ListRoleAssignments(ctx context.Context, filter string) ([]au
 	return page.Values(), nil
 }
 
-// AddGroupMember adds a member to a AAD Group.
+// AddGroupMember adds a member to a Group.
 func (p *provider) AddGroupMember(ctx context.Context, groupObjectID string, memberObjectID string) (err error) {
 	return p.groupsClient.AddGroupMember(ctx, groupObjectID, memberObjectID)
 }
 
-// RemoveGroupMember removes a member from a AAD Group.
+// RemoveGroupMember removes a member from a Group.
 func (p *provider) RemoveGroupMember(ctx context.Context, groupObjectID, memberObjectID string) (err error) {
 	return p.groupsClient.RemoveGroupMember(ctx, groupObjectID, memberObjectID)
 }

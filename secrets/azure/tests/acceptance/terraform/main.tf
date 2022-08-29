@@ -107,29 +107,6 @@ resource "azuread_application" "vault_azure_secrets" {
       }
     }
   }
-  # Legacy Azure Active Directory Graph (AADG)
-  dynamic "required_resource_access" {
-    for_each = var.legacy_aad_resource_access ? [""] : []
-    content {
-      resource_app_id = "00000002-0000-0000-c000-000000000000"
-      resource_access {
-        id   = "311a71cc-e848-46a1-bdf8-97ff7156d8e6"
-        type = "Scope"
-      }
-      resource_access {
-        id   = "970d6fa6-214a-4a9b-8513-08fad511e2fd"
-        type = "Scope"
-      }
-      resource_access {
-        id   = "1cda74f2-2616-4834-b122-5cb1b07f8a59"
-        type = "Role"
-      }
-      resource_access {
-        id   = "78c8a3c8-a07e-4b9e-af1b-b5ccab50a175"
-        type = "Role"
-      }
-    }
-  }
 }
 
 resource "time_rotating" "vault_azure_secrets" {

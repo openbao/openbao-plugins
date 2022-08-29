@@ -177,12 +177,12 @@ func (m *mockProvider) DeleteRoleAssignmentByID(_ context.Context, _ string) (au
 	return authorization.RoleAssignment{}, nil
 }
 
-// AddGroupMember adds a member to a AAD Group.
+// AddGroupMember adds a member to a Group.
 func (m *mockProvider) AddGroupMember(_ context.Context, _ string, _ string) error {
 	return nil
 }
 
-// RemoveGroupMember removes a member from a AAD Group.
+// RemoveGroupMember removes a member from a Group.
 func (m *mockProvider) RemoveGroupMember(_ context.Context, _ string, _ string) error {
 	return nil
 }

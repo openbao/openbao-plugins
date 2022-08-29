@@ -62,7 +62,7 @@ func TestSP_WAL_Cleanup(t *testing.T) {
 
 	// overwrite the normal test backend provider with the errMockProvider
 	errMockProvider := newErrMockProvider()
-	b.getProvider = func(s *clientSettings, useMsGraphApi bool, p api.Passwords) (api.AzureProvider, error) {
+	b.getProvider = func(s *clientSettings, p api.Passwords) (api.AzureProvider, error) {
 		return errMockProvider, nil
 	}
 
@@ -483,296 +483,8 @@ func TestCredentialReadProviderError(t *testing.T) {
 	}
 }
 
-// TestCredentialInteg is an integration test against the live Azure service. It requires
+// This is an integration test against the live Azure service. It requires
 // valid, sufficiently-privileged Azure credentials in env variables.
-func TestCredentialInteg_aad(t *testing.T) {
-	if os.Getenv("VAULT_ACC") != "1" {
-		t.SkipNow()
-	}
-
-	if os.Getenv("AZURE_CLIENT_SECRET") == "" {
-		t.Skip("Azure Secrets: Azure environment variables not set. Skipping.")
-	}
-
-	t.Run("service principals", func(t *testing.T) {
-		t.Parallel()
-
-		skipIfMissingEnvVars(t,
-			"AZURE_SUBSCRIPTION_ID",
-			"AZURE_CLIENT_ID",
-			"AZURE_CLIENT_SECRET",
-			"AZURE_TENANT_ID",
-		)
-
-		b := backend()
-		s := new(logical.InmemStorage)
-		subscriptionID := os.Getenv("AZURE_SUBSCRIPTION_ID")
-		clientID := os.Getenv("AZURE_CLIENT_ID")
-		clientSecret := os.Getenv("AZURE_CLIENT_SECRET")
-		tenantID := os.Getenv("AZURE_TENANT_ID")
-
-		config := &logical.BackendConfig{
-			Logger: logging.NewVaultLogger(log.Trace),
-			System: &logical.StaticSystemView{
-				DefaultLeaseTTLVal: defaultLeaseTTLHr,
-				MaxLeaseTTLVal:     maxLeaseTTLHr,
-			},
-			StorageView: s,
-		}
-		err := b.Setup(context.Background(), config)
-		assertErrorIsNil(t, err)
-
-		configData := map[string]interface{}{
-			"subscription_id":         subscriptionID,
-			"client_id":               clientID,
-			"client_secret":           clientSecret,
-			"tenant_id":               tenantID,
-			"use_microsoft_graph_api": false,
-		}
-
-		configResp, err := b.HandleRequest(context.Background(), &logical.Request{
-			Operation: logical.CreateOperation,
-			Path:      "config",
-			Data:      configData,
-			Storage:   s,
-		})
-		assertRespNoError(t, configResp, err)
-
-		// Add a Vault role that will provide creds with Azure "Reader" permissions
-		// Resources groups "vault-azure-secrets-test1" and "vault-azure-secrets-test2"
-		// should already exist in the test infrastructure. (The test can be simplified
-		// to just use scope "/subscriptions/%s" if need be.)
-		rolename := "test_role"
-		role := map[string]interface{}{
-			"azure_roles": fmt.Sprintf(`[
-			{
-				"role_name": "Reader",
-				"scope":  "/subscriptions/%s/resourceGroups/vault-azure-secrets-test1"
-			},
-			{
-				"role_name": "Reader",
-				"scope":  "/subscriptions/%s/resourceGroups/vault-azure-secrets-test2"
-			}]`, subscriptionID, subscriptionID),
-		}
-		resp, err := b.HandleRequest(context.Background(), &logical.Request{
-			Operation: logical.CreateOperation,
-			Path:      fmt.Sprintf("roles/%s", rolename),
-			Data:      role,
-			Storage:   s,
-		})
-		assertRespNoError(t, resp, err)
-
-		// Request credentials
-		resp, err = b.HandleRequest(context.Background(), &logical.Request{
-			Operation: logical.ReadOperation,
-			Path:      fmt.Sprintf("creds/%s", rolename),
-			Storage:   s,
-		})
-		assertRespNoError(t, resp, err)
-
-		appID := resp.Data["client_id"].(string)
-
-		// Use the underlying provider to access clients directly for testing
-		client, err := b.getClient(context.Background(), s)
-		assertErrorIsNil(t, err)
-		provider := client.provider.(*provider)
-		spObjID := findServicePrincipalID(t, provider.spClient, appID)
-
-		assertServicePrincipalExists(t, provider.spClient, spObjID)
-
-		// Verify that the role assignments were created. Get the assignment
-		// info from Azure and verify it matches the Reader role.
-		raIDs := resp.Secret.InternalData["role_assignment_ids"].([]string)
-		equal(t, 2, len(raIDs))
-
-		ra, err := provider.raClient.GetByID(context.Background(), raIDs[0])
-		assertErrorIsNil(t, err)
-
-		roleDefs, err := provider.ListRoleDefinitions(context.Background(), fmt.Sprintf("subscriptions/%s", subscriptionID), "")
-		assertErrorIsNil(t, err)
-
-		defID := *ra.RoleAssignmentPropertiesWithScope.RoleDefinitionID
-		found := false
-		for _, def := range roleDefs {
-			if *def.ID == defID && *def.RoleName == "Reader" {
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			t.Fatal("'Reader' role assignment not found")
-		}
-
-		// Serialize and deserialize the secret to remove typing, as will really happen.
-		fakeSaveLoad(resp.Secret)
-
-		// Revoke the Service Principal by sending back the secret we just received
-		req := &logical.Request{
-			Secret:  resp.Secret,
-			Storage: s,
-		}
-
-		b.spRevoke(context.Background(), req, nil)
-
-		// Verify that SP get is an error after delete. Expected there
-		// to be a delay and that this step would take some time/retries,
-		// but that seems not to be the case.
-		assertServicePrincipalDoesNotExist(t, provider.spClient, spObjID)
-	})
-
-	t.Run("static service principals", func(t *testing.T) {
-		t.Parallel()
-
-		skipIfMissingEnvVars(t,
-			"AZURE_SUBSCRIPTION_ID",
-			"AZURE_CLIENT_ID",
-			"AZURE_CLIENT_SECRET",
-			"AZURE_TENANT_ID",
-		)
-
-		b := backend()
-		s := new(logical.InmemStorage)
-		subscriptionID := os.Getenv("AZURE_SUBSCRIPTION_ID")
-		clientID := os.Getenv("AZURE_CLIENT_ID")
-		clientSecret := os.Getenv("AZURE_CLIENT_SECRET")
-		tenantID := os.Getenv("AZURE_TENANT_ID")
-
-		config := &logical.BackendConfig{
-			Logger: logging.NewVaultLogger(log.Trace),
-			System: &logical.StaticSystemView{
-				DefaultLeaseTTLVal: defaultLeaseTTLHr,
-				MaxLeaseTTLVal:     maxLeaseTTLHr,
-			},
-			StorageView: s,
-		}
-		err := b.Setup(context.Background(), config)
-		assertErrorIsNil(t, err)
-
-		configData := map[string]interface{}{
-			"subscription_id":         subscriptionID,
-			"client_id":               clientID,
-			"client_secret":           clientSecret,
-			"tenant_id":               tenantID,
-			"use_microsoft_graph_api": false,
-		}
-
-		configResp, err := b.HandleRequest(context.Background(), &logical.Request{
-			Operation: logical.CreateOperation,
-			Path:      "config",
-			Data:      configData,
-			Storage:   s,
-		})
-		assertRespNoError(t, configResp, err)
-
-		rolename := "static_test_role"
-		role := map[string]interface{}{
-			"azure_roles": fmt.Sprintf(`[{
-			"role_name": "Reader",
-			"scope":  "/subscriptions/%s"
-		}]`, subscriptionID),
-		}
-		resp, err := b.HandleRequest(context.Background(), &logical.Request{
-			Operation: logical.CreateOperation,
-			Path:      fmt.Sprintf("roles/%s", rolename),
-			Data:      role,
-			Storage:   s,
-		})
-		assertRespNoError(t, resp, err)
-
-		// Request credentials
-		resp, err = b.HandleRequest(context.Background(), &logical.Request{
-			Operation: logical.ReadOperation,
-			Path:      fmt.Sprintf("creds/%s", rolename),
-			Data:      role,
-			Storage:   s,
-		})
-		assertRespNoError(t, resp, err)
-
-		origResp := resp
-
-		appObjID := resp.Secret.InternalData["app_object_id"].(string)
-		appID := resp.Data["client_id"].(string)
-
-		// Create a new role that will add passwords to the previously
-		// created application when creds are requested.
-
-		rolename = "test_role2"
-		role = map[string]interface{}{
-			"application_object_id": appObjID,
-		}
-		resp, err = b.HandleRequest(context.Background(), &logical.Request{
-			Operation: logical.CreateOperation,
-			Path:      fmt.Sprintf("roles/%s", rolename),
-			Data:      role,
-			Storage:   s,
-		})
-		assertRespNoError(t, resp, err)
-
-		// Request credentials
-		resp, err = b.HandleRequest(context.Background(), &logical.Request{
-			Operation: logical.ReadOperation,
-			Path:      fmt.Sprintf("creds/%s", rolename),
-			Data:      role,
-			Storage:   s,
-		})
-		assertRespNoError(t, resp, err)
-
-		// Test the added password by creating a new Azure provider with these
-		// creds and attempting an operation with it.
-		clientConfig := azureConfig{}
-
-		settings, err := b.getClientSettings(context.Background(), &clientConfig)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		settings.ClientID = appID
-		settings.ClientSecret = resp.Data["client_secret"].(string)
-
-		success := false
-
-		// The new app may not be propagated immediately, so retry for ~30s.
-		for i := 0; i < 8; i++ {
-			// New credentials are only tested during an actual operation, not provider creation.
-			// This step should never fail.
-			p, err := newAzureProvider(settings, true, api.Passwords{})
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			_, err = p.GetApplication(context.Background(), appObjID)
-			if err == nil {
-				success = true
-				break
-			}
-			time.Sleep(5 * time.Second)
-		}
-
-		if !success {
-			t.Fatalf("unable to validate with credentials. Last error: %v", err)
-		}
-
-		// Serialize and deserialize the secret to remove typing, as will really happen.
-		fakeSaveLoad(origResp.Secret)
-
-		// Revoke the Service Principal by sending back the secret we just received
-		req := &logical.Request{
-			Secret:  origResp.Secret,
-			Storage: s,
-		}
-
-		_, err = b.spRevoke(context.Background(), req, nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-	})
-}
-
-// Similar to TestCredentialInteg, this is an integration test against the live Azure service. It requires
-// valid, sufficiently-privileged Azure credentials in env variables.
-// The credentials provided to this must include permissions to use MS Graph and not AAD
-// Unfortunately this means that this test cannot be run within the same test execution as TestCredentialInteg
 func TestCredentialInteg_msgraph(t *testing.T) {
 	if os.Getenv("VAULT_ACC") != "1" {
 		t.SkipNow()
@@ -811,11 +523,10 @@ func TestCredentialInteg_msgraph(t *testing.T) {
 		assertErrorIsNil(t, err)
 
 		configData := map[string]interface{}{
-			"subscription_id":         subscriptionID,
-			"client_id":               clientID,
-			"client_secret":           clientSecret,
-			"tenant_id":               tenantID,
-			"use_microsoft_graph_api": true,
+			"subscription_id": subscriptionID,
+			"client_id":       clientID,
+			"client_secret":   clientSecret,
+			"tenant_id":       tenantID,
 		}
 
 		configResp, err := b.HandleRequest(context.Background(), &logical.Request{
@@ -936,18 +647,6 @@ func findServicePrincipalID(t *testing.T, client api.ServicePrincipalClient, app
 	t.Helper()
 
 	switch spClient := client.(type) {
-	case api.AADServicePrincipalsClient:
-		spList, err := spClient.Client.List(context.Background(), "")
-		assertErrorIsNil(t, err)
-		for spList.NotDone() {
-			for _, sp := range spList.Values() {
-				if *sp.AppID == appID {
-					return *sp.ObjectID
-				}
-			}
-			err = spList.NextWithContext(context.Background())
-			assertErrorIsNil(t, err)
-		}
 	case *api.AppClient:
 		pathVals := &url.Values{}
 		pathVals.Set("$filter", fmt.Sprintf("appId eq '%s'", appID))
@@ -990,11 +689,6 @@ func assertServicePrincipalExists(t *testing.T, client api.ServicePrincipalClien
 	t.Helper()
 
 	switch spClient := client.(type) {
-	case api.AADServicePrincipalsClient:
-		_, err := spClient.Client.Get(context.Background(), spID)
-		if err != nil {
-			t.Fatalf("Expected nil error on GET of new SP, got: %#v", err)
-		}
 	case *api.AppClient:
 		pathParams := map[string]interface{}{
 			"id": spID,
@@ -1025,11 +719,6 @@ func assertServicePrincipalDoesNotExist(t *testing.T, client api.ServicePrincipa
 	t.Helper()
 
 	switch spClient := client.(type) {
-	case api.AADServicePrincipalsClient:
-		_, err := spClient.Client.Get(context.Background(), spID)
-		if err == nil {
-			t.Fatalf("Expected error on GET of new SP")
-		}
 	case *api.AppClient:
 		pathParams := map[string]interface{}{
 			"id": spID,
