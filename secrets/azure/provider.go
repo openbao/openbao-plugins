@@ -121,8 +121,8 @@ func (p *provider) ListApplications(ctx context.Context, filter string) ([]api.A
 
 // DeleteApplication deletes an Azure application object.
 // This will in turn remove the service principal (but not the role assignments).
-func (p *provider) DeleteApplication(ctx context.Context, applicationObjectID string) error {
-	return p.appClient.DeleteApplication(ctx, applicationObjectID)
+func (p *provider) DeleteApplication(ctx context.Context, applicationObjectID string, permanentlyDelete bool) error {
+	return p.appClient.DeleteApplication(ctx, applicationObjectID, permanentlyDelete)
 }
 
 func (p *provider) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime time.Time) (result api.PasswordCredentialResult, err error) {
@@ -137,6 +137,10 @@ func (p *provider) RemoveApplicationPassword(ctx context.Context, applicationObj
 // An Application must be created prior to calling this and pass in parameters.
 func (p *provider) CreateServicePrincipal(ctx context.Context, appID string, startDate time.Time, endDate time.Time) (id string, password string, err error) {
 	return p.spClient.CreateServicePrincipal(ctx, appID, startDate, endDate)
+}
+
+func (p *provider) DeleteServicePrincipal(ctx context.Context, spObjectID string, permanentlyDelete bool) error {
+	return p.spClient.DeleteServicePrincipal(ctx, spObjectID, permanentlyDelete)
 }
 
 // ListRoles like all Azure roles with a scope (often subscription).

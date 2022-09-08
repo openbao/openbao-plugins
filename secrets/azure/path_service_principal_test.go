@@ -36,6 +36,22 @@ var (
 		}),
 	}
 
+	testPermanentlyDeleteRole = map[string]interface{}{
+		"azure_roles": encodeJSON([]AzureRole{
+			{
+				RoleName: "Owner",
+				RoleID:   "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Owner",
+				Scope:    "/subscriptions/ce7d1612-67c1-4dc6-8d81-4e0a432e696b",
+			},
+			{
+				RoleName: "Contributor",
+				RoleID:   "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Contributor",
+				Scope:    "/subscriptions/ce7d1612-67c1-4dc6-8d81-4e0a432e696b",
+			},
+		}),
+		"permanently_delete": true,
+	}
+
 	testGroupRole = map[string]interface{}{
 		"azure_groups": encodeJSON([]AzureGroup{
 			{
@@ -361,6 +377,52 @@ func TestSPRevoke(t *testing.T) {
 
 		if client.provider.(*mockProvider).appExists(appObjID) {
 			t.Fatalf("application present but should have been deleted")
+		}
+
+		if !client.provider.(*mockProvider).deletedObjectExists(appObjID) {
+			t.Fatalf("application is missing from deleted objects but should have been 'soft deleted'")
+		}
+	})
+
+	t.Run("permanently_delete_roles", func(t *testing.T) {
+		testRoleCreate(t, b, s, "test_role", testPermanentlyDeleteRole)
+
+		resp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "creds/test_role",
+			Storage:   s,
+		})
+		assertErrorIsNil(t, err)
+
+		appObjID := resp.Secret.InternalData["app_object_id"].(string)
+		client, err := b.getClient(context.Background(), s)
+		assertErrorIsNil(t, err)
+
+		if !client.provider.(*mockProvider).appExists(appObjID) {
+			t.Fatalf("application was not created")
+		}
+
+		// Serialize and deserialize the secret to remove typing, as will really happen.
+		fakeSaveLoad(resp.Secret)
+
+		resp, err = b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.RevokeOperation,
+			Secret:    resp.Secret,
+			Storage:   s,
+		})
+
+		assertErrorIsNil(t, err)
+
+		if resp.IsError() {
+			t.Fatalf("receive response error: %v", resp.Error())
+		}
+
+		if client.provider.(*mockProvider).appExists(appObjID) {
+			t.Fatalf("application present but should have been deleted")
+		}
+
+		if client.provider.(*mockProvider).deletedObjectExists(appObjID) {
+			t.Fatalf("application is present in deleted objects but should have been permanently deleted")
 		}
 	})
 

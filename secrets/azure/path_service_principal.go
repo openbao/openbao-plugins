@@ -148,6 +148,7 @@ func (b *azureSecretBackend) createSPSecret(ctx context.Context, s logical.Stora
 		"role_assignment_ids":  raIDs,
 		"group_membership_ids": groupObjectIDs(role.AzureGroups),
 		"role":                 roleName,
+		"permanently_delete":   role.PermanentlyDelete,
 	}
 
 	return b.Secret(SecretTypeSP).Response(data, internalData), nil
@@ -216,6 +217,13 @@ func (b *azureSecretBackend) spRevoke(ctx context.Context, req *logical.Request,
 		spObjectID = spObjectIDRaw.(string)
 	}
 
+	// Get the permanently delete setting. Only set if using dynamic service
+	// principals.
+	var permanentlyDelete bool
+	if permanentlyDeleteRaw, ok := req.Secret.InternalData["permanently_delete"]; ok {
+		permanentlyDelete = permanentlyDeleteRaw.(bool)
+	}
+
 	var raIDs []string
 	if req.Secret.InternalData["role_assignment_ids"] != nil {
 		for _, v := range req.Secret.InternalData["role_assignment_ids"].([]interface{}) {
@@ -252,8 +260,14 @@ func (b *azureSecretBackend) spRevoke(ctx context.Context, req *logical.Request,
 		resp.AddWarning(err.Error())
 	}
 
-	err = c.deleteApp(ctx, appObjectID)
+	// removing the service principal is effectively a garbage collection
+	// operation. Errors will be noted but won't fail the revocation process.
+	// Deleting the app, however, *is* required to consider the secret revoked.
+	if err := c.deleteServicePrincipal(ctx, spObjectID, permanentlyDelete); err != nil {
+		resp.AddWarning(err.Error())
+	}
 
+	err = c.deleteApp(ctx, appObjectID, permanentlyDelete)
 	return resp, err
 }
 

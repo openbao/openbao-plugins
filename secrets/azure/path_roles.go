@@ -30,6 +30,7 @@ type roleEntry struct {
 	ApplicationObjectID string        `json:"application_object_id"`
 	TTL                 time.Duration `json:"ttl"`
 	MaxTTL              time.Duration `json:"max_ttl"`
+	PermanentlyDelete   bool          `json:"permanently_delete"`
 }
 
 // AzureRole is an Azure Role (https://docs.microsoft.com/en-us/azure/role-based-access-control/overview) applied
@@ -79,6 +80,11 @@ func pathsRole(b *azureSecretBackend) []*framework.Path {
 				"max_ttl": {
 					Type:        framework.TypeDurationSecond,
 					Description: "Maximum time a service principal. If not set or set to 0, will use system default.",
+				},
+				"permanently_delete": {
+					Type:        framework.TypeBool,
+					Description: "Indicates whether new application objects should be permanently deleted. If not set, objects will not be permanently deleted.",
+					Default:     false,
 				},
 			},
 			Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -171,6 +177,13 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 		return logical.ErrorResponse("ttl cannot be greater than max_ttl"), nil
 	}
 
+	// load and verify deletion options
+	if permanentlyDeleteRaw, ok := d.GetOk("permanently_delete"); ok {
+		role.PermanentlyDelete = permanentlyDeleteRaw.(bool)
+	} else {
+		role.PermanentlyDelete = false
+	}
+
 	// update and verify Application Object ID if provided
 	if appObjectID, ok := d.GetOk("application_object_id"); ok {
 		role.ApplicationObjectID = appObjectID.(string)
@@ -182,6 +195,10 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 			return nil, fmt.Errorf("error loading Application: %w", err)
 		}
 		role.ApplicationID = to.String(app.AppID)
+
+		if role.PermanentlyDelete {
+			return logical.ErrorResponse("permanently_delete must be false if application_object_id is provided"), nil
+		}
 	}
 
 	// Parse the Azure roles
@@ -318,6 +335,7 @@ func (b *azureSecretBackend) pathRoleRead(ctx context.Context, req *logical.Requ
 			"azure_roles":           r.AzureRoles,
 			"azure_groups":          r.AzureGroups,
 			"application_object_id": r.ApplicationObjectID,
+			"permanently_delete":    r.PermanentlyDelete,
 		},
 	}
 	return resp, nil

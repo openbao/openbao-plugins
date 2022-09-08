@@ -60,7 +60,7 @@ func (b *azureSecretBackend) rollbackAppWAL(ctx context.Context, req *logical.Re
 	// found, so no special handling is needed for that case. If we don't succeed within
 	// maxWALAge (e.g. client creds have changed and the delete will never succeed),
 	// unconditionally remove the WAL.
-	if err := client.deleteApp(ctx, entry.AppObjID); err != nil {
+	if err := client.deleteApp(ctx, entry.AppObjID, false); err != nil {
 		b.Logger().Warn("rollback error deleting App", "err", err)
 
 		if time.Now().After(entry.Expiration) {

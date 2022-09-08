@@ -39,6 +39,7 @@ func TestRoleCreate(t *testing.T) {
 			"ttl":                   int64(0),
 			"max_ttl":               int64(0),
 			"application_object_id": "",
+			"permanently_delete":    true,
 		}
 
 		spRole2 := map[string]interface{}{
@@ -65,6 +66,7 @@ func TestRoleCreate(t *testing.T) {
 			"ttl":                   int64(300),
 			"max_ttl":               int64(3000),
 			"application_object_id": "",
+			"permanently_delete":    true,
 		}
 
 		// Verify basic updates of the name role
@@ -93,6 +95,7 @@ func TestRoleCreate(t *testing.T) {
 			"max_ttl":               int64(3000),
 			"azure_roles":           "[]",
 			"azure_groups":          "[]",
+			"permanently_delete":    false,
 		}
 
 		name := generateUUID()
@@ -119,11 +122,13 @@ func TestRoleCreate(t *testing.T) {
 		}
 
 		// Verify that ttl and max_ttl are 0 if not provided
+		// and that permanently_delete is false if not provided
 		name := generateUUID()
 		testRoleCreate(t, b, s, name, testRole)
 
 		testRole["ttl"] = int64(0)
 		testRole["max_ttl"] = int64(0)
+		testRole["permanently_delete"] = false
 
 		resp, err := testRoleRead(t, b, s, name)
 		assertErrorIsNil(t, err)

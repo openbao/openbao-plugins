@@ -31,7 +31,7 @@ type AzureProvider interface {
 type ApplicationsClient interface {
 	GetApplication(ctx context.Context, applicationObjectID string) (ApplicationResult, error)
 	CreateApplication(ctx context.Context, displayName string) (ApplicationResult, error)
-	DeleteApplication(ctx context.Context, applicationObjectID string) error
+	DeleteApplication(ctx context.Context, applicationObjectID string, permanentlyDelete bool) error
 	ListApplications(ctx context.Context, filter string) ([]ApplicationResult, error)
 	AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime time.Time) (PasswordCredentialResult, error)
 	RemoveApplicationPassword(ctx context.Context, applicationObjectID string, keyID string) error

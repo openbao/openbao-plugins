@@ -121,8 +121,13 @@ func (c *client) deleteAppPassword(ctx context.Context, appObjID, keyID string) 
 }
 
 // deleteApp deletes an Azure application.
-func (c *client) deleteApp(ctx context.Context, appObjectID string) error {
-	return c.provider.DeleteApplication(ctx, appObjectID)
+func (c *client) deleteApp(ctx context.Context, appObjectID string, permanentlyDelete bool) error {
+	return c.provider.DeleteApplication(ctx, appObjectID, permanentlyDelete)
+}
+
+// deleteServicePrincipal deletes an Azure service principal.
+func (c *client) deleteServicePrincipal(ctx context.Context, spObjectID string, permanentlyDelete bool) error {
+	return c.provider.DeleteServicePrincipal(ctx, spObjectID, permanentlyDelete)
 }
 
 // assignRoles assigns Azure roles to a service principal.

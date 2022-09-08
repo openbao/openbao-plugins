@@ -136,7 +136,7 @@ func (c *AppClient) CreateApplication(ctx context.Context, displayName string) (
 
 // DeleteApplication deletes an Azure application object.
 // This will in turn remove the service principal (but not the role assignments).
-func (c *AppClient) DeleteApplication(ctx context.Context, applicationObjectID string) error {
+func (c *AppClient) DeleteApplication(ctx context.Context, applicationObjectID string, permanentlyDelete bool) error {
 	req, err := c.deleteApplicationPreparer(ctx, applicationObjectID)
 	if err != nil {
 		return autorest.NewErrorWithError(err, "provider", "DeleteApplication", nil, "Failure preparing request")
@@ -156,6 +156,14 @@ func (c *AppClient) DeleteApplication(ctx context.Context, applicationObjectID s
 	if err != nil {
 		return autorest.NewErrorWithError(err, "provider", "DeleteApplication", resp, "Failure responding to request")
 	}
+
+	if permanentlyDelete {
+		err = c.deleteDeletedItem(ctx, applicationObjectID)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -547,6 +555,22 @@ type createServicePrincipalResponse struct {
 	ID string `json:"id"`
 }
 
+func (c *AppClient) DeleteServicePrincipal(ctx context.Context, spObjectID string, permanentlyDelete bool) error {
+	err := c.deleteServicePrincipal(ctx, spObjectID)
+	if err != nil {
+		return err
+	}
+
+	if permanentlyDelete {
+		err = c.deleteDeletedItem(ctx, spObjectID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *AppClient) deleteServicePrincipal(ctx context.Context, spID string) error {
 	pathParams := map[string]interface{}{
 		"id": spID,
@@ -555,6 +579,19 @@ func (c *AppClient) deleteServicePrincipal(ctx context.Context, spID string) err
 	preparer := c.GetPreparer(
 		autorest.AsDelete(),
 		autorest.WithPathParameters("/v1.0/servicePrincipals/{id}", pathParams),
+	)
+
+	return c.SendRequest(ctx, preparer, autorest.WithErrorUnlessStatusCode(http.StatusOK, http.StatusNoContent))
+}
+
+func (c *AppClient) deleteDeletedItem(ctx context.Context, id string) error {
+	pathParams := map[string]interface{}{
+		"id": id,
+	}
+
+	preparer := c.GetPreparer(
+		autorest.AsDelete(),
+		autorest.WithPathParameters("/v1.0/directory/deletedItems/{id}", pathParams),
 	)
 
 	return c.SendRequest(ctx, preparer, autorest.WithErrorUnlessStatusCode(http.StatusOK, http.StatusNoContent))

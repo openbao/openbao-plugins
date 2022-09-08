@@ -42,36 +42,36 @@ func pathConfig(b *azureSecretBackend) *framework.Path {
 	return &framework.Path{
 		Pattern: "config",
 		Fields: map[string]*framework.FieldSchema{
-			"subscription_id": &framework.FieldSchema{
+			"subscription_id": {
 				Type: framework.TypeString,
 				Description: `The subscription id for the Azure Active Directory.
 				This value can also be provided with the AZURE_SUBSCRIPTION_ID environment variable.`,
 			},
-			"tenant_id": &framework.FieldSchema{
+			"tenant_id": {
 				Type: framework.TypeString,
 				Description: `The tenant id for the Azure Active Directory. This value can also
 				be provided with the AZURE_TENANT_ID environment variable.`,
 			},
-			"environment": &framework.FieldSchema{
+			"environment": {
 				Type: framework.TypeString,
 				Description: `The Azure environment name. If not provided, AzurePublicCloud is used.
 				This value can also be provided with the AZURE_ENVIRONMENT environment variable.`,
 			},
-			"client_id": &framework.FieldSchema{
+			"client_id": {
 				Type: framework.TypeString,
 				Description: `The OAuth2 client id to connect to Azure.
 				This value can also be provided with the AZURE_CLIENT_ID environment variable.`,
 			},
-			"client_secret": &framework.FieldSchema{
+			"client_secret": {
 				Type: framework.TypeString,
 				Description: `The OAuth2 client secret to connect to Azure.
 				This value can also be provided with the AZURE_CLIENT_SECRET environment variable.`,
 			},
-			"password_policy": &framework.FieldSchema{
+			"password_policy": {
 				Type:        framework.TypeString,
 				Description: "Name of the password policy to use to generate passwords for dynamic credentials.",
 			},
-			"root_password_ttl": &framework.FieldSchema{
+			"root_password_ttl": {
 				Type:        framework.TypeDurationSecond,
 				Default:     defaultRootPasswordTTL,
 				Description: "The TTL of the root password in Azure. This can be either a number of seconds or a time formatted duration (ex: 24h, 48ds)",
