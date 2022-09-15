@@ -1,5 +1,7 @@
 ## Unreleased
 
+## v0.14.0
+
 IMPROVEMENTS:
 
 * Add option to permanently delete AzureAD objects [[GH-104](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/104)]
