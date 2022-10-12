@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-11-01/compute"
@@ -273,8 +274,35 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 			principalIDs[to.String(vmss.Identity.PrincipalID)] = struct{}{}
 		}
 		// if not, look for user-assigned identities
-		for _, userIdentity := range vmss.Identity.UserAssignedIdentities {
-			principalIDs[to.String(userIdentity.PrincipalID)] = struct{}{}
+		for userIdentityID, userIdentity := range vmss.Identity.UserAssignedIdentities {
+			// Principal ID is not nil for VMSS uniform orchestration mode
+			if userIdentity.PrincipalID != nil {
+				principalIDs[to.String(userIdentity.PrincipalID)] = struct{}{}
+				continue
+			}
+
+			elements := strings.Split(userIdentityID, "/")
+			if len(elements) < 9 {
+				return fmt.Errorf("unable to parse the user-assigned identity resource ID: %s", userIdentityID)
+			}
+			msiSubscriptionID := elements[2]
+			msiResourceGroupName := elements[4]
+			msiResourceName := elements[8]
+
+			// Principal ID is nil for VMSS flex orchestration mode, so we
+			// must look up the user-assigned identity using the MSI client
+			msiClient, err := b.provider.MSIClient(msiSubscriptionID)
+			if err != nil {
+				return fmt.Errorf("unable to create msi client: %w", err)
+			}
+			userIdentity, err := msiClient.Get(ctx, msiResourceGroupName, msiResourceName)
+			if err != nil {
+				return fmt.Errorf("unable to retrieve user assigned identity metadata: %w", err)
+			}
+
+			if userIdentity.PrincipalID != nil {
+				principalIDs[userIdentity.PrincipalID.String()] = struct{}{}
+			}
 		}
 	case vmName != "":
 		client, err := b.provider.ComputeClient(subscriptionID)

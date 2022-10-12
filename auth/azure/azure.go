@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-11-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/msi/mgmt/2018-11-30/msi"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
@@ -32,6 +33,10 @@ type vmssClient interface {
 	Get(ctx context.Context, resourceGroup, vmssName string, expandTypes compute.ExpandTypesForGetVMScaleSets) (compute.VirtualMachineScaleSet, error)
 }
 
+type msiClient interface {
+	Get(ctx context.Context, resourceGroup, resourceName string) (result msi.Identity, err error)
+}
+
 type tokenVerifier interface {
 	Verify(ctx context.Context, token string) (*oidc.IDToken, error)
 }
@@ -40,6 +45,7 @@ type provider interface {
 	Verifier() tokenVerifier
 	ComputeClient(subscriptionID string) (computeClient, error)
 	VMSSClient(subscriptionID string) (vmssClient, error)
+	MSIClient(subscriptionID string) (msiClient, error)
 }
 
 type azureProvider struct {
@@ -133,6 +139,19 @@ func (p *azureProvider) VMSSClient(subscriptionID string) (vmssClient, error) {
 	}
 
 	client := compute.NewVirtualMachineScaleSetsClientWithBaseURI(p.settings.Environment.ResourceManagerEndpoint, subscriptionID)
+	client.Authorizer = authorizer
+	client.Sender = p.httpClient
+	client.AddToUserAgent(userAgent(p.settings.PluginEnv))
+	return client, nil
+}
+
+func (p *azureProvider) MSIClient(subscriptionID string) (msiClient, error) {
+	authorizer, err := p.getAuthorizer()
+	if err != nil {
+		return nil, err
+	}
+
+	client := msi.NewUserAssignedIdentitiesClientWithBaseURI(p.settings.Environment.ResourceManagerEndpoint, subscriptionID)
 	client.Authorizer = authorizer
 	client.Sender = p.httpClient
 	client.AddToUserAgent(userAgent(p.settings.PluginEnv))

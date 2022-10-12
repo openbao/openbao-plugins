@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-11-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/msi/mgmt/2018-11-30/msi"
 	"github.com/coreos/go-oidc"
+	"github.com/gofrs/uuid"
 	"github.com/hashicorp/vault/sdk/helper/policyutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -169,7 +171,8 @@ func TestLogin_BoundGroupID(t *testing.T) {
 }
 
 func TestLogin_BoundSubscriptionID(t *testing.T) {
-	principalID := "prinID"
+	principalID := "123e4567-e89b-12d3-a456-426655440000"
+	principalUUID := uuid.Must(uuid.FromString(principalID))
 	c := func(_ string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
 			PrincipalID: &principalID,
@@ -187,7 +190,16 @@ func TestLogin_BoundSubscriptionID(t *testing.T) {
 		}, nil
 	}
 
-	b, s := getTestBackendWithComputeClient(t, c, v)
+	m := func(_ string) (msi.Identity, error) {
+		userAssignedIdentityProperties := msi.UserAssignedIdentityProperties{
+			PrincipalID: &principalUUID,
+		}
+		return msi.Identity{
+			UserAssignedIdentityProperties: &userAssignedIdentityProperties,
+		}, nil
+	}
+
+	b, s := getTestBackendWithComputeClient(t, c, v, m)
 
 	roleName := "testrole"
 	subID := "subID"
@@ -227,7 +239,8 @@ func TestLogin_BoundSubscriptionID(t *testing.T) {
 }
 
 func TestLogin_BoundResourceGroup(t *testing.T) {
-	principalID := "prinID"
+	principalID := "123e4567-e89b-12d3-a456-426655440000"
+	principalUUID := uuid.Must(uuid.FromString(principalID))
 	c := func(_ string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
 			PrincipalID: &principalID,
@@ -244,7 +257,17 @@ func TestLogin_BoundResourceGroup(t *testing.T) {
 			Identity: &id,
 		}, nil
 	}
-	b, s := getTestBackendWithComputeClient(t, c, v)
+
+	m := func(_ string) (msi.Identity, error) {
+		userAssignedIdentityProperties := msi.UserAssignedIdentityProperties{
+			PrincipalID: &principalUUID,
+		}
+		return msi.Identity{
+			UserAssignedIdentityProperties: &userAssignedIdentityProperties,
+		}, nil
+	}
+
+	b, s := getTestBackendWithComputeClient(t, c, v, m)
 
 	roleName := "testrole"
 	rg := "rg"
@@ -284,7 +307,8 @@ func TestLogin_BoundResourceGroup(t *testing.T) {
 }
 
 func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
-	principalID := "prinID"
+	principalID := "123e4567-e89b-12d3-a456-426655440000"
+	principalUUID := uuid.Must(uuid.FromString(principalID))
 	badPrincipalID := "badID"
 	c := func(_ string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
@@ -301,7 +325,7 @@ func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
 	v := func(_ string) (compute.VirtualMachineScaleSet, error) {
 		id := compute.VirtualMachineScaleSetIdentity{
 			UserAssignedIdentities: map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{
-				"mockuserassignedmsi": {
+				"/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/123e4567-e89b-12d3-a456-426655440000": {
 					PrincipalID: &principalID,
 				},
 			},
@@ -310,7 +334,16 @@ func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
 			Identity: &id,
 		}, nil
 	}
-	b, s := getTestBackendWithComputeClient(t, c, v)
+	m := func(_ string) (msi.Identity, error) {
+		userAssignedIdentityProperties := msi.UserAssignedIdentityProperties{
+			PrincipalID: &principalUUID,
+		}
+		return msi.Identity{
+			UserAssignedIdentityProperties: &userAssignedIdentityProperties,
+		}, nil
+	}
+
+	b, s := getTestBackendWithComputeClient(t, c, v, m)
 
 	roleName := "testrole"
 	rg := "rg"
@@ -356,7 +389,8 @@ func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
 }
 
 func TestLogin_BoundLocation(t *testing.T) {
-	principalID := "prinID"
+	principalID := "123e4567-e89b-12d3-a456-426655440000"
+	principalUUID := uuid.Must(uuid.FromString(principalID))
 	location := "loc"
 	c := func(vmName string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
@@ -397,7 +431,16 @@ func TestLogin_BoundLocation(t *testing.T) {
 		return compute.VirtualMachineScaleSet{}, nil
 	}
 
-	b, s := getTestBackendWithComputeClient(t, c, v)
+	m := func(_ string) (msi.Identity, error) {
+		userAssignedIdentityProperties := msi.UserAssignedIdentityProperties{
+			PrincipalID: &principalUUID,
+		}
+		return msi.Identity{
+			UserAssignedIdentityProperties: &userAssignedIdentityProperties,
+		}, nil
+	}
+
+	b, s := getTestBackendWithComputeClient(t, c, v, m)
 
 	roleName := "testrole"
 	roleData := map[string]interface{}{
@@ -437,7 +480,8 @@ func TestLogin_BoundLocation(t *testing.T) {
 }
 
 func TestLogin_BoundScaleSet(t *testing.T) {
-	principalID := "prinID"
+	principalID := "123e4567-e89b-12d3-a456-426655440000"
+	principalUUID := uuid.Must(uuid.FromString(principalID))
 	c := func(_ string) (compute.VirtualMachine, error) {
 		id := compute.VirtualMachineIdentity{
 			PrincipalID: &principalID,
@@ -455,7 +499,16 @@ func TestLogin_BoundScaleSet(t *testing.T) {
 		}, nil
 	}
 
-	b, s := getTestBackendWithComputeClient(t, c, v)
+	m := func(_ string) (msi.Identity, error) {
+		userAssignedIdentityProperties := msi.UserAssignedIdentityProperties{
+			PrincipalID: &principalUUID,
+		}
+		return msi.Identity{
+			UserAssignedIdentityProperties: &userAssignedIdentityProperties,
+		}, nil
+	}
+
+	b, s := getTestBackendWithComputeClient(t, c, v, m)
 
 	roleName := "testrole"
 	roleData := map[string]interface{}{

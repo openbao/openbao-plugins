@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-11-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/msi/mgmt/2018-11-30/msi"
 	"github.com/coreos/go-oidc"
 )
 
@@ -44,6 +45,10 @@ type mockVMSSClient struct {
 	vmssClientFunc func(vmssName string) (compute.VirtualMachineScaleSet, error)
 }
 
+type mockMSIClient struct {
+	msiClientFunc func(resourceName string) (msi.Identity, error)
+}
+
 func (c *mockComputeClient) Get(_ context.Context, _, vmName string, _ compute.InstanceViewTypes) (compute.VirtualMachine, error) {
 	if c.computeClientFunc != nil {
 		return c.computeClientFunc(vmName)
@@ -58,19 +63,30 @@ func (c *mockVMSSClient) Get(_ context.Context, _, vmssName string, _ compute.Ex
 	return compute.VirtualMachineScaleSet{}, nil
 }
 
+func (c *mockMSIClient) Get(_ context.Context, _, resourceName string) (msi.Identity, error) {
+	if c.msiClientFunc != nil {
+		return c.msiClientFunc(resourceName)
+	}
+	return msi.Identity{}, nil
+}
+
 type computeClientFunc func(vmName string) (compute.VirtualMachine, error)
 
 type vmssClientFunc func(vmssName string) (compute.VirtualMachineScaleSet, error)
 
+type msiClientFunc func(resourceName string) (msi.Identity, error)
+
 type mockProvider struct {
 	computeClientFunc
 	vmssClientFunc
+	msiClientFunc
 }
 
-func newMockProvider(c computeClientFunc, v vmssClientFunc) *mockProvider {
+func newMockProvider(c computeClientFunc, v vmssClientFunc, m msiClientFunc) *mockProvider {
 	return &mockProvider{
 		computeClientFunc: c,
 		vmssClientFunc:    v,
+		msiClientFunc:     m,
 	}
 }
 
@@ -87,5 +103,11 @@ func (p *mockProvider) ComputeClient(string) (computeClient, error) {
 func (p *mockProvider) VMSSClient(string) (vmssClient, error) {
 	return &mockVMSSClient{
 		vmssClientFunc: p.vmssClientFunc,
+	}, nil
+}
+
+func (p *mockProvider) MSIClient(string) (msiClient, error) {
+	return &mockMSIClient{
+		msiClientFunc: p.msiClientFunc,
 	}, nil
 }
