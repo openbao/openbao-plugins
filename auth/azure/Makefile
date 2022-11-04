@@ -1,54 +1,54 @@
-TOOL?=vault-plugin-auth-azure
-TEST?=$$(go list ./...)
-EXTERNAL_TOOLS=
-BUILD_TAGS?=${TOOL}
-GOFMT_FILES?=$$(find . -name '*.go' | grep -v vendor)
+REPO_DIR := $(shell basename $(CURDIR))
+PLUGIN_NAME := $(shell command ls cmd/)
+PLUGIN_DIR ?= $$GOPATH/vault-plugins
+PLUGIN_PATH ?= local-auth-azure
 
-# bin generates the releaseable binaries for this plugin
-bin: generate
+# bin generates the releasable binaries for this plugin
+.PHONY: bin
+bin:
 	@CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' sh -c "'$(CURDIR)/scripts/build.sh'"
 
+.PHONY: default
 default: dev
 
-# dev creates binaries for testing Vault locally. These are put
-# into ./bin/ as well as $GOPATH/bin, except for quickdev which
-# is only put into /bin/
-quickdev: generate
-	@CGO_ENABLED=0 go build -i -tags='$(BUILD_TAGS)' -o bin/${TOOL}
-dev: generate
+.PHONY: dev
+dev:
 	@CGO_ENABLED=0 BUILD_TAGS='$(BUILD_TAGS)' VAULT_DEV_BUILD=1 sh -c "'$(CURDIR)/scripts/build.sh'"
 
-testcompile: generate
-	@for pkg in $(TEST) ; do \
-		go test -v -c -tags='$(BUILD_TAGS)' $$pkg -parallel=4 ; \
-	done
-
-# test runs all tests
-test: generate
-	@if [ "$(TEST)" = "./..." ]; then \
-		echo "ERROR: Set TEST to a specific package"; \
-		exit 1; \
-	fi
-	VAULT_ACC=1 go test -tags='$(BUILD_TAGS)' $(TEST) -v $(TESTARGS) -timeout 10m
-
-# generate runs `go generate` to build the dynamically generated
-# source files.
-generate:
-	@go generate $(go list ./...)
-
-# bootstrap the build by downloading additional tools
+.PHONY: bootstrap
 bootstrap:
-	@for tool in $(EXTERNAL_TOOLS) ; do \
-		echo "Installing/Updating $$tool" ; \
-		go install $$tool@latest; \
-	done
+	@echo "Downloading tools ..."
+	@go generate -tags tools tools/tools.go
+	@if [ "$(PLUGIN_NAME)" != "$(REPO_DIR)" ]; then \
+		echo "Renaming cmd/$(PLUGIN_NAME) to cmd/$(REPO_DIR) ..."; \
+		mv cmd/$(PLUGIN_NAME) to cmd/$(REPO_DIR); \
+		echo "Renaming Go module to github.com/hashicorp/$(REPO_DIR) ..."; \
+        go mod edit -module github.com/hashicorp/$(REPO_DIR); \
+	fi
 
+.PHONY: test
+test: fmtcheck
+	CGO_ENABLED=0 go test ./... $(TESTARGS) -timeout=20m
+
+.PHONY: fmtcheck
+fmtcheck:
+	@sh -c "'$(CURDIR)/scripts/gofmtcheck.sh'"
+
+.PHONY: fmt
 fmt:
-	gofmt -w $(GOFMT_FILES)
+	gofumpt -l -w .
 
-# deps updates all dependencies for this project.
-deps:
-	@echo "==> Updating deps for ${TOOL}"
-	@dep ensure -update
+.PHONY: setup-env
+setup-env:
+	cd bootstrap/terraform && terraform init && terraform apply -auto-approve
 
-.PHONY: bin default generate test bootstrap fmt deps
+.PHONY: teardown-env
+teardown-env:
+	cd bootstrap/terraform && terraform init && terraform destroy -auto-approve
+
+.PHONY: configure
+configure: dev
+	@./bootstrap/configure.sh \
+	$(PLUGIN_DIR) \
+	$(PLUGIN_NAME) \
+	$(PLUGIN_PATH)

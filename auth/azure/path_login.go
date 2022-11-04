@@ -393,7 +393,9 @@ type additionalClaims struct {
 	GroupIDs  []string `json:"groups"`
 }
 
-const pathLoginHelpSyn = `Authenticates Azure Managed Service Identities with Vault.`
-const pathLoginHelpDesc = `
+const (
+	pathLoginHelpSyn  = `Authenticates Azure Managed Service Identities with Vault.`
+	pathLoginHelpDesc = `
 Authenticate Azure Managed Service Identities.
 `
+)

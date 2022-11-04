@@ -175,11 +175,13 @@ func (b *azureAuthBackend) pathConfigDelete(ctx context.Context, req *logical.Re
 	return nil, err
 }
 
-const confHelpSyn = `Configures the Azure authentication backend.`
-const confHelpDesc = `
+const (
+	confHelpSyn  = `Configures the Azure authentication backend.`
+	confHelpDesc = `
 The Azure authentication backend validates the login JWTs using the
 configured credentials.  In order to validate machine information, the
 OAuth2 client id and secret are used to query the Azure API.  The OAuth2
 credentials require Microsoft.Compute/virtualMachines/read permission on
 the resource requesting credentials.
 `
+)

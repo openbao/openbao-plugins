@@ -32,7 +32,6 @@ func TestConfig_Write(t *testing.T) {
 	if err := testConfigCreate(t, b, s, configData); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
 }
 
 func TestConfigDelete(t *testing.T) {

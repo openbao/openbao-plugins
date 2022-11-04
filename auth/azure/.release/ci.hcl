@@ -9,7 +9,7 @@ project "vault-plugin-auth-azure" {
     organization = "hashicorp"
     repository = "vault-plugin-auth-azure"
     release_branches = [
-        "main"
+        "main",
         "release/vault-1.8.x",
         "release/vault-1.9.x",
         "release/vault-1.10.x",
