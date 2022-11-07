@@ -1,5 +1,16 @@
 ## Unreleased
 
+* Updated dependencies [[GH-109](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/109)]
+    * `github.com/Azure/azure-sdk-for-go v67.0.0+incompatible`
+    * `github.com/Azure/go-autorest/autorest v0.11.28`
+    * `github.com/Azure/go-autorest/autorest/azure/auth v0.5.11`
+    * `github.com/hashicorp/go-hclog v1.3.1`
+    * `github.com/hashicorp/go-uuid v1.0.3`
+    * `github.com/hashicorp/vault/api v1.8.2`
+    * `github.com/hashicorp/vault/sdk v0.6.1`
+    * `github.com/mitchellh/mapstructure v1.5.0`
+* Upgraded to go 1.19 [[GH-109](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/109)]
+
 ## v0.14.0
 
 IMPROVEMENTS:
