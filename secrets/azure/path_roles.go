@@ -120,13 +120,14 @@ func pathsRole(b *azureSecretBackend) []*framework.Path {
 //   Given just role name, a search will be performed and if exactly one match is found,
 //   that role will be used.
 
-//   Azure groups are checked for existence. The Azure groups lookup step will allow the
-//   operator to provide a groups name or ID. ID is unambigious and will be used if provided.
-//   Given just group name, a search will be performed and if exactly one match is found,
-//   that group will be used.
+//	Azure groups are checked for existence. The Azure groups lookup step will allow the
+//	operator to provide a groups name or ID. ID is unambigious and will be used if provided.
+//	Given just group name, a search will be performed and if exactly one match is found,
+//	that group will be used.
 //
 // Static Service Principal:
-//   The provided Application Object ID is checked for existence.
+//
+//	The provided Application Object ID is checked for existence.
 func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	var resp *logical.Response
 

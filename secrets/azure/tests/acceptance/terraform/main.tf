@@ -11,11 +11,11 @@ terraform {
     }
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "2.84.0"
+      version = "3.29.1"
     }
     azuread = {
       source  = "hashicorp/azuread"
-      version = "2.8.0"
+      version = "2.30.0"
     }
     time = {
       source  = "hashicorp/time"
@@ -41,11 +41,6 @@ variable "tenant_id" {
 variable "name_prefix" {
   description = "Prefix all resources with name."
 
-}
-variable "legacy_aad_resource_access" {
-  description = "Provision AD application with Azure Active Directory Graph API access"
-  type        = bool
-  default     = false
 }
 
 resource "random_id" "name" {
@@ -75,36 +70,33 @@ resource "azuread_application" "vault_azure_secrets" {
   }
 
 
-  dynamic "required_resource_access" {
-    for_each = var.legacy_aad_resource_access ? [] : [""]
+  required_resource_access {
     # Microsoft Graph
-    content {
-      resource_app_id = "00000003-0000-0000-c000-000000000000" # Microsoft Graph
+    resource_app_id = "00000003-0000-0000-c000-000000000000" # Microsoft Graph
 
-      resource_access {
-        id   = "df021288-bdef-4463-88db-98f22de89214" # User.Read.All
-        type = "Role"
-      }
+    resource_access {
+      id   = "df021288-bdef-4463-88db-98f22de89214" # User.Read.All
+      type = "Role"
+    }
 
-      resource_access {
-        id   = "b4e74841-8e56-480b-be8b-910348b18b4c" # User.ReadWrite
-        type = "Scope"
-      }
+    resource_access {
+      id   = "b4e74841-8e56-480b-be8b-910348b18b4c" # User.ReadWrite
+      type = "Scope"
+    }
 
-      resource_access {
-        id   = "1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9" # Application.ReadWrite.All
-        type = "Role"
-      }
+    resource_access {
+      id   = "1bfefb4e-e0b5-418b-a88f-73c46d2cc8e9" # Application.ReadWrite.All
+      type = "Role"
+    }
 
-      resource_access {
-        id   = "19dbc75e-c2e2-444c-a770-ec69d8559fc7" # Directory.ReadWrite.All
-        type = "Role"
-      }
+    resource_access {
+      id   = "19dbc75e-c2e2-444c-a770-ec69d8559fc7" # Directory.ReadWrite.All
+      type = "Role"
+    }
 
-      resource_access {
-        id   = "62a82d76-70ea-41e2-9197-370581804d09" # Group.ReadWrite.All
-        type = "Role"
-      }
+    resource_access {
+      id   = "62a82d76-70ea-41e2-9197-370581804d09" # Group.ReadWrite.All
+      type = "Role"
     }
   }
 }

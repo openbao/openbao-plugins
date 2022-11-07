@@ -138,11 +138,11 @@ for more information.
 $ make test-acceptance AZURE_TENANT_ID=<your_tenant_id>
 ```
 
-Setting `WITH_DEV_PLUGIN=1` will first build the local plugin, and automatically register
-it with the test Vault instance.
+Setting `WITH_DEV_PLUGIN=` will use the provided builtin plugin. The default behavior is to build and register
+the plugin from the working directory.
 
 ```sh
-$ make test-acceptance AZURE_TENANT_ID=<your_tenant_id> WITH_DEV_PLUGIN=1
+$ make test-acceptance AZURE_TENANT_ID=<your_tenant_id>
 ```
 
 Running tests against Vault Enterprise requires a valid license, and specifying an enterprise docker image:

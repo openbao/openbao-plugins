@@ -1,6 +1,16 @@
+if which gdate &> /dev/null ; then
+  function __date_cmd() {
+    TZ=UTC gdate --rfc-3339=ns
+  }
+else
+  function __date_cmd() {
+    TZ=UTC date -Iseconds
+  }
+fi
+
 function log() {
     local level="${2:-INFO}"
-    echo "[$(TZ=UTC date --rfc-3339=ns) ${level} ${BATS_TEST_NAME}] $1"
+    echo "[$(__date_cmd) ${level} ${BATS_TEST_NAME:-unknown}] $1"
 }
 
 function logError() {

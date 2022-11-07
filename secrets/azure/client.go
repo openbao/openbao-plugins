@@ -299,9 +299,9 @@ func (b *azureSecretBackend) getClientSettings(ctx context.Context, config *azur
 
 // retry will repeatedly call f until one of:
 //
-//   * f returns true
-//   * the context is cancelled
-//   * 80 seconds elapses. Vault's default request timeout is 90s; we want to expire before then.
+//   - f returns true
+//   - the context is cancelled
+//   - 80 seconds elapses. Vault's default request timeout is 90s; we want to expire before then.
 //
 // Delays are random but will average 5 seconds.
 func retry(ctx context.Context, f func() (interface{}, bool, error)) (interface{}, error) {

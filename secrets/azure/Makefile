@@ -8,7 +8,7 @@ BUILD_TAGS?=${TOOL}
 GOFMT_FILES?=$$(find . -name '*.go' | grep -v vendor)
 
 # Acceptance test variables
-WITH_DEV_PLUGIN?=
+WITH_DEV_PLUGIN?=1
 AZURE_TENANT_ID?=
 SKIP_TEARDOWN?=
 TESTS_OUT_FILE?=
@@ -47,7 +47,7 @@ test: fmtcheck generate
 
 # test-acceptance runs all acceptance tests
 test-acceptance: $(if $(WITH_DEV_PLUGIN), dev-acceptance)
-	bats -f $(TESTS_FILTER) $(CURDIR)/tests/acceptance/basic.bats
+	 WITH_DEV_PLUGIN=$(WITH_DEV_PLUGIN) bats -f $(TESTS_FILTER) $(CURDIR)/tests/acceptance/basic.bats
 
 # generate runs `go generate` to build the dynamically generated
 # source files.

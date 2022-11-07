@@ -6,7 +6,7 @@ load common.sh
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 PLUGIN_NAME="${REPO_ROOT##*/}"
-VAULT_IMAGE="${VAULT_IMAGE:-hashicorp/vault:1.9.3}"
+VAULT_IMAGE="${VAULT_IMAGE:-hashicorp/vault:1.12.1}"
 CONTAINER_NAME=''
 VAULT_TOKEN='root'
 
@@ -95,6 +95,7 @@ HERE
     vault audit enable file file_path=stdout
 
     if [[ -n "${WITH_DEV_PLUGIN}" ]]; then
+        log "Registering vault plugin"
         cp -a ${PLUGIN} ${CONFIG_DIR}/plugins/.
         # replace the builtin plugin with a local build
         vault plugin register -sha256="${PLUGIN_SHA256}" -command=${PLUGIN_NAME} ${PLUGIN_TYPE} ${ENGINE_NAME}
