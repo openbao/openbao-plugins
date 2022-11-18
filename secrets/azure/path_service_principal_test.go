@@ -68,6 +68,22 @@ var (
 	testStaticSPRole = map[string]interface{}{
 		"application_object_id": "00000000-0000-0000-0000-000000000000",
 	}
+
+	testPersistentRole = map[string]interface{}{
+		"azure_roles": encodeJSON([]AzureRole{
+			{
+				RoleName: "Owner",
+				RoleID:   "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Owner",
+				Scope:    "/subscriptions/ce7d1612-67c1-4dc6-8d81-4e0a432e696b",
+			},
+			{
+				RoleName: "Contributor",
+				RoleID:   "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Contributor",
+				Scope:    "/subscriptions/ce7d1612-67c1-4dc6-8d81-4e0a432e696b",
+			},
+		}),
+		"persist_app": true,
+	}
 )
 
 // TestSP_WAL_Cleanup tests that any Service Principal that gets created, but
@@ -334,6 +350,80 @@ func TestStaticSPRead(t *testing.T) {
 	t.Run("TTLs", func(t *testing.T) {
 		name := generateUUID()
 		testRoleCreate(t, b, s, name, testStaticSPRole)
+
+		resp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "creds/" + name,
+			Storage:   s,
+		})
+
+		assertErrorIsNil(t, err)
+
+		equal(t, 0*time.Second, resp.Secret.TTL)
+		equal(t, 0*time.Second, resp.Secret.MaxTTL)
+
+		roleUpdate := map[string]interface{}{
+			"ttl":     20,
+			"max_ttl": 30,
+		}
+		testRoleCreate(t, b, s, name, roleUpdate)
+
+		resp, err = b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "creds/" + name,
+			Storage:   s,
+		})
+
+		assertErrorIsNil(t, err)
+
+		equal(t, 20*time.Second, resp.Secret.TTL)
+		equal(t, 30*time.Second, resp.Secret.MaxTTL)
+	})
+}
+
+func TestPersistentAppSPRead(t *testing.T) {
+	b, s := getTestBackend(t, true)
+
+	// verify basic cred issuance
+	t.Run("Basic", func(t *testing.T) {
+		name := generateUUID()
+		testRoleCreate(t, b, s, name, testPersistentRole)
+
+		resp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "creds/" + name,
+			Storage:   s,
+		})
+
+		assertErrorIsNil(t, err)
+
+		if resp.IsError() {
+			t.Fatalf("expected no response error, actual:%#v", resp.Error())
+		}
+
+		// verify client_id format, and that the corresponding app actually exists
+		_, err = uuid.ParseUUID(resp.Data["client_id"].(string))
+		assertErrorIsNil(t, err)
+
+		keyID := resp.Secret.InternalData["key_id"].(string)
+		if len(keyID) == 0 {
+			t.Fatalf("expected keyId to not be empty")
+		}
+
+		client, err := b.getClient(context.Background(), s)
+		assertErrorIsNil(t, err)
+
+		if !client.provider.(*mockProvider).passwordExists(keyID) {
+			t.Fatalf("password was not created")
+		}
+
+		assertClientSecret(t, resp.Data)
+	})
+
+	// verify role TTLs are reflected in secret
+	t.Run("TTLs", func(t *testing.T) {
+		name := generateUUID()
+		testRoleCreate(t, b, s, name, testPersistentRole)
 
 		resp, err := b.HandleRequest(context.Background(), &logical.Request{
 			Operation: logical.ReadOperation,

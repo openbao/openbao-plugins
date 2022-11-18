@@ -40,6 +40,7 @@ func TestRoleCreate(t *testing.T) {
 			"max_ttl":               int64(0),
 			"application_object_id": "",
 			"permanently_delete":    true,
+			"persist_app":           false,
 		}
 
 		spRole2 := map[string]interface{}{
@@ -67,6 +68,7 @@ func TestRoleCreate(t *testing.T) {
 			"max_ttl":               int64(3000),
 			"application_object_id": "",
 			"permanently_delete":    true,
+			"persist_app":           false,
 		}
 
 		// Verify basic updates of the name role
@@ -88,6 +90,99 @@ func TestRoleCreate(t *testing.T) {
 		equal(t, spRole2, resp.Data)
 	})
 
+	t.Run("SP persistent role", func(t *testing.T) {
+		spRole1 := map[string]interface{}{
+			"azure_roles": compactJSON(`[
+		{
+			"role_name": "Owner",
+			"role_id": "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Owner",
+			"scope":  "test_scope_1"
+		},
+		{
+			"role_name": "Owner2",
+			"role_id": "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Owner2",
+			"scope":  "test_scope_2"
+		}]`),
+			"azure_groups": compactJSON(`[
+		{
+			"group_name": "foo",
+			"object_id": "239b11fe-6adf-409a-b231-08b918e9de23FAKE_GROUP-foo"
+		},
+		{
+			"group_name": "bar",
+			"object_id": "31c5bf7e-e1e8-42c8-882c-856f776290afFAKE_GROUP-bar"
+		}]`),
+			"ttl":                   int64(0),
+			"max_ttl":               int64(0),
+			"application_object_id": "",
+			"persist_app":           true,
+		}
+
+		spRole2 := map[string]interface{}{
+			"azure_roles": compactJSON(`[
+		{
+			"role_name": "Contributor",
+			"role_id": "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Contributor",
+			"scope":  "test_scope_3"
+		},
+		{
+			"role_name": "Contributor2",
+			"role_id": "/subscriptions/FAKE_SUB_ID/providers/Microsoft.Authorization/roleDefinitions/FAKE_ROLE-Contributor2",
+			"scope":  "test_scope_3"
+		}]`),
+			"azure_groups": compactJSON(`[
+		{
+			"group_name": "baz",
+			"object_id": "de55c630-8415-4bd3-b329-530688e60173FAKE_GROUP-baz"
+		},
+		{
+			"group_name": "bam",
+			"object_id": "a6a834a6-36c3-4575-8e2b-05095963d603FAKE_GROUP-bam"
+		}]`),
+			"ttl":                   int64(300),
+			"max_ttl":               int64(3000),
+			"application_object_id": "",
+			"persist_app":           true,
+		}
+
+		// Verify basic updates of the name role
+		name := generateUUID()
+		testRoleCreate(t, b, s, name, spRole1)
+
+		resp, err := testRoleRead(t, b, s, name)
+		assertErrorIsNil(t, err)
+
+		convertRespTypes(resp.Data)
+		assertNotEmptyString(t, resp.Data["application_object_id"].(string))
+
+		//Get role and check all values are set
+		fullRole, err := getRole(context.Background(), name, s)
+		assertErrorIsNil(t, err)
+
+		assertNotNil(t, fullRole.ApplicationID)
+		assertNotNil(t, fullRole.ApplicationObjectID)
+		assertStrSliceIsNotEmpty(t, fullRole.GroupMembershipIDs)
+		assertStrSliceIsNotEmpty(t, fullRole.RoleAssignmentIDs)
+		assertNotNil(t, fullRole.ServicePrincipalObjectID)
+
+		originalAppID := fullRole.ApplicationID
+		originalAppObjID := fullRole.ApplicationObjectID
+
+		testRoleCreate(t, b, s, name, spRole2)
+		resp, err = testRoleRead(t, b, s, name)
+		assertErrorIsNil(t, err)
+
+		convertRespTypes(resp.Data)
+		assertNotEmptyString(t, resp.Data["application_object_id"].(string))
+
+		fullRole, err = getRole(context.Background(), name, s)
+		assertErrorIsNil(t, err)
+
+		equal(t, fullRole.ApplicationID, originalAppID)
+		equal(t, fullRole.ApplicationObjectID, originalAppObjID)
+
+	})
+
 	t.Run("Static SP role", func(t *testing.T) {
 		spRole1 := map[string]interface{}{
 			"application_object_id": "00000000-0000-0000-0000-000000000000",
@@ -96,6 +191,7 @@ func TestRoleCreate(t *testing.T) {
 			"azure_roles":           "[]",
 			"azure_groups":          "[]",
 			"permanently_delete":    false,
+			"persist_app":           false,
 		}
 
 		name := generateUUID()
@@ -119,6 +215,7 @@ func TestRoleCreate(t *testing.T) {
 			),
 			"application_object_id": "",
 			"azure_groups":          "[]",
+			"persist_app":           false,
 		}
 
 		// Verify that ttl and max_ttl are 0 if not provided

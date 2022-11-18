@@ -91,7 +91,6 @@ func (b *azureSecretBackend) pathSPRead(ctx context.Context, req *logical.Reques
 
 	resp.Secret.TTL = role.TTL
 	resp.Secret.MaxTTL = role.MaxTTL
-
 	return resp, nil
 }
 

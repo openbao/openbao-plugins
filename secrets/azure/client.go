@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization"
+	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
 	multierror "github.com/hashicorp/go-multierror"
@@ -50,6 +52,15 @@ func (c *client) createApp(ctx context.Context) (app *api.ApplicationResult, err
 	}
 
 	name = appNamePrefix + name
+
+	result, err := c.provider.CreateApplication(ctx, name)
+
+	return &result, err
+}
+
+func (c *client) createAppWithName(ctx context.Context, rolename string) (app *api.ApplicationResult, err error) {
+	intSuffix := fmt.Sprintf("%d", time.Now().Unix())
+	name := fmt.Sprintf("%s%s-%s", appNamePrefix, rolename, intSuffix)
 
 	result, err := c.provider.CreateApplication(ctx, name)
 
@@ -178,6 +189,12 @@ func (c *client) unassignRoles(ctx context.Context, roleIDs []string) error {
 
 	for _, id := range roleIDs {
 		if _, err := c.provider.DeleteRoleAssignmentByID(ctx, id); err != nil {
+			detailedErr := new(autorest.DetailedError)
+			// If a role was deleted manually then Azure returns a error and status 204
+			if errors.As(err, detailedErr) && (detailedErr.StatusCode == http.StatusNoContent || detailedErr.StatusCode == http.StatusNotFound) {
+				continue
+			}
+
 			merr = multierror.Append(merr, fmt.Errorf("error unassigning role: %w", err))
 		}
 	}
@@ -216,6 +233,11 @@ func (c *client) removeGroupMemberships(ctx context.Context, servicePrincipalObj
 
 	for _, id := range groupIDs {
 		if err := c.provider.RemoveGroupMember(ctx, servicePrincipalObjectID, id); err != nil {
+
+			// If a membership was deleted manually then Azure returns a error with a Status=404
+			if strings.Contains(err.Error(), "Status=404") {
+				continue
+			}
 			merr = multierror.Append(merr, fmt.Errorf("error removing group membership: %w", err))
 		}
 	}

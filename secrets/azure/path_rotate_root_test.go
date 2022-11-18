@@ -241,6 +241,20 @@ func assertNotNil(t *testing.T, val interface{}) {
 	}
 }
 
+func assertNotEmptyString(t *testing.T, str string) {
+	t.Helper()
+	if str == "" {
+		t.Fatalf("string is empty")
+	}
+}
+
+func assertStrSliceIsNotEmpty(t *testing.T, strs []string) {
+	t.Helper()
+	if strs == nil || len(strs) == 0 {
+		t.Fatalf("string slice is empty")
+	}
+}
+
 func assertStrSliceIsEmpty(t *testing.T, strs []string) {
 	t.Helper()
 	if strs != nil && len(strs) > 0 {
