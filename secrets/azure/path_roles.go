@@ -345,13 +345,18 @@ func (b *azureSecretBackend) createPersistedApp(ctx context.Context, req *logica
 		return err
 	}
 
+	assignmentIDs, err := c.generateUUIDs(len(role.AzureRoles))
+	if err != nil {
+		return fmt.Errorf("error generating assginment IDs; err=%w", err)
+	}
+
 	if role.ManagedApplicationObjectID != "" {
 		removeRolesAndGroupMembership(ctx, c, role)
 
 		spObjID := role.ServicePrincipalObjectID
 
 		// Assign Azure roles to the new SP
-		raIDs, err := c.assignRoles(ctx, spObjID, role.AzureRoles)
+		raIDs, err := c.assignRoles(ctx, spObjID, role.AzureRoles, assignmentIDs)
 		if err != nil {
 			return err
 		}
@@ -390,7 +395,7 @@ func (b *azureSecretBackend) createPersistedApp(ctx context.Context, req *logica
 	role.ServicePrincipalObjectID = spObjID
 
 	// Assign Azure roles to the new SP
-	raIDs, err := c.assignRoles(ctx, spObjID, role.AzureRoles)
+	raIDs, err := c.assignRoles(ctx, spObjID, role.AzureRoles, assignmentIDs)
 	if err != nil {
 		return err
 	}

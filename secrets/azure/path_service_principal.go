@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/Azure/go-autorest/autorest/to"
-	uuid "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -122,15 +121,9 @@ func (b *azureSecretBackend) createSPSecret(ctx context.Context, s logical.Stora
 		return nil, err
 	}
 
-	// Pre-generate UUIDs to be provided to assignRoles so we can rollback if we need to
-	var assignmentIDs []string
-
-	for i := 0; i < len(role.AzureRoles); i++ {
-		assignmentID, err := uuid.GenerateUUID()
-		if err != nil {
-			return nil, err
-		}
-		assignmentIDs = append(assignmentIDs, assignmentID)
+	assignmentIDs, err := c.generateUUIDs(len(role.AzureRoles))
+	if err != nil {
+		return nil, fmt.Errorf("error generating assginment IDs; err=%w", err)
 	}
 
 	// Write a second WAL entry in case the Role assignments don't complete
