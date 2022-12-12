@@ -35,8 +35,12 @@ resource "azurerm_role_assignment" "app_assignment_vm_read" {
   principal_id         = azuread_service_principal.vault_azure_sp.object_id
 }
 
+resource "random_id" "random" {
+  byte_length = 4
+}
+
 resource "azurerm_resource_group" "vault_azure_rg" {
-  name     = "vault_azure_tests"
+  name     = "vault_azure_tests_${random_id.random.hex}"
   location = var.region
 }
 
