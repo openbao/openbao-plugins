@@ -9,10 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-11-01/compute"
-	"github.com/Azure/azure-sdk-for-go/services/msi/mgmt/2018-11-30/msi"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
 	"github.com/coreos/go-oidc"
-	"github.com/gofrs/uuid"
 	"github.com/hashicorp/vault/sdk/helper/policyutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -172,32 +171,7 @@ func TestLogin_BoundGroupID(t *testing.T) {
 
 func TestLogin_BoundSubscriptionID(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
-	principalUUID := uuid.Must(uuid.FromString(principalID))
-	c := func(_ string) (compute.VirtualMachine, error) {
-		id := compute.VirtualMachineIdentity{
-			PrincipalID: &principalID,
-		}
-		return compute.VirtualMachine{
-			Identity: &id,
-		}, nil
-	}
-	v := func(_ string) (compute.VirtualMachineScaleSet, error) {
-		id := compute.VirtualMachineScaleSetIdentity{
-			PrincipalID: &principalID,
-		}
-		return compute.VirtualMachineScaleSet{
-			Identity: &id,
-		}, nil
-	}
-
-	m := func(_ string) (msi.Identity, error) {
-		userAssignedIdentityProperties := msi.UserAssignedIdentityProperties{
-			PrincipalID: &principalUUID,
-		}
-		return msi.Identity{
-			UserAssignedIdentityProperties: &userAssignedIdentityProperties,
-		}, nil
-	}
+	c, v, m := getTestBackendFunctions(false)
 
 	b, s := getTestBackendWithComputeClient(t, c, v, m)
 
@@ -240,32 +214,7 @@ func TestLogin_BoundSubscriptionID(t *testing.T) {
 
 func TestLogin_BoundResourceGroup(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
-	principalUUID := uuid.Must(uuid.FromString(principalID))
-	c := func(_ string) (compute.VirtualMachine, error) {
-		id := compute.VirtualMachineIdentity{
-			PrincipalID: &principalID,
-		}
-		return compute.VirtualMachine{
-			Identity: &id,
-		}, nil
-	}
-	v := func(_ string) (compute.VirtualMachineScaleSet, error) {
-		id := compute.VirtualMachineScaleSetIdentity{
-			PrincipalID: &principalID,
-		}
-		return compute.VirtualMachineScaleSet{
-			Identity: &id,
-		}, nil
-	}
-
-	m := func(_ string) (msi.Identity, error) {
-		userAssignedIdentityProperties := msi.UserAssignedIdentityProperties{
-			PrincipalID: &principalUUID,
-		}
-		return msi.Identity{
-			UserAssignedIdentityProperties: &userAssignedIdentityProperties,
-		}, nil
-	}
+	c, v, m := getTestBackendFunctions(false)
 
 	b, s := getTestBackendWithComputeClient(t, c, v, m)
 
@@ -308,40 +257,8 @@ func TestLogin_BoundResourceGroup(t *testing.T) {
 
 func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
-	principalUUID := uuid.Must(uuid.FromString(principalID))
 	badPrincipalID := "badID"
-	c := func(_ string) (compute.VirtualMachine, error) {
-		id := compute.VirtualMachineIdentity{
-			UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
-				"mockuserassignedmsi": {
-					PrincipalID: &principalID,
-				},
-			},
-		}
-		return compute.VirtualMachine{
-			Identity: &id,
-		}, nil
-	}
-	v := func(_ string) (compute.VirtualMachineScaleSet, error) {
-		id := compute.VirtualMachineScaleSetIdentity{
-			UserAssignedIdentities: map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{
-				"/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/123e4567-e89b-12d3-a456-426655440000": {
-					PrincipalID: &principalID,
-				},
-			},
-		}
-		return compute.VirtualMachineScaleSet{
-			Identity: &id,
-		}, nil
-	}
-	m := func(_ string) (msi.Identity, error) {
-		userAssignedIdentityProperties := msi.UserAssignedIdentityProperties{
-			PrincipalID: &principalUUID,
-		}
-		return msi.Identity{
-			UserAssignedIdentityProperties: &userAssignedIdentityProperties,
-		}, nil
-	}
+	c, v, m := getTestBackendFunctions(false)
 
 	b, s := getTestBackendWithComputeClient(t, c, v, m)
 
@@ -390,55 +307,8 @@ func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
 
 func TestLogin_BoundLocation(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
-	principalUUID := uuid.Must(uuid.FromString(principalID))
 	location := "loc"
-	c := func(vmName string) (compute.VirtualMachine, error) {
-		id := compute.VirtualMachineIdentity{
-			PrincipalID: &principalID,
-		}
-		switch vmName {
-		case "good":
-			return compute.VirtualMachine{
-				Identity: &id,
-				Location: &location,
-			}, nil
-		case "bad":
-			badLoc := "bad"
-			return compute.VirtualMachine{
-				Identity: &id,
-				Location: &badLoc,
-			}, nil
-		}
-		return compute.VirtualMachine{}, nil
-	}
-	v := func(vmssName string) (compute.VirtualMachineScaleSet, error) {
-		id := compute.VirtualMachineScaleSetIdentity{
-			PrincipalID: &principalID,
-		}
-		switch vmssName {
-		case "good":
-			return compute.VirtualMachineScaleSet{
-				Identity: &id,
-				Location: &location,
-			}, nil
-		case "bad":
-			badLoc := "bad"
-			return compute.VirtualMachineScaleSet{
-				Identity: &id,
-				Location: &badLoc,
-			}, nil
-		}
-		return compute.VirtualMachineScaleSet{}, nil
-	}
-
-	m := func(_ string) (msi.Identity, error) {
-		userAssignedIdentityProperties := msi.UserAssignedIdentityProperties{
-			PrincipalID: &principalUUID,
-		}
-		return msi.Identity{
-			UserAssignedIdentityProperties: &userAssignedIdentityProperties,
-		}, nil
-	}
+	c, v, m := getTestBackendFunctions(true)
 
 	b, s := getTestBackendWithComputeClient(t, c, v, m)
 
@@ -481,32 +351,7 @@ func TestLogin_BoundLocation(t *testing.T) {
 
 func TestLogin_BoundScaleSet(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
-	principalUUID := uuid.Must(uuid.FromString(principalID))
-	c := func(_ string) (compute.VirtualMachine, error) {
-		id := compute.VirtualMachineIdentity{
-			PrincipalID: &principalID,
-		}
-		return compute.VirtualMachine{
-			Identity: &id,
-		}, nil
-	}
-	v := func(_ string) (compute.VirtualMachineScaleSet, error) {
-		id := compute.VirtualMachineScaleSetIdentity{
-			PrincipalID: &principalID,
-		}
-		return compute.VirtualMachineScaleSet{
-			Identity: &id,
-		}, nil
-	}
-
-	m := func(_ string) (msi.Identity, error) {
-		userAssignedIdentityProperties := msi.UserAssignedIdentityProperties{
-			PrincipalID: &principalUUID,
-		}
-		return msi.Identity{
-			UserAssignedIdentityProperties: &userAssignedIdentityProperties,
-		}, nil
-	}
+	c, v, m := getTestBackendFunctions(false)
 
 	b, s := getTestBackendWithComputeClient(t, c, v, m)
 
@@ -702,4 +547,96 @@ func testJWT(t *testing.T, payload map[string]interface{}) string {
 	fixedSignature := base64.RawURLEncoding.EncodeToString([]byte("signature"))
 
 	return fmt.Sprintf("%s.%s.%s", fixedHeader, encodedPayload, fixedSignature)
+}
+
+func getTestBackendFunctions(withLocation bool) (
+	func(_ string) (armcompute.VirtualMachinesClientGetResponse, error),
+	func(_ string) (armcompute.VirtualMachineScaleSetsClientGetResponse, error),
+	func(_ string) (armmsi.UserAssignedIdentitiesClientGetResponse, error),
+) {
+	principalID := "123e4567-e89b-12d3-a456-426655440000"
+
+	if !withLocation {
+		c := func(_ string) (armcompute.VirtualMachinesClientGetResponse, error) {
+			id := armcompute.VirtualMachineIdentity{
+				PrincipalID: &principalID,
+			}
+			return armcompute.VirtualMachinesClientGetResponse{
+				armcompute.VirtualMachine{
+					Identity: &id,
+				},
+			}, nil
+		}
+		v := func(_ string) (armcompute.VirtualMachineScaleSetsClientGetResponse, error) {
+			id := armcompute.VirtualMachineScaleSetIdentity{
+				PrincipalID: &principalID,
+			}
+			return armcompute.VirtualMachineScaleSetsClientGetResponse{armcompute.VirtualMachineScaleSet{
+				Identity: &id,
+			}}, nil
+		}
+
+		m := func(_ string) (armmsi.UserAssignedIdentitiesClientGetResponse, error) {
+			userAssignedIdentityProperties := armmsi.UserAssignedIdentityProperties{
+				PrincipalID: &principalID,
+			}
+			return armmsi.UserAssignedIdentitiesClientGetResponse{armmsi.Identity{
+				Properties: &userAssignedIdentityProperties,
+			}}, nil
+		}
+
+		return c, v, m
+	} else {
+		location := "loc"
+
+		c := func(vmName string) (armcompute.VirtualMachinesClientGetResponse, error) {
+			id := armcompute.VirtualMachineIdentity{
+				PrincipalID: &principalID,
+			}
+			switch vmName {
+			case "good":
+				return armcompute.VirtualMachinesClientGetResponse{armcompute.VirtualMachine{
+					Identity: &id,
+					Location: &location,
+				}}, nil
+			case "bad":
+				badLoc := "bad"
+				return armcompute.VirtualMachinesClientGetResponse{armcompute.VirtualMachine{
+					Identity: &id,
+					Location: &badLoc,
+				}}, nil
+			}
+			return armcompute.VirtualMachinesClientGetResponse{}, nil
+		}
+		v := func(vmssName string) (armcompute.VirtualMachineScaleSetsClientGetResponse, error) {
+			id := armcompute.VirtualMachineScaleSetIdentity{
+				PrincipalID: &principalID,
+			}
+			switch vmssName {
+			case "good":
+				return armcompute.VirtualMachineScaleSetsClientGetResponse{armcompute.VirtualMachineScaleSet{
+					Identity: &id,
+					Location: &location,
+				}}, nil
+			case "bad":
+				badLoc := "bad"
+				return armcompute.VirtualMachineScaleSetsClientGetResponse{armcompute.VirtualMachineScaleSet{
+					Identity: &id,
+					Location: &badLoc,
+				}}, nil
+			}
+			return armcompute.VirtualMachineScaleSetsClientGetResponse{}, nil
+		}
+
+		m := func(_ string) (armmsi.UserAssignedIdentitiesClientGetResponse, error) {
+			userAssignedIdentityProperties := armmsi.UserAssignedIdentityProperties{
+				PrincipalID: &principalID,
+			}
+			return armmsi.UserAssignedIdentitiesClientGetResponse{armmsi.Identity{
+				Properties: &userAssignedIdentityProperties,
+			}}, nil
+		}
+
+		return c, v, m
+	}
 }

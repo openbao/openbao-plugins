@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-11-01/compute"
-	"github.com/Azure/azure-sdk-for-go/services/msi/mgmt/2018-11-30/msi"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
 	"github.com/coreos/go-oidc"
 )
 
@@ -38,43 +38,43 @@ func newMockVerifier() tokenVerifier {
 }
 
 type mockComputeClient struct {
-	computeClientFunc func(vmName string) (compute.VirtualMachine, error)
+	computeClientFunc func(vmName string) (armcompute.VirtualMachinesClientGetResponse, error)
 }
 
 type mockVMSSClient struct {
-	vmssClientFunc func(vmssName string) (compute.VirtualMachineScaleSet, error)
+	vmssClientFunc func(vmssName string) (armcompute.VirtualMachineScaleSetsClientGetResponse, error)
 }
 
 type mockMSIClient struct {
-	msiClientFunc func(resourceName string) (msi.Identity, error)
+	msiClientFunc func(resourceName string) (armmsi.UserAssignedIdentitiesClientGetResponse, error)
 }
 
-func (c *mockComputeClient) Get(_ context.Context, _, vmName string, _ compute.InstanceViewTypes) (compute.VirtualMachine, error) {
+func (c *mockComputeClient) Get(_ context.Context, _, vmName string, _ *armcompute.VirtualMachinesClientGetOptions) (armcompute.VirtualMachinesClientGetResponse, error) {
 	if c.computeClientFunc != nil {
 		return c.computeClientFunc(vmName)
 	}
-	return compute.VirtualMachine{}, nil
+	return armcompute.VirtualMachinesClientGetResponse{}, nil
 }
 
-func (c *mockVMSSClient) Get(_ context.Context, _, vmssName string, _ compute.ExpandTypesForGetVMScaleSets) (compute.VirtualMachineScaleSet, error) {
+func (c *mockVMSSClient) Get(_ context.Context, _, vmssName string, _ *armcompute.VirtualMachineScaleSetsClientGetOptions) (armcompute.VirtualMachineScaleSetsClientGetResponse, error) {
 	if c.vmssClientFunc != nil {
 		return c.vmssClientFunc(vmssName)
 	}
-	return compute.VirtualMachineScaleSet{}, nil
+	return armcompute.VirtualMachineScaleSetsClientGetResponse{}, nil
 }
 
-func (c *mockMSIClient) Get(_ context.Context, _, resourceName string) (msi.Identity, error) {
+func (c *mockMSIClient) Get(_ context.Context, _, resourceName string, _ *armmsi.UserAssignedIdentitiesClientGetOptions) (armmsi.UserAssignedIdentitiesClientGetResponse, error) {
 	if c.msiClientFunc != nil {
 		return c.msiClientFunc(resourceName)
 	}
-	return msi.Identity{}, nil
+	return armmsi.UserAssignedIdentitiesClientGetResponse{}, nil
 }
 
-type computeClientFunc func(vmName string) (compute.VirtualMachine, error)
+type computeClientFunc func(vmName string) (armcompute.VirtualMachinesClientGetResponse, error)
 
-type vmssClientFunc func(vmssName string) (compute.VirtualMachineScaleSet, error)
+type vmssClientFunc func(vmssName string) (armcompute.VirtualMachineScaleSetsClientGetResponse, error)
 
-type msiClientFunc func(resourceName string) (msi.Identity, error)
+type msiClientFunc func(resourceName string) (armmsi.UserAssignedIdentitiesClientGetResponse, error)
 
 type mockProvider struct {
 	computeClientFunc

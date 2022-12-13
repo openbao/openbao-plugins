@@ -7,8 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2021-11-01/compute"
-	"github.com/Azure/go-autorest/autorest/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/cidrutil"
@@ -253,8 +252,8 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 			return errwrap.Wrapf("unable to create vmss client: {{err}}", err)
 		}
 
-		// Omit compute.ExpandTypesForGetVMScaleSetsUserData since we do not need that information for purpose of authenticating an instance
-		vmss, err := client.Get(ctx, resourceGroupName, vmssName, "")
+		// Omit armcompute.ExpandTypesForGetVMScaleSetsUserData since we do not need that information for purpose of authenticating an instance
+		vmss, err := client.Get(ctx, resourceGroupName, vmssName, nil)
 		if err != nil {
 			return errwrap.Wrapf("unable to retrieve virtual machine scale set metadata: {{err}}", err)
 		}
@@ -271,13 +270,13 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		}
 		// if system-assigned identity's principal id is available
 		if vmss.Identity.PrincipalID != nil {
-			principalIDs[to.String(vmss.Identity.PrincipalID)] = struct{}{}
+			principalIDs[convertPtrToString(vmss.Identity.PrincipalID)] = struct{}{}
 		}
 		// if not, look for user-assigned identities
 		for userIdentityID, userIdentity := range vmss.Identity.UserAssignedIdentities {
 			// Principal ID is not nil for VMSS uniform orchestration mode
 			if userIdentity.PrincipalID != nil {
-				principalIDs[to.String(userIdentity.PrincipalID)] = struct{}{}
+				principalIDs[convertPtrToString(userIdentity.PrincipalID)] = struct{}{}
 				continue
 			}
 
@@ -295,13 +294,13 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 			if err != nil {
 				return fmt.Errorf("unable to create msi client: %w", err)
 			}
-			userIdentity, err := msiClient.Get(ctx, msiResourceGroupName, msiResourceName)
+			userIdentityResponse, err := msiClient.Get(ctx, msiResourceGroupName, msiResourceName, nil)
 			if err != nil {
 				return fmt.Errorf("unable to retrieve user assigned identity metadata: %w", err)
 			}
 
-			if userIdentity.PrincipalID != nil {
-				principalIDs[userIdentity.PrincipalID.String()] = struct{}{}
+			if userIdentityResponse.Properties != nil && userIdentityResponse.Properties.PrincipalID != nil {
+				principalIDs[*userIdentityResponse.Properties.PrincipalID] = struct{}{}
 			}
 		}
 	case vmName != "":
@@ -310,7 +309,12 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 			return errwrap.Wrapf("unable to create compute client: {{err}}", err)
 		}
 
-		vm, err := client.Get(ctx, resourceGroupName, vmName, compute.InstanceViewTypesInstanceView)
+		instanceView := armcompute.InstanceViewTypesInstanceView
+		options := armcompute.VirtualMachinesClientGetOptions{
+			Expand: &instanceView,
+		}
+
+		vm, err := client.Get(ctx, resourceGroupName, vmName, &options)
 		if err != nil {
 			return errwrap.Wrapf("unable to retrieve virtual machine metadata: {{err}}", err)
 		}
@@ -326,11 +330,11 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		}
 		// if system-assigned identity's principal id is available
 		if vm.Identity.PrincipalID != nil {
-			principalIDs[to.String(vm.Identity.PrincipalID)] = struct{}{}
+			principalIDs[convertPtrToString(vm.Identity.PrincipalID)] = struct{}{}
 		}
 		// if not, look for user-assigned identities
 		for _, userIdentity := range vm.Identity.UserAssignedIdentities {
-			principalIDs[to.String(userIdentity.PrincipalID)] = struct{}{}
+			principalIDs[convertPtrToString(userIdentity.PrincipalID)] = struct{}{}
 		}
 	default:
 		return errors.New("either vm_name or vmss_name is required")
@@ -357,7 +361,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		if location == nil {
 			return errors.New("vm location is empty")
 		}
-		if !strListContains(role.BoundLocations, to.String(location)) {
+		if !strListContains(role.BoundLocations, convertPtrToString(location)) {
 			return errors.New("location not authorized")
 		}
 	}
@@ -399,3 +403,10 @@ const (
 Authenticate Azure Managed Service Identities.
 `
 )
+
+func convertPtrToString(s *string) string {
+	if s != nil {
+		return *s
+	}
+	return ""
+}
