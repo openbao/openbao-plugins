@@ -4,6 +4,8 @@ PLUGIN_DIR=$1
 PLUGIN_NAME=$2
 PLUGIN_PATH=$3
 
+ACCESS_TOKEN_JWT=$(curl -s https://vlt-auth-func-test.azurewebsites.net/api/vlt-auth-func-test | jq -r .access_token)
+
 # Try to clean-up previous runs
 vault auth disable "${PLUGIN_PATH}"
 vault plugin deregister "${PLUGIN_NAME}"
@@ -34,18 +36,10 @@ vault write auth/"${PLUGIN_PATH}"/role/dev-role \
     bound_subscription_ids="${SUBSCRIPTION_ID}" \
     bound_resource_groups="${RESOURCE_GROUP_NAME}"
 
-# Login using the access token and vm name
+# Login using the access token and resource ID
 vault write auth/"${PLUGIN_PATH}"/login \
     role="dev-role" \
     jwt="${ACCESS_TOKEN_JWT}" \
     subscription_id="${SUBSCRIPTION_ID}" \
     resource_group_name="${RESOURCE_GROUP_NAME}" \
-    vm_name="${VM_NAME}"
-
-# Login using the access token and resource ID
-# vault write auth/"${PLUGIN_PATH}"/login \
-#     role="dev-role" \
-#     jwt="${ACCESS_TOKEN_JWT}" \
-#     subscription_id="${SUBSCRIPTION_ID}" \
-#     resource_group_name="${RESOURCE_GROUP_NAME}" \
-#     resource_id="${RESOURCE_ID}"
+    resource_id="${RESOURCE_ID}"

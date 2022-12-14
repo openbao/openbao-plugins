@@ -9,6 +9,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/coreos/go-oidc"
 )
 
@@ -49,6 +50,10 @@ type mockMSIClient struct {
 	msiClientFunc func(resourceName string) (armmsi.UserAssignedIdentitiesClientGetResponse, error)
 }
 
+type mockResourceClient struct {
+	resourceClientFunc func(resourceID string) (armresources.ClientGetByIDResponse, error)
+}
+
 func (c *mockComputeClient) Get(_ context.Context, _, vmName string, _ *armcompute.VirtualMachinesClientGetOptions) (armcompute.VirtualMachinesClientGetResponse, error) {
 	if c.computeClientFunc != nil {
 		return c.computeClientFunc(vmName)
@@ -70,16 +75,26 @@ func (c *mockMSIClient) Get(_ context.Context, _, resourceName string, _ *armmsi
 	return armmsi.UserAssignedIdentitiesClientGetResponse{}, nil
 }
 
+func (c *mockResourceClient) GetByID(_ context.Context, resourceID, _ string, _ *armresources.ClientGetByIDOptions) (armresources.ClientGetByIDResponse, error) {
+	if c.resourceClientFunc != nil {
+		return c.resourceClientFunc(resourceID)
+	}
+	return armresources.ClientGetByIDResponse{}, nil
+}
+
 type computeClientFunc func(vmName string) (armcompute.VirtualMachinesClientGetResponse, error)
 
 type vmssClientFunc func(vmssName string) (armcompute.VirtualMachineScaleSetsClientGetResponse, error)
 
 type msiClientFunc func(resourceName string) (armmsi.UserAssignedIdentitiesClientGetResponse, error)
 
+type resourceClientFunc func(resourceID string) (armresources.ClientGetByIDResponse, error)
+
 type mockProvider struct {
 	computeClientFunc
 	vmssClientFunc
 	msiClientFunc
+	resourceClientFunc
 }
 
 func newMockProvider(c computeClientFunc, v vmssClientFunc, m msiClientFunc) *mockProvider {
@@ -109,5 +124,11 @@ func (p *mockProvider) VMSSClient(string) (vmssClient, error) {
 func (p *mockProvider) MSIClient(string) (msiClient, error) {
 	return &mockMSIClient{
 		msiClientFunc: p.msiClientFunc,
+	}, nil
+}
+
+func (p *mockProvider) ResourceClient(string) (resourceClient, error) {
+	return &mockResourceClient{
+		resourceClientFunc: p.resourceClientFunc,
 	}, nil
 }

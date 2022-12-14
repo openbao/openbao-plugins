@@ -17,6 +17,7 @@ import (
 	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/coreos/go-oidc"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
@@ -36,6 +37,10 @@ type msiClient interface {
 	Get(ctx context.Context, resourceGroupName string, resourceName string, options *armmsi.UserAssignedIdentitiesClientGetOptions) (armmsi.UserAssignedIdentitiesClientGetResponse, error)
 }
 
+type resourceClient interface {
+	GetByID(ctx context.Context, resourceID, apiVersion string, options *armresources.ClientGetByIDOptions) (armresources.ClientGetByIDResponse, error)
+}
+
 type tokenVerifier interface {
 	Verify(ctx context.Context, token string) (*oidc.IDToken, error)
 }
@@ -45,6 +50,7 @@ type provider interface {
 	ComputeClient(subscriptionID string) (computeClient, error)
 	VMSSClient(subscriptionID string) (vmssClient, error)
 	MSIClient(subscriptionID string) (msiClient, error)
+	ResourceClient(subscriptionID string) (resourceClient, error)
 }
 
 type azureProvider struct {
@@ -144,15 +150,7 @@ func (p *azureProvider) ComputeClient(subscriptionID string) (computeClient, err
 		return nil, err
 	}
 
-	clientOptions := &arm.ClientOptions{
-		ClientOptions: policy.ClientOptions{
-			Cloud: p.settings.CloudConfig,
-			Transport: transporter{
-				pluginEnv: p.settings.PluginEnv,
-				sender:    p.httpClient,
-			},
-		},
-	}
+	clientOptions := p.getClientOptions()
 	client, err := armcompute.NewVirtualMachinesClient(subscriptionID, cred, clientOptions)
 	if err != nil {
 		return nil, err
@@ -167,15 +165,7 @@ func (p *azureProvider) VMSSClient(subscriptionID string) (vmssClient, error) {
 		return nil, err
 	}
 
-	clientOptions := &arm.ClientOptions{
-		ClientOptions: policy.ClientOptions{
-			Cloud: p.settings.CloudConfig,
-			Transport: transporter{
-				pluginEnv: p.settings.PluginEnv,
-				sender:    p.httpClient,
-			},
-		},
-	}
+	clientOptions := p.getClientOptions()
 	client, err := armcompute.NewVirtualMachineScaleSetsClient(subscriptionID, cred, clientOptions)
 	if err != nil {
 		return nil, err
@@ -190,7 +180,32 @@ func (p *azureProvider) MSIClient(subscriptionID string) (msiClient, error) {
 		return nil, err
 	}
 
-	clientOptions := &arm.ClientOptions{
+	clientOptions := p.getClientOptions()
+	client, err := armmsi.NewUserAssignedIdentitiesClient(subscriptionID, cred, clientOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
+func (p *azureProvider) ResourceClient(subscriptionID string) (resourceClient, error) {
+	cred, err := p.getTokenCredential()
+	if err != nil {
+		return nil, err
+	}
+
+	clientOptions := p.getClientOptions()
+	client, err := armresources.NewClient(subscriptionID, cred, clientOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
+func (p *azureProvider) getClientOptions() *arm.ClientOptions {
+	return &arm.ClientOptions{
 		ClientOptions: policy.ClientOptions{
 			Cloud: p.settings.CloudConfig,
 			Transport: transporter{
@@ -199,12 +214,6 @@ func (p *azureProvider) MSIClient(subscriptionID string) (msiClient, error) {
 			},
 		},
 	}
-	client, err := armmsi.NewUserAssignedIdentitiesClient(subscriptionID, cred, clientOptions)
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
 }
 
 func (p *azureProvider) getTokenCredential() (azcore.TokenCredential, error) {

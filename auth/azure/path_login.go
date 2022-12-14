@@ -14,6 +14,11 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
+// resourceClientAPIVersion is the API version to use for the operation. This
+// is not well documented but we are setting it to the current value defined
+// here: https://learn.microsoft.com/en-us/rest/api/resources/resources/get-by-id#uri-parameters
+var resourceClientAPIVersion = "2021-04-01"
+
 func pathLogin(b *azureAuthBackend) *framework.Path {
 	return &framework.Path{
 		Pattern: "login$",
@@ -41,6 +46,13 @@ func pathLogin(b *azureAuthBackend) *framework.Path {
 			"vmss_name": {
 				Type:        framework.TypeString,
 				Description: `The name of the virtual machine scale set the instance is in.`,
+			},
+			"resource_id": {
+				Type: framework.TypeString,
+				Description: `The fully qualified ID of the resource, including` +
+					`the resource name and resource type. Use the format, ` +
+					`/subscriptions/{guid}/resourceGroups/{resource-group-name}/{resource-provider-namespace}/{resource-type}/{resource-name}. ` +
+					`This value is ignored if vm_name or vmss_name is specified.`,
 			},
 		},
 
@@ -110,6 +122,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	resourceGroupName := data.Get("resource_group_name").(string)
 	vmssName := data.Get("vmss_name").(string)
 	vmName := data.Get("vm_name").(string)
+	resourceID := data.Get("resource_id").(string)
 
 	config, err := b.config(ctx, req.Storage)
 	if err != nil {
@@ -141,7 +154,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 		return nil, err
 	}
 
-	if err := b.verifyResource(ctx, subscriptionID, resourceGroupName, vmName, vmssName, claims, role); err != nil {
+	if err := b.verifyResource(ctx, subscriptionID, resourceGroupName, vmName, vmssName, resourceID, claims, role); err != nil {
 		return nil, err
 	}
 
@@ -171,6 +184,10 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 	if vmssName != "" {
 		auth.Alias.Metadata["vmss_name"] = vmssName
 		auth.Metadata["vmss_name"] = vmssName
+	}
+	if resourceID != "" {
+		auth.Alias.Metadata["resource_id"] = resourceID
+		auth.Metadata["resource_id"] = resourceID
 	}
 
 	role.PopulateTokenAuth(auth)
@@ -230,7 +247,7 @@ func (b *azureAuthBackend) verifyClaims(claims *additionalClaims, role *azureRol
 	return nil
 }
 
-func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, resourceGroupName, vmName string, vmssName string, claims *additionalClaims, role *azureRole) error {
+func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, resourceGroupName, vmName, vmssName, resourceID string, claims *additionalClaims, role *azureRole) error {
 	// If not checking anything with the resource id, exit early
 	if len(role.BoundResourceGroups) == 0 && len(role.BoundSubscriptionsIDs) == 0 && len(role.BoundLocations) == 0 && len(role.BoundScaleSets) == 0 {
 		return nil
@@ -337,13 +354,40 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 			principalIDs[convertPtrToString(userIdentity.PrincipalID)] = struct{}{}
 		}
 	default:
-		return errors.New("either vm_name or vmss_name is required")
+		// this is the generic case that should enable Azure services that
+		// support managed identities to authenticate to Vault
+		if resourceID == "" {
+			return errors.New("resource_id is required")
+		}
+		if len(role.BoundScaleSets) > 0 {
+			return errors.New("scale set requires the vmss_name field to be set")
+		}
+
+		client, err := b.provider.ResourceClient(subscriptionID)
+		if err != nil {
+			return fmt.Errorf("unable to create resource client: %w", err)
+		}
+		resp, err := client.GetByID(ctx, resourceID, resourceClientAPIVersion, nil)
+		if err != nil {
+			return fmt.Errorf("unable to retrieve user assigned identity metadata: %w", err)
+		}
+		if resp.Identity == nil {
+			return errors.New("client did not return identity information")
+		}
+		// if system-assigned identity's principal id is available
+		if resp.Identity.PrincipalID != nil {
+			principalIDs[convertPtrToString(resp.Identity.PrincipalID)] = struct{}{}
+		}
+		// if not, look for user-assigned identities
+		for _, userIdentity := range resp.Identity.UserAssignedIdentities {
+			principalIDs[convertPtrToString(userIdentity.PrincipalID)] = struct{}{}
+		}
 	}
 
 	// Ensure the token OID is the principal id of the system-assigned identity
-	// or one of the user-assigned identities of the VM
+	// or one of the user-assigned identities
 	if _, ok := principalIDs[claims.ObjectID]; !ok {
-		return errors.New("token object id does not match virtual machine identities")
+		return errors.New("token object id does not match expected identities")
 	}
 
 	// Check bound subscriptions
@@ -359,7 +403,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 	// Check bound locations
 	if len(role.BoundLocations) > 0 {
 		if location == nil {
-			return errors.New("vm location is empty")
+			return errors.New("location is empty")
 		}
 		if !strListContains(role.BoundLocations, convertPtrToString(location)) {
 			return errors.New("location not authorized")

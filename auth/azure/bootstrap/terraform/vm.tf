@@ -157,6 +157,7 @@ resource "local_file" "setup_environment_file" {
 export ACCESS_TOKEN_JWT=${data.external.access_token_jwt.result.access_token}
 export VM_NAME=${azurerm_linux_virtual_machine.vault_azure_vm.name}
 export VM_IP_ADDRESS=${azurerm_public_ip.vault_azure_pub_ip.ip_address}
+export RESOURCE_ID=${azurerm_linux_virtual_machine.vault_azure_vm.id}
 export RESOURCE_GROUP_NAME=${azurerm_resource_group.vault_azure_rg.name}
 export SUBSCRIPTION_ID=${data.azurerm_client_config.current.subscription_id}
 export TENANT_ID=${data.azurerm_client_config.current.tenant_id}
@@ -180,6 +181,10 @@ output "vm_ip_address" {
 
 output "resource_group_name" {
   value = azurerm_resource_group.vault_azure_rg.name
+}
+
+output "resource_id" {
+  value = azurerm_linux_virtual_machine.vault_azure_vm.id
 }
 
 output "subscription_id" {

@@ -34,3 +34,6 @@ local_environment_setup.sh
 # .tfstate files
 *.tfstate
 *.tfstate.*
+
+# azure cli param persist data
+.azure
