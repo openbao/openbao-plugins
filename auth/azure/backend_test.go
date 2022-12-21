@@ -13,7 +13,7 @@ func getTestBackend(t *testing.T) (*azureAuthBackend, logical.Storage) {
 	return getTestBackendWithComputeClient(t, nil, nil, nil)
 }
 
-func getTestBackendWithResourceClient(t *testing.T, r resourceClientFunc) (*azureAuthBackend, logical.Storage) {
+func getTestBackendWithResourceClient(t *testing.T, r resourceClientFunc, p providersClientFunc) (*azureAuthBackend, logical.Storage) {
 	t.Helper()
 	defaultLeaseTTLVal := time.Hour * 12
 	maxLeaseTTLVal := time.Hour * 24
@@ -32,7 +32,8 @@ func getTestBackendWithResourceClient(t *testing.T, r resourceClientFunc) (*azur
 	}
 
 	b.provider = &mockProvider{
-		resourceClientFunc: r,
+		resourceClientFunc:  r,
+		providersClientFunc: p,
 	}
 	return b, config.StorageView
 }

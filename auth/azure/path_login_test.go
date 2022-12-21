@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
@@ -114,8 +115,8 @@ func TestLogin(t *testing.T) {
 
 func TestLogin_ManagedIdentity(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
-	subscriptionID := "sub-id"
-	resourceID := "resource-id"
+	subscriptionID := "eb936495-7356-4a35-af3e-ea68af201f0c"
+	resourceID := "/subscriptions/eb936495-7356-4a35-af3e-ea68af201f0c/resourceGroups/azure-func-rg/providers/Microsoft.Web/sites/my-azure-func"
 	roleName := "test-role"
 
 	// setup test response functions that mock the client GetByID response
@@ -124,6 +125,7 @@ func TestLogin_ManagedIdentity(t *testing.T) {
 	}
 	userAssignedRespFunc, systemAssignedRespFunc := getResourceByIDResponses(t, principalID)
 	noIdentityUserAssignedRespFunc, noIdentitySystemAssignedRespFunc := getResourceByIDResponses(t, "")
+	providersRespFunc := getProvidersResponse(t, resourceID)
 
 	testCases := map[string]struct {
 		claims      map[string]interface{}
@@ -342,7 +344,7 @@ func TestLogin_ManagedIdentity(t *testing.T) {
 
 	for tt, tc := range testCases {
 		t.Run(tt, func(t *testing.T) {
-			b, s := getTestBackendWithResourceClient(t, tc.clientFunc)
+			b, s := getTestBackendWithResourceClient(t, tc.clientFunc, providersRespFunc)
 			testRoleCreate(t, b, s, tc.roleData)
 			if tc.expectError {
 				testLoginFailure(t, b, s, tc.loginData, tc.claims, tc.roleData)
@@ -770,6 +772,22 @@ func TestVerifyClaims(t *testing.T) {
 	}
 }
 
+func TestGetAPIVersionForResource(t *testing.T) {
+	subscriptionID := "eb936495-7356-4a35-af3e-ea68af201f0c"
+	resourceID := "/subscriptions/eb936495-7356-4a35-af3e-ea68af201f0c/resourceGroups/azure-func-rg/providers/Microsoft.Web/sites/my-azure-func"
+
+	providersRespFunc := getProvidersResponse(t, resourceID)
+	b, _ := getTestBackendWithResourceClient(t, nil, providersRespFunc)
+	apiVersion, err := b.getAPIVersionForResource(context.Background(), subscriptionID, resourceID)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+	expectedVer := "2022-08-01"
+	if apiVersion != expectedVer {
+		t.Fatalf("unexpected apiVersion returned, got %s, want %s", apiVersion, expectedVer)
+	}
+}
+
 // getResourceByIDResponses is a test helper to get the functions that return
 // the azure arm resource client responses. If principalID is an empty string
 // then no identity data will be set in the response.
@@ -809,6 +827,38 @@ func getResourceByIDResponses(t *testing.T, principalID string) (
 	}
 
 	return userAssignedRespFunc, systemAssignedRespFunc
+}
+
+// getProvidersResponse is a test helper to get the function that returns
+// the azure arm resource providers client response.
+func getProvidersResponse(t *testing.T, resourceID string) func(_ string) (armresources.ProvidersClientGetResponse, error) {
+	t.Helper()
+
+	resourceType, err := arm.ParseResourceType(resourceID)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	ver0 := "2022-11-01-preview"
+	ver1 := "2022-08-01"
+	ver2 := "2022-03-01"
+	u := armresources.ProvidersClientGetResponse{
+		armresources.Provider{
+			ResourceTypes: []*armresources.ProviderResourceType{
+				{
+					APIVersions: []*string{
+						&ver0,
+						&ver1,
+						&ver2,
+					},
+					ResourceType: &resourceType.Type,
+				},
+			},
+		},
+	}
+	providersRespFunc := func(_ string) (armresources.ProvidersClientGetResponse, error) {
+		return u, nil
+	}
+	return providersRespFunc
 }
 
 func testJWT(t *testing.T, payload map[string]interface{}) string {

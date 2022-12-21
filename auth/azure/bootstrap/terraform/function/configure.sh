@@ -15,7 +15,7 @@ killall "${PLUGIN_NAME}"
 sleep 3
 
 # Copy the binary so text file is not busy when rebuilding & the plugin is registered
-cp ./bin/"$PLUGIN_NAME" "$PLUGIN_DIR"
+cp ../../../bin/"$PLUGIN_NAME" "$PLUGIN_DIR"
 
 # Sets up the binary with local changes
 vault plugin register \

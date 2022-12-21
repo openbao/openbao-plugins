@@ -7,17 +7,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
-	"github.com/hashicorp/errwrap"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/cidrutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-// resourceClientAPIVersion is the API version to use for the operation. This
-// is not well documented but we are setting it to the current value defined
-// here: https://learn.microsoft.com/en-us/rest/api/resources/resources/get-by-id#uri-parameters
-var resourceClientAPIVersion = "2021-04-01"
+// defaultResourceClientAPIVersion is the API version to use for the operation.
+// This is not well documented but supported API version can be queried from
+// the GET Providers endpoint.
+// https://learn.microsoft.com/en-us/rest/api/resources/providers/get?tabs=HTTP
+var defaultResourceClientAPIVersion = "2022-03-01"
 
 func pathLogin(b *azureAuthBackend) *framework.Path {
 	return &framework.Path{
@@ -126,7 +128,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 
 	config, err := b.config(ctx, req.Storage)
 	if err != nil {
-		return nil, errwrap.Wrapf("unable to retrieve backend configuration: {{err}}", err)
+		return nil, fmt.Errorf("unable to retrieve backend configuration: %w", err)
 	}
 	if config == nil {
 		config = new(azureConfig)
@@ -266,13 +268,13 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 	case vmssName != "":
 		client, err := b.provider.VMSSClient(subscriptionID)
 		if err != nil {
-			return errwrap.Wrapf("unable to create vmss client: {{err}}", err)
+			return fmt.Errorf("unable to create vmss client: %w", err)
 		}
 
 		// Omit armcompute.ExpandTypesForGetVMScaleSetsUserData since we do not need that information for purpose of authenticating an instance
 		vmss, err := client.Get(ctx, resourceGroupName, vmssName, nil)
 		if err != nil {
-			return errwrap.Wrapf("unable to retrieve virtual machine scale set metadata: {{err}}", err)
+			return fmt.Errorf("unable to retrieve virtual machine scale set metadata: %w", err)
 		}
 
 		// Check bound scale sets
@@ -297,21 +299,18 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 				continue
 			}
 
-			elements := strings.Split(userIdentityID, "/")
-			if len(elements) < 9 {
-				return fmt.Errorf("unable to parse the user-assigned identity resource ID: %s", userIdentityID)
+			msiID, err := arm.ParseResourceID(userIdentityID)
+			if err != nil {
+				return fmt.Errorf("unable to parse the user-assigned identity resource ID %q: %w", userIdentityID, err)
 			}
-			msiSubscriptionID := elements[2]
-			msiResourceGroupName := elements[4]
-			msiResourceName := elements[8]
 
 			// Principal ID is nil for VMSS flex orchestration mode, so we
 			// must look up the user-assigned identity using the MSI client
-			msiClient, err := b.provider.MSIClient(msiSubscriptionID)
+			msiClient, err := b.provider.MSIClient(msiID.SubscriptionID)
 			if err != nil {
 				return fmt.Errorf("unable to create msi client: %w", err)
 			}
-			userIdentityResponse, err := msiClient.Get(ctx, msiResourceGroupName, msiResourceName, nil)
+			userIdentityResponse, err := msiClient.Get(ctx, msiID.ResourceGroupName, msiID.Name, nil)
 			if err != nil {
 				return fmt.Errorf("unable to retrieve user assigned identity metadata: %w", err)
 			}
@@ -323,7 +322,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 	case vmName != "":
 		client, err := b.provider.ComputeClient(subscriptionID)
 		if err != nil {
-			return errwrap.Wrapf("unable to create compute client: {{err}}", err)
+			return fmt.Errorf("unable to create compute client: %w", err)
 		}
 
 		instanceView := armcompute.InstanceViewTypesInstanceView
@@ -333,7 +332,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 
 		vm, err := client.Get(ctx, resourceGroupName, vmName, &options)
 		if err != nil {
-			return errwrap.Wrapf("unable to retrieve virtual machine metadata: {{err}}", err)
+			return fmt.Errorf("unable to retrieve virtual machine metadata: %w", err)
 		}
 
 		location = vm.Location
@@ -363,11 +362,17 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 			return errors.New("scale set requires the vmss_name field to be set")
 		}
 
+		apiVersion, err := b.getAPIVersionForResource(ctx, subscriptionID, resourceID)
+		if err != nil {
+			return err
+		}
+
 		client, err := b.provider.ResourceClient(subscriptionID)
 		if err != nil {
 			return fmt.Errorf("unable to create resource client: %w", err)
 		}
-		resp, err := client.GetByID(ctx, resourceID, resourceClientAPIVersion, nil)
+
+		resp, err := client.GetByID(ctx, resourceID, apiVersion, nil)
 		if err != nil {
 			return fmt.Errorf("unable to retrieve user assigned identity metadata: %w", err)
 		}
@@ -422,7 +427,7 @@ func (b *azureAuthBackend) pathLoginRenew(ctx context.Context, req *logical.Requ
 	// Ensure that the Role still exists.
 	role, err := b.role(ctx, req.Storage, roleName)
 	if err != nil {
-		return nil, errwrap.Wrapf(fmt.Sprintf("failed to validate role %s during renewal: {{err}}", roleName), err)
+		return nil, fmt.Errorf("failed to validate role %s during renewal: %w", roleName, err)
 	}
 	if role == nil {
 		return nil, fmt.Errorf("role %s does not exist during renewal", roleName)
@@ -453,4 +458,45 @@ func convertPtrToString(s *string) string {
 		return *s
 	}
 	return ""
+}
+
+// getAPIVersionForResource attempts to query the supported API versions for a
+// given resource.
+func (b *azureAuthBackend) getAPIVersionForResource(ctx context.Context, subscriptionID, resourceID string) (string, error) {
+	client, err := b.provider.ProvidersClient(subscriptionID)
+	if err != nil {
+		return "", fmt.Errorf("unable to create providers client: %w", err)
+	}
+
+	resourceType, err := arm.ParseResourceType(resourceID)
+	if err != nil {
+		return "", fmt.Errorf("unable to parse the resource ID: %q", resourceID)
+	}
+	response, err := client.Get(ctx, resourceType.Namespace, nil)
+	if err != nil {
+		return "", fmt.Errorf("unable to get the provider for resource %q: %w", resourceID, err)
+	}
+
+	var resourceTypeResp *armresources.ProviderResourceType
+	for _, rt := range response.Provider.ResourceTypes {
+		// look through the list of ResourceTypes until we find the one
+		// corresponding to the resource that is being used on this login
+		if convertPtrToString(rt.ResourceType) == resourceType.Type {
+			resourceTypeResp = rt
+		}
+	}
+
+	apiVersion := defaultResourceClientAPIVersion
+	// APIVersions are dates in descending order
+	for _, v := range resourceTypeResp.APIVersions {
+		version := convertPtrToString(v)
+		// we will grab the most recent API version unless it is a preview
+		// which will have a "-preview" suffix
+		if strings.Contains(version, "preview") {
+			continue
+		}
+		apiVersion = version
+		break
+	}
+	return apiVersion, nil
 }

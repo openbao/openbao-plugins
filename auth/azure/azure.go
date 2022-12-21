@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -19,7 +19,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/coreos/go-oidc"
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/vault/sdk/logical"
 	"golang.org/x/oauth2"
@@ -41,6 +40,10 @@ type resourceClient interface {
 	GetByID(ctx context.Context, resourceID, apiVersion string, options *armresources.ClientGetByIDOptions) (armresources.ClientGetByIDResponse, error)
 }
 
+type providersClient interface {
+	Get(ctx context.Context, resourceProviderNamespace string, options *armresources.ProvidersClientGetOptions) (armresources.ProvidersClientGetResponse, error)
+}
+
 type tokenVerifier interface {
 	Verify(ctx context.Context, token string) (*oidc.IDToken, error)
 }
@@ -51,6 +54,7 @@ type provider interface {
 	VMSSClient(subscriptionID string) (vmssClient, error)
 	MSIClient(subscriptionID string) (msiClient, error)
 	ResourceClient(subscriptionID string) (resourceClient, error)
+	ProvidersClient(subscriptionID string) (providersClient, error)
 }
 
 type azureProvider struct {
@@ -111,16 +115,16 @@ func (b *azureAuthBackend) newAzureProvider(ctx context.Context, config *azureCo
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, errwrap.Wrapf("unable to read response body: {{err}}", err)
+		return nil, fmt.Errorf("unable to read response body: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%s: %s", resp.Status, body)
 	}
 	var discoveryInfo oidcDiscoveryInfo
 	if err := json.Unmarshal(body, &discoveryInfo); err != nil {
-		return nil, errwrap.Wrapf("unable to unmarshal discovery url: {{err}}", err)
+		return nil, fmt.Errorf("unable to unmarshal discovery url: %w", err)
 	}
 
 	// Create a remote key set from the discovery endpoint
@@ -182,6 +186,21 @@ func (p *azureProvider) MSIClient(subscriptionID string) (msiClient, error) {
 
 	clientOptions := p.getClientOptions()
 	client, err := armmsi.NewUserAssignedIdentitiesClient(subscriptionID, cred, clientOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
+
+func (p *azureProvider) ProvidersClient(subscriptionID string) (providersClient, error) {
+	cred, err := p.getTokenCredential()
+	if err != nil {
+		return nil, err
+	}
+
+	clientOptions := p.getClientOptions()
+	client, err := armresources.NewProvidersClient(subscriptionID, cred, clientOptions)
 	if err != nil {
 		return nil, err
 	}

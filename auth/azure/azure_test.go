@@ -54,6 +54,10 @@ type mockResourceClient struct {
 	resourceClientFunc func(resourceID string) (armresources.ClientGetByIDResponse, error)
 }
 
+type mockProvidersClient struct {
+	providersClientFunc func(string) (armresources.ProvidersClientGetResponse, error)
+}
+
 func (c *mockComputeClient) Get(_ context.Context, _, vmName string, _ *armcompute.VirtualMachinesClientGetOptions) (armcompute.VirtualMachinesClientGetResponse, error) {
 	if c.computeClientFunc != nil {
 		return c.computeClientFunc(vmName)
@@ -82,6 +86,13 @@ func (c *mockResourceClient) GetByID(_ context.Context, resourceID, _ string, _ 
 	return armresources.ClientGetByIDResponse{}, nil
 }
 
+func (c *mockProvidersClient) Get(_ context.Context, resourceID string, _ *armresources.ProvidersClientGetOptions) (armresources.ProvidersClientGetResponse, error) {
+	if c.providersClientFunc != nil {
+		return c.providersClientFunc(resourceID)
+	}
+	return armresources.ProvidersClientGetResponse{}, nil
+}
+
 type computeClientFunc func(vmName string) (armcompute.VirtualMachinesClientGetResponse, error)
 
 type vmssClientFunc func(vmssName string) (armcompute.VirtualMachineScaleSetsClientGetResponse, error)
@@ -90,11 +101,14 @@ type msiClientFunc func(resourceName string) (armmsi.UserAssignedIdentitiesClien
 
 type resourceClientFunc func(resourceID string) (armresources.ClientGetByIDResponse, error)
 
+type providersClientFunc func(string) (armresources.ProvidersClientGetResponse, error)
+
 type mockProvider struct {
 	computeClientFunc
 	vmssClientFunc
 	msiClientFunc
 	resourceClientFunc
+	providersClientFunc
 }
 
 func newMockProvider(c computeClientFunc, v vmssClientFunc, m msiClientFunc) *mockProvider {
@@ -130,5 +144,11 @@ func (p *mockProvider) MSIClient(string) (msiClient, error) {
 func (p *mockProvider) ResourceClient(string) (resourceClient, error) {
 	return &mockResourceClient{
 		resourceClientFunc: p.resourceClientFunc,
+	}, nil
+}
+
+func (p *mockProvider) ProvidersClient(string) (providersClient, error) {
+	return &mockProvidersClient{
+		providersClientFunc: p.providersClientFunc,
 	}, nil
 }
