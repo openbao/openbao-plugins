@@ -786,6 +786,17 @@ func TestGetAPIVersionForResource(t *testing.T) {
 	if apiVersion != expectedVer {
 		t.Fatalf("unexpected apiVersion returned, got %s, want %s", apiVersion, expectedVer)
 	}
+
+	// reset the provider and call getAPIVersionForResource again to ensure
+	// we can get the API version from the cache
+	b.provider = &mockProvider{}
+	apiVersion, err = b.getAPIVersionForResource(context.Background(), subscriptionID, resourceID)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+	if apiVersion != expectedVer {
+		t.Fatalf("unexpected apiVersion returned, got %s, want %s", apiVersion, expectedVer)
+	}
 }
 
 // getResourceByIDResponses is a test helper to get the functions that return

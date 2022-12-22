@@ -460,18 +460,25 @@ func convertPtrToString(s *string) string {
 	return ""
 }
 
-// getAPIVersionForResource attempts to query the supported API versions for a
-// given resource.
+// getAPIVersionForResource queries the supported API versions for a given
+// resource. This will cache results so that subsequent logins will not make
+// the same API call more than once.
 func (b *azureAuthBackend) getAPIVersionForResource(ctx context.Context, subscriptionID, resourceID string) (string, error) {
+	resourceType, err := arm.ParseResourceType(resourceID)
+	if err != nil {
+		return "", fmt.Errorf("unable to parse the resource ID: %q", resourceID)
+	}
+
+	// short circuit if we have already cached the api version for this resource type
+	if apiVersion, ok := b.resourceAPIVersionCache[resourceType.String()]; ok {
+		return apiVersion, nil
+	}
+
 	client, err := b.provider.ProvidersClient(subscriptionID)
 	if err != nil {
 		return "", fmt.Errorf("unable to create providers client: %w", err)
 	}
 
-	resourceType, err := arm.ParseResourceType(resourceID)
-	if err != nil {
-		return "", fmt.Errorf("unable to parse the resource ID: %q", resourceID)
-	}
 	response, err := client.Get(ctx, resourceType.Namespace, nil)
 	if err != nil {
 		return "", fmt.Errorf("unable to get the provider for resource %q: %w", resourceID, err)
@@ -487,6 +494,10 @@ func (b *azureAuthBackend) getAPIVersionForResource(ctx context.Context, subscri
 	}
 
 	apiVersion := defaultResourceClientAPIVersion
+	if resourceTypeResp == nil {
+		return apiVersion, nil
+	}
+
 	// APIVersions are dates in descending order
 	for _, v := range resourceTypeResp.APIVersions {
 		version := convertPtrToString(v)
@@ -498,5 +509,9 @@ func (b *azureAuthBackend) getAPIVersionForResource(ctx context.Context, subscri
 		apiVersion = version
 		break
 	}
+
+	// this resource type hasn't been seen yet so cache it
+	b.resourceAPIVersionCache[resourceType.String()] = apiVersion
+
 	return apiVersion, nil
 }

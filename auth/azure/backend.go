@@ -23,6 +23,11 @@ type azureAuthBackend struct {
 	l sync.RWMutex
 
 	provider provider
+
+	// resourceAPIVersionCache is a mapping of ResourceType to APIVersion
+	// so that we don't query supported API versions on each call to login for
+	// a given resource type
+	resourceAPIVersionCache map[string]string
 }
 
 func backend() *azureAuthBackend {
@@ -49,6 +54,8 @@ func backend() *azureAuthBackend {
 			pathsRole(b),
 		),
 	}
+
+	b.resourceAPIVersionCache = make(map[string]string)
 
 	return b
 }
