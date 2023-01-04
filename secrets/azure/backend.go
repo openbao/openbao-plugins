@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
+const userAgentPluginName = "secrets-azure"
+
 type azureSecretBackend struct {
 	*framework.Backend
 

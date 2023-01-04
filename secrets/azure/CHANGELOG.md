@@ -1,5 +1,12 @@
 ## Unreleased
 
+CHANGES:
+
+* Changes user-agent header value to use correct Vault version information and include
+  the plugin type and name in the comment section.
+
+IMPROVEMENTS:
+
 * Updated dependencies [[GH-109](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/109)]
     * `github.com/Azure/azure-sdk-for-go v67.0.0+incompatible`
     * `github.com/Azure/go-autorest/autorest v0.11.28`

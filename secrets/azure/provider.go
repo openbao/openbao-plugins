@@ -29,7 +29,7 @@ type provider struct {
 // newAzureProvider creates an azureProvider, backed by Azure client objects for underlying services.
 func newAzureProvider(settings *clientSettings, passwords api.Passwords) (api.AzureProvider, error) {
 	// build clients that use the GraphRBAC endpoint
-	userAgent := getUserAgent(settings)
+	userAgent := useragent.PluginString(settings.PluginEnv, userAgentPluginName)
 
 	var appClient api.ApplicationsClient
 	var groupsClient api.GroupsClient
@@ -79,16 +79,6 @@ func newAzureProvider(settings *clientSettings, passwords api.Passwords) (api.Az
 	}
 
 	return p, nil
-}
-
-func getUserAgent(settings *clientSettings) string {
-	var userAgent string
-	if settings.PluginEnv != nil {
-		userAgent = useragent.PluginString(settings.PluginEnv, "azure-secrets")
-	} else {
-		userAgent = useragent.String()
-	}
-	return userAgent
 }
 
 // getAuthorizer attempts to create an authorizer, preferring ClientID/Secret if present,
