@@ -4,9 +4,6 @@ import (
 	"encoding/json"
 	"strings"
 	"time"
-
-	"github.com/hashicorp/vault/sdk/helper/useragent"
-	"github.com/hashicorp/vault/sdk/logical"
 )
 
 // Using the same time parsing logic from https://github.com/coreos/go-oidc
@@ -42,14 +39,4 @@ func strListContains(haystack []string, needle string) bool {
 		}
 	}
 	return false
-}
-
-// userAgent returns the User-Agent header that's included in HTTP requests
-// made by this plugin. Returns an empty string if the pluginEnv is nil.
-func userAgent(pluginEnv *logical.PluginEnvironment) string {
-	if pluginEnv == nil {
-		return ""
-	}
-
-	return useragent.PluginString(pluginEnv, "azure-auth")
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/coreos/go-oidc"
 	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/vault/sdk/helper/useragent"
 	"github.com/hashicorp/vault/sdk/logical"
 	"golang.org/x/oauth2"
 )
@@ -76,7 +77,8 @@ type transporter struct {
 }
 
 func (tp transporter) Do(req *http.Request) (*http.Response, error) {
-	req.Header.Set("User-Agent", userAgent(tp.pluginEnv))
+	req.Header.Set("User-Agent", useragent.PluginString(tp.pluginEnv,
+		userAgentPluginName))
 
 	client := tp.sender
 
@@ -107,7 +109,8 @@ func (b *azureAuthBackend) newAzureProvider(ctx context.Context, config *azureCo
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", userAgent(settings.PluginEnv))
+	req.Header.Set("User-Agent", useragent.PluginString(settings.PluginEnv,
+		userAgentPluginName))
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -313,7 +316,8 @@ func (b *azureAuthBackend) getAzureSettings(ctx context.Context, config *azureCo
 
 	pluginEnv, err := b.System().PluginEnv(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error loading plugin environment: %w", err)
+		b.Logger().Warn("failed to read plugin environment, user-agent will not be set",
+			"error", err)
 	}
 	settings.PluginEnv = pluginEnv
 
