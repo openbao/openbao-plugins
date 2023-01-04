@@ -2,6 +2,7 @@ package gcpkms
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -14,6 +15,8 @@ import (
 
 	kmsapi "cloud.google.com/go/kms/apiv1"
 )
+
+const userAgentPluginName = "secrets-gcpkms"
 
 var (
 	// defaultClientLifetime is the amount of time to cache the KMS client. This
@@ -33,6 +36,9 @@ type backend struct {
 	kmsClientCreateTime time.Time
 	kmsClientLifetime   time.Duration
 	kmsClientLock       sync.RWMutex
+
+	// pluginEnv contains Vault version information. It is used in user-agent headers.
+	pluginEnv *logical.PluginEnvironment
 
 	// ctx and ctxCancel are used to control overall plugin shutdown. These
 	// contexts are given to any client libraries or requests that should be
@@ -82,11 +88,22 @@ func Backend() *backend {
 			b.pathVerify(),
 		},
 
-		Invalidate: b.invalidate,
-		Clean:      b.clean,
+		InitializeFunc: b.initialize,
+		Invalidate:     b.invalidate,
+		Clean:          b.clean,
 	}
 
 	return &b
+}
+
+func (b *backend) initialize(ctx context.Context, _ *logical.InitializationRequest) error {
+	pluginEnv, err := b.System().PluginEnv(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to read plugin environment: %w", err)
+	}
+	b.pluginEnv = pluginEnv
+
+	return nil
 }
 
 // clean cancels the shared contexts. This is called just before unmounting
@@ -173,7 +190,7 @@ func (b *backend) KMSClient(s logical.Storage) (*kmsapi.KeyManagementClient, fun
 	client, err := kmsapi.NewKeyManagementClient(b.ctx,
 		option.WithCredentials(creds),
 		option.WithScopes(config.Scopes...),
-		option.WithUserAgent(useragent.String()),
+		option.WithUserAgent(useragent.PluginString(b.pluginEnv, userAgentPluginName)),
 	)
 	if err != nil {
 		b.kmsClientLock.Unlock()

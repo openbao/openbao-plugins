@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gammazero/workerpool"
-	"github.com/hashicorp/vault/sdk/helper/useragent"
 	"github.com/hashicorp/vault/sdk/logical"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -70,7 +69,6 @@ func testKMSClient(tb testing.TB) *kmsapi.KeyManagementClient {
 	ctx := context.Background()
 	kmsClient, err := kmsapi.NewKeyManagementClient(ctx,
 		option.WithScopes(defaultScope),
-		option.WithUserAgent(useragent.String()),
 	)
 	if err != nil {
 		tb.Fatalf("failed to create kms client: %s", err)
