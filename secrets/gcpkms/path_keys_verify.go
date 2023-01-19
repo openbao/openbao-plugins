@@ -64,7 +64,6 @@ Base64-encoded signature to use for verification. This field is required.
 		},
 
 		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.CreateOperation: withFieldValidator(b.pathVerifyWrite),
 			logical.UpdateOperation: withFieldValidator(b.pathVerifyWrite),
 		},
 	}

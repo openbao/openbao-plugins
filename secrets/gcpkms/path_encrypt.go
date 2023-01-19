@@ -59,7 +59,6 @@ limitations by key types.
 		},
 
 		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.CreateOperation: withFieldValidator(b.pathEncryptWrite),
 			logical.UpdateOperation: withFieldValidator(b.pathEncryptWrite),
 		},
 	}

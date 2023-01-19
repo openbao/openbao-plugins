@@ -58,7 +58,6 @@ unspecified, this defaults to the latest active crypto key version.
 		},
 
 		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.CreateOperation: withFieldValidator(b.pathReencryptWrite),
 			logical.UpdateOperation: withFieldValidator(b.pathReencryptWrite),
 		},
 	}

@@ -16,8 +16,6 @@ import (
 func TestPathVerify_Write(t *testing.T) {
 
 	t.Run("field_validation", func(t *testing.T) {
-
-		testFieldValidation(t, logical.CreateOperation, "verify/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "verify/my-key")
 	})
 

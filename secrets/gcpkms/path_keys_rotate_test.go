@@ -10,8 +10,6 @@ import (
 func TestPathKeysRotate_Write(t *testing.T) {
 
 	t.Run("field_validation", func(t *testing.T) {
-
-		testFieldValidation(t, logical.CreateOperation, "keys/rotate/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "keys/rotate/my-key")
 	})
 

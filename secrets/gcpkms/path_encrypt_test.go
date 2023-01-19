@@ -13,8 +13,6 @@ import (
 func TestPathEncrypt_Write(t *testing.T) {
 
 	t.Run("field_validation", func(t *testing.T) {
-
-		testFieldValidation(t, logical.CreateOperation, "encrypt/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "encrypt/my-key")
 	})
 

@@ -23,8 +23,6 @@ import (
 func TestPathSign_Write(t *testing.T) {
 
 	t.Run("field_validation", func(t *testing.T) {
-
-		testFieldValidation(t, logical.CreateOperation, "sign/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "sign/my-key")
 	})
 

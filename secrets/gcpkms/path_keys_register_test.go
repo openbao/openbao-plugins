@@ -11,8 +11,6 @@ import (
 func TestPathKeysRegister_Write(t *testing.T) {
 
 	t.Run("field_validation", func(t *testing.T) {
-
-		testFieldValidation(t, logical.CreateOperation, "keys/register/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "keys/register/my-key")
 	})
 

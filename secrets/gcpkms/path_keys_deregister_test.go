@@ -10,8 +10,6 @@ import (
 func TestPathKeysDeregister_Write(t *testing.T) {
 
 	t.Run("field_validation", func(t *testing.T) {
-
-		testFieldValidation(t, logical.CreateOperation, "keys/deregister/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "keys/deregister/my-key")
 	})
 

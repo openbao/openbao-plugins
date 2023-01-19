@@ -50,7 +50,6 @@ required.
 		},
 
 		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.CreateOperation: withFieldValidator(b.pathSignWrite),
 			logical.UpdateOperation: withFieldValidator(b.pathSignWrite),
 		},
 	}

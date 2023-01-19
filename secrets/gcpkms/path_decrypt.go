@@ -60,7 +60,6 @@ correct version automatically.
 		},
 
 		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.CreateOperation: withFieldValidator(b.pathDecryptWrite),
 			logical.UpdateOperation: withFieldValidator(b.pathDecryptWrite),
 		},
 	}

@@ -29,7 +29,6 @@ it will be left untouched.
 		},
 
 		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.CreateOperation: withFieldValidator(b.pathKeysDeregisterWrite),
 			logical.UpdateOperation: withFieldValidator(b.pathKeysDeregisterWrite),
 			logical.DeleteOperation: withFieldValidator(b.pathKeysDeregisterWrite),
 		},

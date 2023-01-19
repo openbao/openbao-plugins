@@ -11,8 +11,6 @@ import (
 func TestPathReencrypt_Write(t *testing.T) {
 
 	t.Run("field_validation", func(t *testing.T) {
-
-		testFieldValidation(t, logical.CreateOperation, "reencrypt/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "reencrypt/my-key")
 	})
 

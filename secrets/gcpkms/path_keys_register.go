@@ -54,7 +54,6 @@ not exist at creation time.
 		},
 
 		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.CreateOperation: withFieldValidator(b.pathKeysRegisterWrite),
 			logical.UpdateOperation: withFieldValidator(b.pathKeysRegisterWrite),
 		},
 	}

@@ -19,8 +19,6 @@ import (
 func TestPathDecrypt_Write(t *testing.T) {
 
 	t.Run("field_validation", func(t *testing.T) {
-
-		testFieldValidation(t, logical.CreateOperation, "decrypt/my-key")
 		testFieldValidation(t, logical.UpdateOperation, "decrypt/my-key")
 	})
 

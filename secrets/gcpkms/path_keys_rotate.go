@@ -46,7 +46,6 @@ point to a valid Google Cloud KMS crypto key.
 		},
 
 		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.CreateOperation: withFieldValidator(b.pathKeysRotateWrite),
 			logical.UpdateOperation: withFieldValidator(b.pathKeysRotateWrite),
 		},
 	}
