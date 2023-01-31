@@ -30,6 +30,7 @@ type azureAuthBackend struct {
 	// so that we don't query supported API versions on each call to login for
 	// a given resource type
 	resourceAPIVersionCache map[string]string
+	cacheLock               sync.RWMutex
 }
 
 func backend() *azureAuthBackend {

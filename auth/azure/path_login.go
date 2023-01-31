@@ -469,10 +469,13 @@ func (b *azureAuthBackend) getAPIVersionForResource(ctx context.Context, subscri
 		return "", fmt.Errorf("unable to parse the resource ID: %q", resourceID)
 	}
 
+	b.cacheLock.RLock()
 	// short circuit if we have already cached the api version for this resource type
 	if apiVersion, ok := b.resourceAPIVersionCache[resourceType.String()]; ok {
+		b.cacheLock.RUnlock()
 		return apiVersion, nil
 	}
+	b.cacheLock.RUnlock()
 
 	client, err := b.provider.ProvidersClient(subscriptionID)
 	if err != nil {
@@ -510,8 +513,10 @@ func (b *azureAuthBackend) getAPIVersionForResource(ctx context.Context, subscri
 		break
 	}
 
+	b.cacheLock.Lock()
 	// this resource type hasn't been seen yet so cache it
 	b.resourceAPIVersionCache[resourceType.String()] = apiVersion
+	b.cacheLock.Unlock()
 
 	return apiVersion, nil
 }
