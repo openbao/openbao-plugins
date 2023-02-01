@@ -1,11 +1,33 @@
-data "azurerm_client_config" "current" {}
 provider "azuread" {}
 provider "azurerm" {
   features {}
 }
 
+data "azurerm_client_config" "current" {}
+data "azurerm_subscription" "current" {}
+data "azuread_application_published_app_ids" "well_known" {}
+
+locals {
+  app_rw_owned_by_id = azuread_service_principal.ms_graph.app_role_ids["Application.ReadWrite.All"]
+}
+
 resource "azuread_application" "vault_azure_app" {
   display_name = "vault_azure_tests"
+
+  # Details at https://learn.microsoft.com/en-us/graph/permissions-reference
+  required_resource_access {
+    resource_app_id = data.azuread_application_published_app_ids.well_known.result.MicrosoftGraph
+
+    resource_access {
+      id   = local.app_rw_owned_by_id
+      type = "Role" # Application type
+    }
+  }
+}
+
+resource "azuread_service_principal" "ms_graph" {
+  application_id = data.azuread_application_published_app_ids.well_known.result.MicrosoftGraph
+  use_existing   = true
 }
 
 resource "azuread_service_principal" "vault_azure_sp" {
@@ -14,6 +36,12 @@ resource "azuread_service_principal" "vault_azure_sp" {
 
 resource "azuread_service_principal_password" "vault_azure_sp_pwd" {
   service_principal_id = azuread_service_principal.vault_azure_sp.id
+}
+
+resource "azuread_app_role_assignment" "app_admin_consent" {
+  app_role_id         = local.app_rw_owned_by_id
+  principal_object_id = azuread_service_principal.vault_azure_sp.object_id
+  resource_object_id  = azuread_service_principal.ms_graph.object_id
 }
 
 # Use system assigned managed identity
