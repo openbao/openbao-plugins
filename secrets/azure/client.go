@@ -252,7 +252,7 @@ func (c *client) removeGroupMemberships(ctx context.Context, servicePrincipalObj
 	var merr *multierror.Error
 
 	for _, id := range groupIDs {
-		if err := c.provider.RemoveGroupMember(ctx, servicePrincipalObjectID, id); err != nil {
+		if err := c.provider.RemoveGroupMember(ctx, id, servicePrincipalObjectID); err != nil {
 
 			// If a membership was deleted manually then Azure returns a error with a Status=404
 			if strings.Contains(err.Error(), "Status=404") {

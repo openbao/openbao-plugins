@@ -578,6 +578,10 @@ func TestSPRevoke(t *testing.T) {
 			t.Fatalf("receive response error: %v", resp.Error())
 		}
 
+		if len(resp.Warnings) > 0 {
+			t.Fatalf("response contains warnings but should not have")
+		}
+
 		if client.provider.(*mockProvider).appExists(appObjID) {
 			t.Fatalf("application present but should have been deleted")
 		}
