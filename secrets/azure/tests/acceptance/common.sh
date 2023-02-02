@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 if which gdate &> /dev/null ; then
   function __date_cmd() {
     TZ=UTC gdate --rfc-3339=ns
