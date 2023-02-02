@@ -6,6 +6,9 @@ EXTERNAL_TOOLS=\
 	github.com/kardianos/govendor
 BUILD_TAGS?=${TOOL}
 GOFMT_FILES?=$$(find . -name '*.go' | grep -v vendor)
+PLUGIN_NAME := $(shell command ls cmd/)
+PLUGIN_DIR ?= $$GOPATH/vault-plugins
+PLUGIN_PATH ?= local-secrets-azure
 
 # Acceptance test variables
 WITH_DEV_PLUGIN?=1
@@ -43,6 +46,13 @@ test: fmtcheck generate
 		echo "ERROR: Set TEST to a specific package"; \
 		exit 1; \
 	fi
+	VAULT_ACC= go test -tags='$(BUILD_TAGS)' $(TEST) -v $(TESTARGS) -timeout 10m
+
+testacc: fmtcheck generate
+	@if [ "$(TEST)" = "./..." ]; then \
+		echo "ERROR: Set TEST to a specific package"; \
+		exit 1; \
+	fi
 	VAULT_ACC=1 go test -tags='$(BUILD_TAGS)' $(TEST) -v $(TESTARGS) -timeout 45m
 
 # test-acceptance runs all acceptance tests
@@ -67,4 +77,16 @@ fmtcheck:
 fmt:
 	gofmt -w $(GOFMT_FILES)
 
-.PHONY: bin default generate test vet bootstrap fmt fmtcheck
+setup-env:
+	cd bootstrap/terraform && terraform init && terraform apply -auto-approve
+
+teardown-env:
+	cd bootstrap/terraform && terraform init && terraform destroy -auto-approve
+
+configure: dev
+	@./bootstrap/configure.sh \
+	$(PLUGIN_DIR) \
+	$(PLUGIN_NAME) \
+	$(PLUGIN_PATH)
+
+.PHONY: bin default generate test vet bootstrap fmt fmtcheck setup-env teardown-env configure
