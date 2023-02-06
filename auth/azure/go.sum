@@ -7,8 +7,8 @@ github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.2.0/go.mod h1:NBanQUfSWiWn3Q
 github.com/Azure/azure-sdk-for-go/sdk/internal v1.0.0 h1:jp0dGvZ7ZK0mgqnTSClMxa5xuRL7NZgHameVYF6BurY=
 github.com/Azure/azure-sdk-for-go/sdk/internal v1.0.0/go.mod h1:eWRD7oawr1Mu1sLCawqVc0CUiF43ia3qQMxLscsKQ9w=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v3 v3.0.1 h1:H3g2mkmu105ON0c/Gqx3Bm+bzoIijLom8LmV9Gjn7X0=
-github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4 v4.0.0 h1:KepfQdVTTQl/UmAbRALdkUUUfcWfu8xRaqrQ03ZGwvM=
-github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4 v4.0.0/go.mod h1:Q3u+T/qw3Kb1Wf3DFKiFwEZlyaAyPb4yBgWm9wq7yh8=
+github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4 v4.1.0 h1:Vjq3Uy3JAU1DTxbA+uX6BegIhgO2pyFltbfbmDa9KdI=
+github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4 v4.1.0/go.mod h1:Q3u+T/qw3Kb1Wf3DFKiFwEZlyaAyPb4yBgWm9wq7yh8=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/internal v1.0.0 h1:lMW1lD/17LUA5z1XTURo7LcVG2ICBPlyMHjIUrcFZNQ=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi v0.7.0 h1:rR7G1rXO+wu0R/fChwkOK2o3tlj8aJXtuyKUfoPpZZA=
 github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi v0.7.0/go.mod h1:FGvMgwsGxvXKLXTsLD6rleZNj7PrpAX5+ou/to9SYOc=
