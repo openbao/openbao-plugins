@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 
 # External data source script for obtaining an access token JWT from the Azure 
 # Instance Metadata Service (IMDS) endpoint. The access token is used as the form
