@@ -12,7 +12,6 @@ import (
 )
 
 func TestPathKeysRegister_Write(t *testing.T) {
-
 	t.Run("field_validation", func(t *testing.T) {
 		testFieldValidation(t, logical.UpdateOperation, "keys/register/my-key")
 	})
@@ -57,13 +56,12 @@ func TestPathKeysRegister_Write(t *testing.T) {
 			tc := tc
 
 			t.Run(tc.name, func(t *testing.T) {
-
 				key := path.Base(tc.cryptoKey)
 
 				b, storage := testBackend(t)
 				_, err := b.HandleRequest(context.Background(), &logical.Request{
 					Storage:   storage,
-					Operation: logical.CreateOperation,
+					Operation: logical.UpdateOperation,
 					Path:      "keys/register/" + key,
 					Data: map[string]interface{}{
 						"crypto_key": tc.cryptoKey,
