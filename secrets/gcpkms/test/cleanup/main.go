@@ -1,3 +1,6 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 // This script is used to iterate over all keys in the project and destroy them.
 // The tests do a good job of cleaning up, but during panics and through the
 // course of use, a stray key or key version may exist.
