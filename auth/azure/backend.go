@@ -5,7 +5,9 @@ package azureauth
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -29,6 +31,7 @@ type azureAuthBackend struct {
 
 	provider provider
 
+	updatePassword bool
 	// resourceAPIVersionCache is a mapping of ResourceType to APIVersion
 	// so that we don't query supported API versions on each call to login for
 	// a given resource type
@@ -37,7 +40,9 @@ type azureAuthBackend struct {
 }
 
 func backend() *azureAuthBackend {
-	b := new(azureAuthBackend)
+	b := azureAuthBackend{
+		updatePassword: true,
+	}
 
 	b.Backend = &framework.Backend{
 		AuthRenew:   b.pathLoginRenew,
@@ -54,16 +59,108 @@ func backend() *azureAuthBackend {
 		},
 		Paths: framework.PathAppend(
 			[]*framework.Path{
-				pathLogin(b),
-				pathConfig(b),
+				pathLogin(&b),
+				pathConfig(&b),
+				pathRotateRoot(&b),
 			},
-			pathsRole(b),
+			pathsRole(&b),
 		),
+		// Root rotation can take up to a few minutes, so ensure we do not
+		// roll back a root credential rotation that is currently in flight
+		WALRollbackMinAge: 3 * time.Minute,
+		WALRollback:       b.walRollback,
+		// periodicFunc to clean up old credentials
+		PeriodicFunc: b.periodicFunc,
 	}
 
 	b.resourceAPIVersionCache = make(map[string]string)
 
-	return b
+	return &b
+}
+
+// The periodicFunc is responsible for eventually swapping out the root credential for rotation
+// operations. Due to Azure's eventual consistency model, the new credential will not be
+// available immediately, and hence we check periodically and delete the old credential
+// only once the new credential is at least a minute old
+func (b *azureAuthBackend) periodicFunc(ctx context.Context, sys *logical.Request) error {
+	b.Logger().Debug("starting periodic func")
+	if !b.updatePassword {
+		b.Logger().Debug("periodic func", "rotate-root", "no rotate-root update")
+		return nil
+	}
+
+	config, err := b.config(ctx, sys.Storage)
+	if err != nil {
+		return err
+	}
+
+	// Config can be nil if deleted or when the engine is enabled
+	// but not yet configured.
+	if config == nil {
+		return nil
+	}
+
+	// Password should be at least a minute old before we process it
+	if config.NewClientSecret == "" || (time.Since(config.NewClientSecretCreated) < time.Minute) {
+		return nil
+	}
+
+	b.Logger().Debug("periodic func", "rotate-root", "new password detected, swapping in storage")
+	provider, err := b.getProvider(ctx, config)
+	if err != nil {
+		return err
+	}
+
+	client, err := provider.MSGraphClient()
+	if err != nil {
+		return err
+	}
+
+	apps, err := client.ListApplications(ctx, fmt.Sprintf("appId eq '%s'", config.ClientID))
+	if err != nil {
+		return err
+	}
+
+	if len(apps) == 0 {
+		return fmt.Errorf("no application found")
+	}
+	if len(apps) > 1 {
+		return fmt.Errorf("multiple applications found - double check your client_id")
+	}
+
+	app := apps[0]
+
+	credsToDelete := []string{}
+	for _, cred := range app.PasswordCredentials {
+		if *cred.KeyID != config.NewClientSecretKeyID {
+			credsToDelete = append(credsToDelete, *cred.KeyID)
+		}
+	}
+
+	if len(credsToDelete) != 0 {
+		b.Logger().Debug("periodic func", "rotate-root", "removing old passwords from Azure")
+		err = removeApplicationPasswords(ctx, client, *app.ID, credsToDelete...)
+		if err != nil {
+			return err
+		}
+	}
+
+	b.Logger().Debug("periodic func", "rotate-root", "updating config with new password")
+	config.ClientSecret = config.NewClientSecret
+	config.ClientSecretKeyID = config.NewClientSecretKeyID
+	config.RootPasswordExpirationDate = config.NewClientSecretExpirationDate
+	config.NewClientSecret = ""
+	config.NewClientSecretKeyID = ""
+	config.NewClientSecretCreated = time.Time{}
+
+	err = b.saveConfig(ctx, config, sys.Storage)
+	if err != nil {
+		return err
+	}
+
+	b.updatePassword = false
+
+	return nil
 }
 
 func (b *azureAuthBackend) invalidate(ctx context.Context, key string) {

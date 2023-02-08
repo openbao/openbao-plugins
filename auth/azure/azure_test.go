@@ -14,6 +14,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/coreos/go-oidc"
+	"github.com/hashicorp/vault-plugin-auth-azure/client"
 )
 
 // mockKeySet is used in tests to bypass signature validation and return only
@@ -102,6 +103,8 @@ type vmssClientFunc func(vmssName string) (armcompute.VirtualMachineScaleSetsCli
 
 type msiClientFunc func(resourceName string) (armmsi.UserAssignedIdentitiesClientGetResponse, error)
 
+type msGraphClientFunc func() (client.MSGraphClient, error)
+
 type resourceClientFunc func(resourceID string) (armresources.ClientGetByIDResponse, error)
 
 type providersClientFunc func(string) (armresources.ProvidersClientGetResponse, error)
@@ -110,15 +113,17 @@ type mockProvider struct {
 	computeClientFunc
 	vmssClientFunc
 	msiClientFunc
+	msGraphClientFunc
 	resourceClientFunc
 	providersClientFunc
 }
 
-func newMockProvider(c computeClientFunc, v vmssClientFunc, m msiClientFunc) *mockProvider {
+func newMockProvider(c computeClientFunc, v vmssClientFunc, m msiClientFunc, g msGraphClientFunc) *mockProvider {
 	return &mockProvider{
 		computeClientFunc: c,
 		vmssClientFunc:    v,
 		msiClientFunc:     m,
+		msGraphClientFunc: g,
 	}
 }
 
@@ -142,6 +147,10 @@ func (p *mockProvider) MSIClient(string) (msiClient, error) {
 	return &mockMSIClient{
 		msiClientFunc: p.msiClientFunc,
 	}, nil
+}
+
+func (p *mockProvider) MSGraphClient() (client.MSGraphClient, error) {
+	return nil, nil
 }
 
 func (p *mockProvider) ResourceClient(string) (resourceClient, error) {

@@ -16,7 +16,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
+	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-01-01-preview/authorization"
 	"github.com/coreos/go-oidc"
+	"github.com/hashicorp/vault-plugin-auth-azure/client"
 	"github.com/hashicorp/vault/sdk/helper/policyutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -420,7 +422,9 @@ func TestLogin_BoundSubscriptionID(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
 	c, v, m := getTestBackendFunctions(false)
 
-	b, s := getTestBackendWithComputeClient(t, c, v, m)
+	g := getTestMSGraphClient()
+
+	b, s := getTestBackendWithComputeClient(t, c, v, m, g)
 
 	roleName := "testrole"
 	subID := "subID"
@@ -463,7 +467,9 @@ func TestLogin_BoundResourceGroup(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
 	c, v, m := getTestBackendFunctions(false)
 
-	b, s := getTestBackendWithComputeClient(t, c, v, m)
+	g := getTestMSGraphClient()
+
+	b, s := getTestBackendWithComputeClient(t, c, v, m, g)
 
 	roleName := "testrole"
 	rg := "rg"
@@ -507,7 +513,9 @@ func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
 	badPrincipalID := "badID"
 	c, v, m := getTestBackendFunctions(false)
 
-	b, s := getTestBackendWithComputeClient(t, c, v, m)
+	g := getTestMSGraphClient()
+
+	b, s := getTestBackendWithComputeClient(t, c, v, m, g)
 
 	roleName := "testrole"
 	rg := "rg"
@@ -557,7 +565,9 @@ func TestLogin_BoundLocation(t *testing.T) {
 	location := "loc"
 	c, v, m := getTestBackendFunctions(true)
 
-	b, s := getTestBackendWithComputeClient(t, c, v, m)
+	g := getTestMSGraphClient()
+
+	b, s := getTestBackendWithComputeClient(t, c, v, m, g)
 
 	roleName := "testrole"
 	roleData := map[string]interface{}{
@@ -600,7 +610,9 @@ func TestLogin_BoundScaleSet(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
 	c, v, m := getTestBackendFunctions(false)
 
-	b, s := getTestBackendWithComputeClient(t, c, v, m)
+	g := getTestMSGraphClient()
+
+	b, s := getTestBackendWithComputeClient(t, c, v, m, g)
 
 	roleName := "testrole"
 	roleData := map[string]interface{}{
@@ -985,5 +997,20 @@ func getTestBackendFunctions(withLocation bool) (
 		}
 
 		return c, v, m
+	}
+}
+
+func getTestMSGraphClient() func() (client.MSGraphClient, error) {
+	return func() (client.MSGraphClient, error) {
+		graphURI := "test-graph-uri"
+
+		// set up dummy test client
+		c := authorization.NewWithBaseURI(graphURI, "")
+		ac := &client.AppClient{
+			Client:   c,
+			GraphURI: graphURI,
+		}
+
+		return ac, nil
 	}
 }

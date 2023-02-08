@@ -5,6 +5,7 @@ package azureauth
 
 import (
 	"context"
+	"time"
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -40,6 +41,12 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 				Type:        framework.TypeString,
 				Description: `The OAuth2 client secret to connection to Azure. This value can also be provided with the AZURE_CLIENT_SECRET environment variable.`,
 			},
+			"root_password_ttl": {
+				Type:        framework.TypeDurationSecond,
+				Default:     defaultRootPasswordTTL,
+				Description: "The TTL of the root password in Azure. This can be either a number of seconds or a time formatted duration (ex: 24h, 48ds)",
+				Required:    false,
+			},
 		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.ReadOperation: &framework.PathOperation{
@@ -63,11 +70,18 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 }
 
 type azureConfig struct {
-	TenantID     string `json:"tenant_id"`
-	Resource     string `json:"resource"`
-	Environment  string `json:"environment"`
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
+	TenantID                      string        `json:"tenant_id"`
+	Resource                      string        `json:"resource"`
+	Environment                   string        `json:"environment"`
+	ClientID                      string        `json:"client_id"`
+	ClientSecret                  string        `json:"client_secret"`
+	ClientSecretKeyID             string        `json:"client_secret_key_id"`
+	NewClientSecret               string        `json:"new_client_secret"`
+	NewClientSecretCreated        time.Time     `json:"new_client_secret_created"`
+	NewClientSecretExpirationDate time.Time     `json:"new_client_secret_expiration_date"`
+	NewClientSecretKeyID          string        `json:"new_client_secret_key_id"`
+	RootPasswordTTL               time.Duration `json:"root_password_ttl"`
+	RootPasswordExpirationDate    time.Time     `json:"root_password_expiration_date"`
 }
 
 func (b *azureAuthBackend) config(ctx context.Context, s logical.Storage) (*azureConfig, error) {
@@ -128,6 +142,12 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 		config.ClientSecret = clientSecret.(string)
 	}
 
+	config.RootPasswordTTL = defaultRootPasswordTTL
+	rootExpirationRaw, ok := data.GetOk("root_password_ttl")
+	if ok {
+		config.RootPasswordTTL = time.Second * time.Duration(rootExpirationRaw.(int))
+	}
+
 	// Create a settings object to validate all required settings
 	// are available
 	if _, err := b.getAzureSettings(ctx, config); err != nil {
@@ -159,12 +179,18 @@ func (b *azureAuthBackend) pathConfigRead(ctx context.Context, req *logical.Requ
 
 	resp := &logical.Response{
 		Data: map[string]interface{}{
-			"tenant_id":   config.TenantID,
-			"resource":    config.Resource,
-			"environment": config.Environment,
-			"client_id":   config.ClientID,
+			"tenant_id":         config.TenantID,
+			"resource":          config.Resource,
+			"environment":       config.Environment,
+			"client_id":         config.ClientID,
+			"root_password_ttl": int(config.RootPasswordTTL.Seconds()),
 		},
 	}
+
+	if !config.RootPasswordExpirationDate.IsZero() {
+		resp.Data["root_password_expiration_date"] = config.RootPasswordExpirationDate
+	}
+
 	return resp, nil
 }
 
@@ -178,9 +204,32 @@ func (b *azureAuthBackend) pathConfigDelete(ctx context.Context, req *logical.Re
 	return nil, err
 }
 
+func (b *azureAuthBackend) saveConfig(ctx context.Context, config *azureConfig, s logical.Storage) error {
+	entry, err := logical.StorageEntryJSON(configStoragePath, config)
+	if err != nil {
+		return err
+	}
+
+	err = s.Put(ctx, entry)
+	if err != nil {
+		return err
+	}
+
+	// reset the backend since the client and provider will have been
+	// built using old versions of this data
+	b.reset()
+
+	return nil
+}
+
 const (
-	confHelpSyn  = `Configures the Azure authentication backend.`
-	confHelpDesc = `
+	// The default password expiration duration is 6 months in
+	// the Azure UI, so we're setting it to 6 months (in hours)
+	// as the default.
+	defaultRootPasswordTTL = 4380 * time.Hour
+	configStoragePath      = "config"
+	confHelpSyn            = `Configures the Azure authentication backend.`
+	confHelpDesc           = `
 The Azure authentication backend validates the login JWTs using the
 configured credentials.  In order to validate machine information, the
 OAuth2 client id and secret are used to query the Azure API.  The OAuth2
