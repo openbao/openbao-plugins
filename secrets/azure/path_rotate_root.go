@@ -124,22 +124,3 @@ func removeApplicationPasswords(ctx context.Context, passRemover passwordRemover
 
 	return merr.ErrorOrNil()
 }
-
-func intersectStrings(a []string, b []string) []string {
-	if len(a) == 0 || len(b) == 0 {
-		return []string{}
-	}
-
-	aMap := map[string]struct{}{}
-	for _, aStr := range a {
-		aMap[aStr] = struct{}{}
-	}
-
-	result := []string{}
-	for _, bStr := range b {
-		if _, exists := aMap[bStr]; exists {
-			result = append(result, bStr)
-		}
-	}
-	return result
-}
