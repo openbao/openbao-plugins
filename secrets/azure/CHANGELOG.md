@@ -1,5 +1,12 @@
 ## Unreleased
 
+### IMPROVEMENTS:
+
+* enable plugin multiplexing [GH-134](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/134)
+* update dependencies
+  * `github.com/hashicorp/vault/api` v1.9.0
+  * `github.com/hashicorp/vault/sdk` v0.8.1
+
 ## v0.15.0
 
 CHANGES:
