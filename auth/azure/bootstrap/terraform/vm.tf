@@ -37,8 +37,8 @@ resource "azuread_service_principal" "vault_azure_sp" {
   application_id = azuread_application.vault_azure_app.application_id
 }
 
-resource "azuread_service_principal_password" "vault_azure_sp_pwd" {
-  service_principal_id = azuread_service_principal.vault_azure_sp.id
+resource "azuread_application_password" "vault_azure_app_pwd" {
+  application_object_id = azuread_application.vault_azure_app.object_id
 }
 
 resource "azuread_app_role_assignment" "app_admin_consent" {
@@ -193,7 +193,7 @@ export RESOURCE_GROUP_NAME=${azurerm_resource_group.vault_azure_rg.name}
 export SUBSCRIPTION_ID=${data.azurerm_client_config.current.subscription_id}
 export TENANT_ID=${data.azurerm_client_config.current.tenant_id}
 export CLIENT_ID=${azuread_application.vault_azure_app.application_id}
-export CLIENT_SECRET=${azuread_service_principal_password.vault_azure_sp_pwd.value}
+export CLIENT_SECRET=${azuread_application_password.vault_azure_app_pwd.value}
 EOF
 }
 
@@ -231,6 +231,6 @@ output "client_id" {
 }
 
 output "client_secret" {
-  value     = azuread_service_principal_password.vault_azure_sp_pwd.value
+  value     = azuread_application_password.vault_azure_app_pwd.value
   sensitive = true
 }
