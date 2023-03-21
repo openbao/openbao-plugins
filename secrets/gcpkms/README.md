@@ -71,11 +71,7 @@ instructions are only useful if you want to develop against the plugin.**
     $ make dev
     ```
 
-1. Copy the compiled binary into a scratch dir:
-
-    ```text
-    $ cp $(which vault-plugin-secrets-gcpkms) ./bin/
-    ```
+    The plugin binary will be written to the `./bin` directory.
 
 1. Run Vault plugins from that directory:
 
