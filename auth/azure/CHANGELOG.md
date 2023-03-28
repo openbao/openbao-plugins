@@ -1,8 +1,18 @@
 ## Unreleased
 
+## v0.14.0
+
 IMPROVEMENTS:
 
 * Enable multiplexing [[GH-96](https://github.com/hashicorp/vault-plugin-auth-azure/pull/96)]
+* Upgrade to Go 1.20.2
+* Updated dependencies:
+   * `github.com/Azure/azure-sdk-for-go` v67.2.0+incompatible -> v68.0.0+incompatible
+   * `github.com/Azure/azure-sdk-for-go/sdk/azcore` v1.3.1 -> v1.4.0
+   * `github.com/Azure/azure-sdk-for-go/sdk/azidentity` v1.2.1 -> v1.2.2
+   * `github.com/hashicorp/go-hclog` v1.4.0 -> v1.5.0
+   * `github.com/hashicorp/go-uuid` v1.0.2 -> v1.0.3
+   * `golang.org/x/oauth2` v0.4.0 -> v0.6.0
 
 ## v0.13.0
 
