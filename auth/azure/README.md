@@ -9,19 +9,19 @@ This plugin allows for Azure Managed Service Identities to authenticate with Vau
 
 - [Vault Website](https://www.vaultproject.io)
 - [Vault Project Github](https://www.github.com/hashicorp/vault)
-- [Azure Auth Docs](https://www.vaultproject.io/docs/auth/azure.html)
-- [Azure Auth API Docs](https://www.vaultproject.io/api-docs/auth/azure.html)
+- [Azure Auth Docs](https://developer.hashicorp.com/vault/docs/auth/azure)
+- [Azure Auth API Docs](https://developer.hashicorp.com/vault/api-docs/auth/azure)
 
 ## Getting Started
 
-This is a [Vault plugin](https://www.vaultproject.io/docs/internals/plugins.html)
+This is a [Vault plugin](https://developer.hashicorp.com/vault/docs/plugins)
 and is meant to work with Vault. This guide assumes you have already installed Vault
 and have a basic understanding of how Vault works.
 
 Otherwise, first read this guide on how to [get started with
-Vault](https://www.vaultproject.io/intro/getting-started/install.html).
+Vault](https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-install).
 
-To learn specifically about how plugins work, see documentation on [Vault plugins](https://www.vaultproject.io/docs/internals/plugins.html).
+To learn specifically about how plugins work, see documentation on [Vault plugins](https://developer.hashicorp.com/vault/docs/plugins).
 
 ## Security Model
 
@@ -29,7 +29,7 @@ The current authentication model requires providing Vault with a token generated
 
 ## Usage
 
-Please see [documentation for the plugin](https://www.vaultproject.io/docs/auth/azure.html)
+Please see [documentation for the plugin](https://developer.hashicorp.com/vault/docs/auth/azure)
 on the Vault website.
 
 This plugin is currently built into Vault and by default is accessed
@@ -40,7 +40,7 @@ $ vault auth enable azure
 Successfully enabled 'azure' at 'azure'!
 ```
 
-To see all the supported paths, see the [Azure auth backend docs](https://www.vaultproject.io/docs/auth/azure.html).
+To see all the supported paths, see the [Azure auth backend docs](https://developer.hashicorp.com/vault/docs/auth/azure).
 
 ## Developing
 
@@ -66,7 +66,7 @@ $ make dev
 ```
 
 Put the plugin binary into a location of your choice. This directory
-will be specified as the [`plugin_directory`](https://www.vaultproject.io/docs/configuration#plugin_directory)
+will be specified as the [`plugin_directory`](https://developer.hashicorp.com/vault/docs/configuration#plugin_directory)
 in the Vault config used to start the server. It may also be specified
 via [`-dev-plugin-dir`](https://developer.hashicorp.com/vault/docs/commands/server#dev-plugin-dir)
 if running Vault in dev mode.
@@ -92,7 +92,7 @@ Or start a Vault server in dev mode:
 $ vault server -dev -dev-root-token-id=root -dev-plugin-dir="path/to/plugin/directory"
 ```
 
-Once the server is started, register the plugin in the Vault server's [plugin catalog](https://www.vaultproject.io/docs/plugins/plugin-architecture#plugin-catalog):
+Once the server is started, register the plugin in the Vault server's [plugin catalog](https://developer.hashicorp.com/vault/docs/plugins/plugin-architecture#plugin-catalog):
 
 ```sh
 $ SHA256=$(openssl dgst -sha256 bin/vault-plugin-auth-azure | cut -d ' ' -f2)
