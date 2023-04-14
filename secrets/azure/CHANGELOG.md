@@ -2,6 +2,7 @@
 
 ### IMPROVEMENTS:
 
+* permanently delete app during WAL rollback [GH-138](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/138)
 * enable plugin multiplexing [GH-134](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/134)
 * update dependencies
   * `github.com/hashicorp/vault/api` v1.9.0
