@@ -18,6 +18,11 @@ import (
 func pathRotateRoot(b *azureAuthBackend) *framework.Path {
 	return &framework.Path{
 		Pattern: "rotate-root",
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixAzure,
+			OperationVerb:   "rotate",
+			OperationSuffix: "root-credentials",
+		},
 		Operations: map[logical.Operation]framework.OperationHandler{
 			logical.UpdateOperation: &framework.PathOperation{
 				Callback:                    b.pathRotateRoot,

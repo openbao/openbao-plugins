@@ -27,6 +27,12 @@ var defaultResourceClientAPIVersion = "2022-03-01"
 func pathLogin(b *azureAuthBackend) *framework.Path {
 	return &framework.Path{
 		Pattern: "login$",
+
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixAzure,
+			OperationVerb:   "login",
+		},
+
 		Fields: map[string]*framework.FieldSchema{
 			"role": {
 				Type:        framework.TypeString,

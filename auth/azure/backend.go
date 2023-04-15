@@ -13,7 +13,12 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-const userAgentPluginName = "auth-azure"
+const (
+	userAgentPluginName = "auth-azure"
+
+	// operationPrefixAzure is used as a prefix for OpenAPI operation id's.
+	operationPrefixAzure = "azure"
+)
 
 // Factory is used by framework
 func Factory(ctx context.Context, c *logical.BackendConfig) (logical.Backend, error) {
