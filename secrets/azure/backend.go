@@ -16,7 +16,12 @@ import (
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
-const userAgentPluginName = "secrets-azure"
+const (
+	userAgentPluginName = "secrets-azure"
+
+	// operationPrefixAzure is used as a prefix for OpenAPI operation id's.
+	operationPrefixAzure = "azure"
+)
 
 type azureSecretBackend struct {
 	*framework.Backend

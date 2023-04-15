@@ -42,6 +42,11 @@ func secretStaticServicePrincipal(b *azureSecretBackend) *framework.Secret {
 func pathServicePrincipal(b *azureSecretBackend) *framework.Path {
 	return &framework.Path{
 		Pattern: fmt.Sprintf("creds/%s", framework.GenericNameRegex("role")),
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixAzure,
+			OperationVerb:   "request",
+			OperationSuffix: "service-principal-credentials",
+		},
 		Fields: map[string]*framework.FieldSchema{
 			"role": {
 				Type:        framework.TypeLowerCaseString,

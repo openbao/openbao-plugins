@@ -66,6 +66,10 @@ func pathsRole(b *azureSecretBackend) []*framework.Path {
 	return []*framework.Path{
 		{
 			Pattern: "roles/" + framework.GenericNameRegex("name"),
+			DisplayAttrs: &framework.DisplayAttributes{
+				OperationPrefix: operationPrefixAzure,
+				OperationSuffix: "role",
+			},
 			Fields: map[string]*framework.FieldSchema{
 				"name": {
 					Type:        framework.TypeLowerCaseString,
@@ -114,6 +118,10 @@ func pathsRole(b *azureSecretBackend) []*framework.Path {
 		},
 		{
 			Pattern: "roles/?",
+			DisplayAttrs: &framework.DisplayAttributes{
+				OperationPrefix: operationPrefixAzure,
+				OperationSuffix: "roles",
+			},
 			Callbacks: map[logical.Operation]framework.OperationFunc{
 				logical.ListOperation: b.pathRoleList,
 			},
