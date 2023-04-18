@@ -20,6 +20,11 @@ func (b *backend) pathReencrypt() *framework.Path {
 	return &framework.Path{
 		Pattern: "reencrypt/" + framework.GenericNameRegex("key"),
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationVerb:   "reencrypt",
+		},
+
 		HelpSynopsis: "Re-encrypt existing ciphertext data to a new version",
 		HelpDescription: `
 Use the named encryption key to re-encrypt the underlying cryptokey to the latest

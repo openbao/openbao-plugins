@@ -16,6 +16,10 @@ func (b *backend) pathConfig() *framework.Path {
 	return &framework.Path{
 		Pattern: "config",
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+		},
+
 		HelpSynopsis: "Configure the GCP KMS secrets engine",
 		HelpDescription: "Configure the GCP KMS secrets engine with credentials " +
 			"or manage the requested scope(s).",
@@ -40,11 +44,33 @@ requests https://www.googleapis.com/auth/cloudkms.
 
 		ExistenceCheck: b.pathConfigExists,
 
-		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.CreateOperation: withFieldValidator(b.pathConfigWrite),
-			logical.UpdateOperation: withFieldValidator(b.pathConfigWrite),
-			logical.ReadOperation:   withFieldValidator(b.pathConfigRead),
-			logical.DeleteOperation: withFieldValidator(b.pathConfigDelete),
+		Operations: map[logical.Operation]framework.OperationHandler{
+			logical.CreateOperation: &framework.PathOperation{
+				Callback: withFieldValidator(b.pathConfigWrite),
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationVerb: "configure",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: withFieldValidator(b.pathConfigWrite),
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationVerb: "configure",
+				},
+			},
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: withFieldValidator(b.pathConfigRead),
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationVerb:   "read",
+					OperationSuffix: "configuration",
+				},
+			},
+			logical.DeleteOperation: &framework.PathOperation{
+				Callback: withFieldValidator(b.pathConfigDelete),
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationVerb:   "delete",
+					OperationSuffix: "configuration",
+				},
+			},
 		},
 	}
 }

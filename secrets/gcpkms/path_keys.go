@@ -31,6 +31,12 @@ func (b *backend) pathKeys() *framework.Path {
 	return &framework.Path{
 		Pattern: "keys/?$",
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationVerb:   "list",
+			OperationSuffix: "keys",
+		},
+
 		HelpSynopsis:    "List named keys",
 		HelpDescription: "List the named keys available for use.",
 
@@ -43,6 +49,11 @@ func (b *backend) pathKeys() *framework.Path {
 func (b *backend) pathKeysCRUD() *framework.Path {
 	return &framework.Path{
 		Pattern: "keys/" + framework.GenericNameRegex("key"),
+
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationSuffix: "key",
+		},
 
 		HelpSynopsis: "Interact with crypto keys in Vault and Google Cloud KMS",
 		HelpDescription: `

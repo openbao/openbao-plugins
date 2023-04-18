@@ -17,6 +17,12 @@ func (b *backend) pathKeysRegister() *framework.Path {
 	return &framework.Path{
 		Pattern: "keys/register/" + framework.GenericNameRegex("key"),
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationVerb:   "register",
+			OperationSuffix: "key",
+		},
+
 		HelpSynopsis: "Register an existing crypto key in Google Cloud KMS",
 		HelpDescription: `
 Registers an existing crypto key in Google Cloud KMS and make it available for

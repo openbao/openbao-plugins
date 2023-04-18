@@ -19,7 +19,12 @@ import (
 	kmsapi "cloud.google.com/go/kms/apiv1"
 )
 
-const userAgentPluginName = "secrets-gcpkms"
+const (
+	userAgentPluginName = "secrets-gcpkms"
+
+	// operationPrefixGoogleCloudKMS is used as a prefix for OpenAPI operation id's.
+	operationPrefixGoogleCloudKMS = "google-cloud-kms"
+)
 
 var (
 	// defaultClientLifetime is the amount of time to cache the KMS client. This

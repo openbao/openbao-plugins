@@ -24,6 +24,11 @@ func (b *backend) pathKeysTrim() *framework.Path {
 	return &framework.Path{
 		Pattern: "keys/trim/" + framework.GenericNameRegex("key"),
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationVerb:   "trim",
+		},
+
 		HelpSynopsis: "Delete old crypto key versions from Google Cloud KMS",
 		HelpDescription: `
 This endpoint deletes old crypto key versions from Google Cloud KMS that are
@@ -56,10 +61,25 @@ Name of the key in Vault.
 
 		ExistenceCheck: b.pathKeysExistenceCheck,
 
-		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.CreateOperation: withFieldValidator(b.pathKeysTrimWrite),
-			logical.UpdateOperation: withFieldValidator(b.pathKeysTrimWrite),
-			logical.DeleteOperation: withFieldValidator(b.pathKeysTrimWrite),
+		Operations: map[logical.Operation]framework.OperationHandler{
+			logical.CreateOperation: &framework.PathOperation{
+				Callback: withFieldValidator(b.pathKeysTrimWrite),
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "key-versions",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: withFieldValidator(b.pathKeysTrimWrite),
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "key-versions",
+				},
+			},
+			logical.DeleteOperation: &framework.PathOperation{
+				Callback: withFieldValidator(b.pathKeysTrimWrite),
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "key-versions2",
+				},
+			},
 		},
 	}
 }

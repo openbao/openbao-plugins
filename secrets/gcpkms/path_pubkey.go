@@ -18,6 +18,12 @@ func (b *backend) pathPubkey() *framework.Path {
 	return &framework.Path{
 		Pattern: "pubkey/" + framework.GenericNameRegex("key"),
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationVerb:   "retrieve",
+			OperationSuffix: "public-key",
+		},
+
 		HelpSynopsis: "Retrieve the public key associated with the named key",
 		HelpDescription: `
 Retrieve the PEM-encoded Google Cloud KMS public key associated with the Vault

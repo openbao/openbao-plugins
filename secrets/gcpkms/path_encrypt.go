@@ -20,6 +20,11 @@ func (b *backend) pathEncrypt() *framework.Path {
 	return &framework.Path{
 		Pattern: "encrypt/" + framework.GenericNameRegex("key"),
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationVerb:   "encrypt",
+		},
+
 		HelpSynopsis: "Encrypt a plaintext value using a named key",
 		HelpDescription: `
 Use the named encryption key to encrypt an arbitrary plaintext string. The

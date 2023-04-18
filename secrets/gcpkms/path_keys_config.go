@@ -15,6 +15,12 @@ func (b *backend) pathKeysConfigCRUD() *framework.Path {
 	return &framework.Path{
 		Pattern: "keys/config/" + framework.GenericNameRegex("key"),
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationVerb:   "configure",
+			OperationSuffix: "key",
+		},
+
 		HelpSynopsis: "Configure the key in Vault",
 		HelpDescription: `
 Update the Vault's configuration of this key such as the minimum allowed key
@@ -52,10 +58,28 @@ negative value, there is no maximum key version.
 
 		ExistenceCheck: b.pathKeysExistenceCheck,
 
-		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.ReadOperation:   withFieldValidator(b.pathKeysConfigRead),
-			logical.CreateOperation: withFieldValidator(b.pathKeysConfigWrite),
-			logical.UpdateOperation: withFieldValidator(b.pathKeysConfigWrite),
+		Operations: map[logical.Operation]framework.OperationHandler{
+			logical.ReadOperation: &framework.PathOperation{
+				Callback: withFieldValidator(b.pathKeysConfigRead),
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationVerb:   "read",
+					OperationSuffix: "key-configuration",
+				},
+			},
+			logical.CreateOperation: &framework.PathOperation{
+				Callback: withFieldValidator(b.pathKeysConfigWrite),
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationVerb:   "configure",
+					OperationSuffix: "key",
+				},
+			},
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: withFieldValidator(b.pathKeysConfigWrite),
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationVerb:   "configure",
+					OperationSuffix: "key",
+				},
+			},
 		},
 	}
 }

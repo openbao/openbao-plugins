@@ -15,6 +15,11 @@ func (b *backend) pathKeysDeregister() *framework.Path {
 	return &framework.Path{
 		Pattern: "keys/deregister/" + framework.GenericNameRegex("key"),
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationVerb:   "deregister",
+		},
+
 		HelpSynopsis: "Deregister an existing key in Vault",
 		HelpDescription: `
 This endpoint deregisters an existing reference Vault has to a crypto key in
@@ -31,9 +36,19 @@ it will be left untouched.
 			},
 		},
 
-		Callbacks: map[logical.Operation]framework.OperationFunc{
-			logical.UpdateOperation: withFieldValidator(b.pathKeysDeregisterWrite),
-			logical.DeleteOperation: withFieldValidator(b.pathKeysDeregisterWrite),
+		Operations: map[logical.Operation]framework.OperationHandler{
+			logical.UpdateOperation: &framework.PathOperation{
+				Callback: withFieldValidator(b.pathKeysDeregisterWrite),
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "key",
+				},
+			},
+			logical.DeleteOperation: &framework.PathOperation{
+				Callback: withFieldValidator(b.pathKeysDeregisterWrite),
+				DisplayAttrs: &framework.DisplayAttributes{
+					OperationSuffix: "key2",
+				},
+			},
 		},
 	}
 }

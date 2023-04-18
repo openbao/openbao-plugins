@@ -19,6 +19,11 @@ func (b *backend) pathSign() *framework.Path {
 	return &framework.Path{
 		Pattern: "sign/" + framework.GenericNameRegex("key"),
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationVerb:   "sign",
+		},
+
 		HelpSynopsis: "Signs a message or digest using a named key",
 		HelpDescription: `
 Use the named key to sign a digest string. The response will be the

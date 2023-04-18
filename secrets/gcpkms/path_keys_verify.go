@@ -26,6 +26,11 @@ func (b *backend) pathVerify() *framework.Path {
 	return &framework.Path{
 		Pattern: "verify/" + framework.GenericNameRegex("key"),
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationVerb:   "verify",
+		},
+
 		HelpSynopsis: "Verify a signature using a named key",
 		HelpDescription: `
 Use the named key to verify the given signature. The response will be the

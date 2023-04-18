@@ -27,6 +27,12 @@ func (b *backend) pathKeysRotate() *framework.Path {
 	return &framework.Path{
 		Pattern: "keys/rotate/" + framework.GenericNameRegex("key"),
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationVerb:   "rotate",
+			OperationSuffix: "key",
+		},
+
 		HelpSynopsis: "Rotate a crypto key to a new primary version",
 		HelpDescription: `
 This endpoint creates a new crypto key version for the corresponding Google

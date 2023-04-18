@@ -19,6 +19,11 @@ func (b *backend) pathDecrypt() *framework.Path {
 	return &framework.Path{
 		Pattern: "decrypt/" + framework.GenericNameRegex("key"),
 
+		DisplayAttrs: &framework.DisplayAttributes{
+			OperationPrefix: operationPrefixGoogleCloudKMS,
+			OperationVerb:   "decrypt",
+		},
+
 		HelpSynopsis: "Decrypt a ciphertext value using a named key",
 		HelpDescription: `
 Use the named encryption key to decrypt a ciphertext string previously
