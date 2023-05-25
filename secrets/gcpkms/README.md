@@ -91,8 +91,10 @@ documentation updates as separate Pull Requests against that repo.
 This plugin has both unit tests and acceptance tests. To run the acceptance
 tests, you must:
 
-- Have a GCP project with a service account with KMS admin privileges
+- Have a service account in the project with the roles "Cloud KMS Admin" and "Cloud KMS Crypto Operator"
+- Set `GOOGLE_APPLICATION_CREDENTIALS` to the service account key credentials for the above account
 - Set `GOOGLE_CLOUD_PROJECT` to the name of the project
+- Request an increase to the Cloud Key Management Service (KMS) API Write-Requests quota to 600 per minute
 
 We recommend running tests in a dedicated Google Cloud project. On a fresh
 project, you will need to enable the Cloud KMS API. This operation only needs to
