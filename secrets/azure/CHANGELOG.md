@@ -1,12 +1,17 @@
 ## Unreleased
 
-### IMPROVEMENTS:
+## v0.16.0
+
+IMPROVEMENTS:
 
 * permanently delete app during WAL rollback [GH-138](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/138)
 * enable plugin multiplexing [GH-134](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/134)
+* add display attributes for OpenAPI OperationID's [GH-141](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/141)
 * update dependencies
-  * `github.com/hashicorp/vault/api` v1.9.0
-  * `github.com/hashicorp/vault/sdk` v0.8.1
+  * `github.com/hashicorp/vault/api` v1.9.1 [GH-145](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/145)
+  * `github.com/hashicorp/vault/sdk` v0.9.0 [GH-141](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/141)
+  * `github.com/hashicorp/go-hclog` v1.5.0 [GH-140](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/140)
+  * `github.com/Azure/go-autorest/autorest` v0.11.29 [GH-144](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/144)
 
 ## v0.15.0
 
