@@ -1,5 +1,11 @@
 ## Unreleased
 
+## v0.16.1
+
+BUG FIXES:
+
+* Fix intermittent 401s by preventing performance secondary clusters from rotating root credentials [[GH-150]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/150)
+
 ## v0.16.0
 
 IMPROVEMENTS:
@@ -12,6 +18,12 @@ IMPROVEMENTS:
   * `github.com/hashicorp/vault/sdk` v0.9.0 [GH-141](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/141)
   * `github.com/hashicorp/go-hclog` v1.5.0 [GH-140](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/140)
   * `github.com/Azure/go-autorest/autorest` v0.11.29 [GH-144](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/144)
+
+## v0.15.1
+
+BUG FIXES:
+
+* Fix intermittent 401s by preventing performance secondary clusters from rotating root credentials [[GH-150]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/150)
 
 ## v0.15.0
 
@@ -36,6 +48,12 @@ IMPROVEMENTS:
     * `github.com/hashicorp/vault/sdk v0.6.1`
     * `github.com/mitchellh/mapstructure v1.5.0`
 * Upgraded to go 1.19 [[GH-109](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/109)]
+
+## v0.14.2
+
+BUG FIXES:
+
+* Fix intermittent 401s by preventing performance secondary clusters from rotating root credentials [[GH-150]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/150)
 
 ## v0.14.1
 
