@@ -1,5 +1,11 @@
 ## Unreleased
 
+## v0.15.1
+
+BUG FIXES:
+
+* Fix intermittent 401s by preventing performance secondary clusters from rotating root credentials [[GH-118]](https://github.com/hashicorp/vault-plugin-auth-azure/pull/118)
+
 ## v0.15.0
 
 IMPROVEMENTS:
@@ -31,6 +37,12 @@ IMPROVEMENTS:
    * `github.com/hashicorp/go-hclog` v1.4.0 -> v1.5.0
    * `github.com/hashicorp/go-uuid` v1.0.2 -> v1.0.3
    * `golang.org/x/oauth2` v0.4.0 -> v0.6.0
+
+## v0.13.1
+
+BUG FIXES:
+
+* Fix intermittent 401s by preventing performance secondary clusters from rotating root credentials [[GH-118]](https://github.com/hashicorp/vault-plugin-auth-azure/pull/118)
 
 ## v0.13.0
 
