@@ -899,6 +899,7 @@ func TestCredentialInteg_msgraph(t *testing.T) {
 			"AZURE_CLIENT_ID",
 			"AZURE_CLIENT_SECRET",
 			"AZURE_TENANT_ID",
+			"AZURE_GROUP_NAME",
 		)
 
 		b := backend()
@@ -907,6 +908,7 @@ func TestCredentialInteg_msgraph(t *testing.T) {
 		clientID := os.Getenv("AZURE_CLIENT_ID")
 		clientSecret := os.Getenv("AZURE_CLIENT_SECRET")
 		tenantID := os.Getenv("AZURE_TENANT_ID")
+		groupName := os.Getenv("AZURE_GROUP_NAME")
 
 		config := &logical.BackendConfig{
 			Logger: logging.NewVaultLogger(log.Trace),
@@ -946,6 +948,10 @@ func TestCredentialInteg_msgraph(t *testing.T) {
 				"role_name": "Reader",
 				"scope":  "/subscriptions/%s/resourceGroups/vault-azure-secrets-test2"
 			}]`, subscriptionID, subscriptionID),
+			"azure_groups": fmt.Sprintf(`[
+			{
+				"group_name": "%s"
+			}]`, groupName),
 		}
 
 		roleResp, err := b.HandleRequest(context.Background(), &logical.Request{
