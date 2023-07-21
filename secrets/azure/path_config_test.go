@@ -13,7 +13,7 @@ import (
 )
 
 func TestConfig(t *testing.T) {
-	b, s := getTestBackend(t, false)
+	b, s := getTestBackendMocked(t, false)
 
 	tests := []struct {
 		name     string
@@ -91,7 +91,7 @@ func TestConfig(t *testing.T) {
 }
 
 func TestConfigEnvironmentClouds(t *testing.T) {
-	b, s := getTestBackend(t, false)
+	b, s := getTestBackendMocked(t, false)
 
 	config := map[string]interface{}{
 		"subscription_id":   "a228ceec-bf1a-4411-9f95-39678d8cdb34",
@@ -159,7 +159,7 @@ func TestConfigEnvironmentClouds(t *testing.T) {
 }
 
 func TestConfigDelete(t *testing.T) {
-	b, s := getTestBackend(t, false)
+	b, s := getTestBackendMocked(t, false)
 
 	// Test valid config
 	config := map[string]interface{}{

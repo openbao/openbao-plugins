@@ -26,7 +26,7 @@ var (
 	testClientSecret = "testClientSecret"
 )
 
-func getTestBackend(t *testing.T, initConfig bool) (*azureSecretBackend, logical.Storage) {
+func getTestBackendMocked(t *testing.T, initConfig bool) (*azureSecretBackend, logical.Storage) {
 	b := backend()
 
 	config := &logical.BackendConfig{
@@ -60,6 +60,25 @@ func getTestBackend(t *testing.T, initConfig bool) (*azureSecretBackend, logical
 		}
 
 		testConfigCreate(t, b, config.StorageView, cfg)
+	}
+
+	return b, config.StorageView
+}
+
+func getTestBackend(t *testing.T) (*azureSecretBackend, logical.Storage) {
+	b := backend()
+
+	config := &logical.BackendConfig{
+		Logger: logging.NewVaultLogger(log.Trace),
+		System: &logical.StaticSystemView{
+			DefaultLeaseTTLVal: defaultLeaseTTLHr,
+			MaxLeaseTTLVal:     maxLeaseTTLHr,
+		},
+		StorageView: &logical.InmemStorage{},
+	}
+	err := b.Setup(context.Background(), config)
+	if err != nil {
+		t.Fatalf("unable to create backend: %v", err)
 	}
 
 	return b, config.StorageView

@@ -12,7 +12,7 @@ data "azuread_application_published_app_ids" "well_known" {}
 data "azuread_client_config" "current" {}
 
 locals {
-  app_rw_owned_by_id = azuread_service_principal.ms_graph.app_role_ids["Application.ReadWrite.OwnedBy"]
+  app_rw_owned_by_id = azuread_service_principal.ms_graph.app_role_ids["Application.ReadWrite.All"]
   group_rw_all_id    = azuread_service_principal.ms_graph.app_role_ids["GroupMember.ReadWrite.All"]
 }
 
@@ -69,7 +69,7 @@ resource "azuread_app_role_assignment" "group_admin_consent" {
 }
 
 resource "azurerm_role_assignment" "vault_sp_read_assignment" {
-  role_definition_name = "Owner"
+  role_definition_name = "User Access Administrator"
   scope                = data.azurerm_subscription.current.id
   principal_id         = azuread_service_principal.vault_azure_sp.object_id
 }
@@ -86,7 +86,7 @@ resource "local_file" "setup_environment_file" {
 export AZURE_TEST_RESOURCE_GROUP=${azurerm_resource_group.vault_azure_rg.name}
 export AZURE_SUBSCRIPTION_ID=${data.azurerm_client_config.current.subscription_id}
 export AZURE_TENANT_ID=${data.azurerm_client_config.current.tenant_id}
-export AZURE_GROUP_NAME=${azuread_group.test-group.display_name}
+export AZURE_GROUP_NAME=${azuread_group.test_group.display_name}
 export AZURE_CLIENT_ID=${azuread_application.vault_azure_app.application_id}
 export AZURE_CLIENT_SECRET=${azuread_service_principal_password.vault_azure_sp_pwd.value}
 EOF
@@ -105,7 +105,7 @@ output "tenant_id" {
 }
 
 output "group_name" {
-  value = azuread_group.test-group.display_name
+  value = azuread_group.test_group.display_name
 }
 
 output "client_id" {

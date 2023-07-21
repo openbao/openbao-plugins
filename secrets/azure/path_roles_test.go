@@ -15,7 +15,7 @@ import (
 )
 
 func TestRoleCreate(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 
 	t.Run("SP role", func(t *testing.T) {
 		spRole1 := map[string]interface{}{
@@ -238,7 +238,7 @@ func TestRoleCreate(t *testing.T) {
 	})
 
 	t.Run("Role TTL Checks", func(t *testing.T) {
-		b, s := getTestBackend(t, true)
+		b, s := getTestBackendMocked(t, true)
 
 		const skip = -999
 		tests := []struct {
@@ -281,7 +281,7 @@ func TestRoleCreate(t *testing.T) {
 	})
 
 	t.Run("Role name lookup", func(t *testing.T) {
-		b, s := getTestBackend(t, true)
+		b, s := getTestBackendMocked(t, true)
 		var role = map[string]interface{}{
 			"azure_roles": compactJSON(`[
 				{
@@ -319,7 +319,7 @@ func TestRoleCreate(t *testing.T) {
 	})
 
 	t.Run("Group name lookup", func(t *testing.T) {
-		b, s := getTestBackend(t, true)
+		b, s := getTestBackendMocked(t, true)
 		var group = map[string]interface{}{
 			"azure_groups": compactJSON(`[
 				{
@@ -355,7 +355,7 @@ func TestRoleCreate(t *testing.T) {
 	})
 
 	t.Run("Duplicate role name and scope", func(t *testing.T) {
-		b, s := getTestBackend(t, true)
+		b, s := getTestBackendMocked(t, true)
 
 		var role = map[string]interface{}{
 			"azure_roles": compactJSON(`[
@@ -384,7 +384,7 @@ func TestRoleCreate(t *testing.T) {
 	})
 
 	t.Run("Duplicate role name, different scope", func(t *testing.T) {
-		b, s := getTestBackend(t, true)
+		b, s := getTestBackendMocked(t, true)
 
 		var role = map[string]interface{}{
 			"azure_roles": compactJSON(`[
@@ -413,7 +413,7 @@ func TestRoleCreate(t *testing.T) {
 	})
 
 	t.Run("Duplicate group object ID", func(t *testing.T) {
-		b, s := getTestBackend(t, true)
+		b, s := getTestBackendMocked(t, true)
 
 		var role = map[string]interface{}{
 			"azure_groups": compactJSON(`[
@@ -442,7 +442,7 @@ func TestRoleCreate(t *testing.T) {
 	})
 
 	t.Run("Role name lookup (multiple match)", func(t *testing.T) {
-		b, s := getTestBackend(t, true)
+		b, s := getTestBackendMocked(t, true)
 
 		// if role_name=="multiple", the mock will return multiple IDs, which are not allowed
 		var role = map[string]interface{}{
@@ -474,7 +474,7 @@ func TestRoleCreate(t *testing.T) {
 	})
 
 	t.Run("Group name lookup (multiple match)", func(t *testing.T) {
-		b, s := getTestBackend(t, true)
+		b, s := getTestBackendMocked(t, true)
 
 		// if group_name=="multiple", the mock will return multiple IDs, which are not allowed
 		var role = map[string]interface{}{
@@ -506,7 +506,7 @@ func TestRoleCreate(t *testing.T) {
 }
 
 func TestRoleCreateBad(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 
 	// missing roles and Application ID
 	role := map[string]interface{}{}
@@ -542,7 +542,7 @@ func TestRoleCreateBad(t *testing.T) {
 }
 
 func TestRoleUpdateError(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 
 	role := map[string]interface{}{
 		"azure_roles": compactJSON(`[{}]`),
@@ -562,7 +562,7 @@ func TestRoleUpdateError(t *testing.T) {
 }
 
 func TestRoleList(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 
 	// Verify empty list
 	resp, err := b.HandleRequest(context.Background(), &logical.Request{
@@ -618,7 +618,7 @@ func TestRoleList(t *testing.T) {
 }
 
 func TestRoleDelete(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 	name := "test_role"
 	nameAlt := "test_role_alt"
 

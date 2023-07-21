@@ -93,7 +93,7 @@ var (
 // fails to have roles associated with it, gets cleaned up by the periodic WAL
 // function.
 func TestSP_WAL_Cleanup(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 
 	// overwrite the normal test backend provider with the errMockProvider
 	errMockProvider := newErrMockProvider()
@@ -209,7 +209,7 @@ func assertEmptyWAL(t *testing.T, b *azureSecretBackend, emp api.AzureProvider, 
 }
 
 func TestSPRead(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 
 	// verify basic cred issuance
 	t.Run("Basic Role", func(t *testing.T) {
@@ -311,7 +311,7 @@ func TestSPRead(t *testing.T) {
 }
 
 func TestStaticSPRead(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 
 	// verify basic cred issuance
 	t.Run("Basic", func(t *testing.T) {
@@ -385,7 +385,7 @@ func TestStaticSPRead(t *testing.T) {
 }
 
 func TestPersistentAppSPRead(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 
 	// verify basic cred issuance
 	t.Run("Basic", func(t *testing.T) {
@@ -459,7 +459,7 @@ func TestPersistentAppSPRead(t *testing.T) {
 }
 
 func TestSPRevoke(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 
 	t.Run("roles", func(t *testing.T) {
 		testRoleCreate(t, b, s, "test_role", testRole)
@@ -589,7 +589,7 @@ func TestSPRevoke(t *testing.T) {
 }
 
 func TestStaticSPRevoke(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 
 	testRoleCreate(t, b, s, "test_role", testStaticSPRole)
 
@@ -633,7 +633,7 @@ func TestStaticSPRevoke(t *testing.T) {
 }
 
 func TestSPReadMissingRole(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 
 	resp, err := b.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.ReadOperation,
@@ -649,7 +649,7 @@ func TestSPReadMissingRole(t *testing.T) {
 }
 
 func TestCredentialReadProviderError(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackendMocked(t, true)
 
 	testRoleCreate(t, b, s, "test_role", testRole)
 
@@ -900,11 +900,13 @@ func TestCredentialInteg_msgraph(t *testing.T) {
 			"AZURE_CLIENT_SECRET",
 			"AZURE_TENANT_ID",
 			"AZURE_GROUP_NAME",
+			"AZURE_TEST_RESOURCE_GROUP",
 		)
 
 		b := backend()
 		s := new(logical.InmemStorage)
 		subscriptionID := os.Getenv("AZURE_SUBSCRIPTION_ID")
+		resourceGroup := os.Getenv("AZURE_TEST_RESOURCE_GROUP")
 		clientID := os.Getenv("AZURE_CLIENT_ID")
 		clientSecret := os.Getenv("AZURE_CLIENT_SECRET")
 		tenantID := os.Getenv("AZURE_TENANT_ID")
@@ -942,12 +944,12 @@ func TestCredentialInteg_msgraph(t *testing.T) {
 			"azure_roles": fmt.Sprintf(`[
 			{
 				"role_name": "Storage Blob Data Owner",
-				"scope":  "/subscriptions/%s/resourceGroups/vault-azure-secrets-test1"
+				"scope":  "/subscriptions/%s/resourceGroups/%s"
 			},
 			{
 				"role_name": "Reader",
-				"scope":  "/subscriptions/%s/resourceGroups/vault-azure-secrets-test2"
-			}]`, subscriptionID, subscriptionID),
+				"scope":  "/subscriptions/%s/resourceGroups/%s"
+			}]`, subscriptionID, resourceGroup, subscriptionID, resourceGroup),
 			"azure_groups": fmt.Sprintf(`[
 			{
 				"group_name": "%s"

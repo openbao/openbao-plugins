@@ -6,6 +6,7 @@ package azuresecrets
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -13,7 +14,20 @@ import (
 )
 
 func TestRotateRootSuccess(t *testing.T) {
-	b, s := getTestBackend(t, true)
+	b, s := getTestBackend(t)
+
+	skipIfMissingEnvVars(t,
+		"AZURE_CLIENT_ID",
+		"AZURE_CLIENT_SECRET",
+		"AZURE_TENANT_ID",
+	)
+
+	configData := map[string]interface{}{
+		"tenant_id":     os.Getenv("AZURE_TENANT_ID"),
+		"client_id":     os.Getenv("AZURE_CLIENT_ID"),
+		"client_secret": os.Getenv("AZURE_CLIENT_SECRET"),
+	}
+	testConfigCreate(t, b, s, configData)
 
 	resp, err := b.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.UpdateOperation,
@@ -21,7 +35,6 @@ func TestRotateRootSuccess(t *testing.T) {
 		Data:      map[string]interface{}{},
 		Storage:   s,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,8 +92,21 @@ func TestRotateRootSuccess(t *testing.T) {
 	}
 }
 
-func TestRotateRootPeroidicFunctionBeforeMinute(t *testing.T) {
-	b, s := getTestBackend(t, true)
+func TestRotateRootPeriodicFunctionBeforeMinute(t *testing.T) {
+	b, s := getTestBackend(t)
+
+	skipIfMissingEnvVars(t,
+		"AZURE_CLIENT_ID",
+		"AZURE_CLIENT_SECRET",
+		"AZURE_TENANT_ID",
+	)
+
+	configData := map[string]interface{}{
+		"tenant_id":     os.Getenv("AZURE_TENANT_ID"),
+		"client_id":     os.Getenv("AZURE_CLIENT_ID"),
+		"client_secret": os.Getenv("AZURE_CLIENT_SECRET"),
+	}
+	testConfigCreate(t, b, s, configData)
 
 	resp, err := b.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.UpdateOperation,
@@ -88,7 +114,6 @@ func TestRotateRootPeroidicFunctionBeforeMinute(t *testing.T) {
 		Data:      map[string]interface{}{},
 		Storage:   s,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,15 +195,4 @@ func assertStrSliceIsNotEmpty(t *testing.T, strs []string) {
 	if strs == nil || len(strs) == 0 {
 		t.Fatalf("string slice is empty")
 	}
-}
-
-func assertStrSliceIsEmpty(t *testing.T, strs []string) {
-	t.Helper()
-	if strs != nil && len(strs) > 0 {
-		t.Fatalf("string slice is not empty")
-	}
-}
-
-func strPtr(str string) *string {
-	return &str
 }
