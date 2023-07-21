@@ -89,7 +89,6 @@ func backend() *azureAuthBackend {
 // available immediately, and hence we check periodically and delete the old credential
 // only once the new credential is at least a minute old
 func (b *azureAuthBackend) periodicFunc(ctx context.Context, sys *logical.Request) error {
-
 	// Root rotation through the periodic func writes to storage. Only run this on the
 	// active instance in the primary cluster or local mounts. The periodic func doesn't
 	// run on perf standbys or DR secondaries, but we still protect against this here.

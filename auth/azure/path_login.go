@@ -12,6 +12,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/cidrutil"
@@ -200,6 +201,10 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 		auth.Alias.Metadata["resource_id"] = resourceID
 		auth.Metadata["resource_id"] = resourceID
 	}
+	if claims.AppID != "" {
+		auth.Alias.Metadata["app_id"] = claims.AppID
+		auth.Metadata["app_id"] = claims.AppID
+	}
 
 	role.PopulateTokenAuth(auth)
 
@@ -361,12 +366,9 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		for _, userIdentity := range vm.Identity.UserAssignedIdentities {
 			principalIDs[convertPtrToString(userIdentity.PrincipalID)] = struct{}{}
 		}
-	default:
+	case resourceID != "":
 		// this is the generic case that should enable Azure services that
 		// support managed identities to authenticate to Vault
-		if resourceID == "" {
-			return errors.New("resource_id is required")
-		}
 		if len(role.BoundScaleSets) > 0 {
 			return errors.New("scale set requires the vmss_name field to be set")
 		}
@@ -396,12 +398,47 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		for _, userIdentity := range resp.Identity.UserAssignedIdentities {
 			principalIDs[convertPtrToString(userIdentity.PrincipalID)] = struct{}{}
 		}
+	default:
+		// in some cases (particularly WIF), a vm/vmss/resource_id might not be provided, in that case
+		// we'll try to authenticate by matching the claim's app_id to the list of managed identities
+		// (see the comment below on that)
+		if claims.AppID == "" {
+			return errors.New("one of vm_name, vmss_name, resource_id, or an appid JWT claim must be provided")
+		}
 	}
 
 	// Ensure the token OID is the principal id of the system-assigned identity
 	// or one of the user-assigned identities
 	if _, ok := principalIDs[claims.ObjectID]; !ok {
-		return errors.New("token object id does not match expected identities")
+		// if it isn't, check the appID and see if _that_ exists. In some cases, particularly WIF (workload identity
+		// federation), there is no principal that matches the incoming ObjectID. In this case, we can still validate
+		// by checking the appID against the list of managed identities. (The appID is valid for use with authorizing
+		// claims, per https://learn.microsoft.com/en-us/azure/active-directory/develop/access-tokens#payload-claims)
+		if claims.AppID == "" {
+			return errors.New("token object id does not match expected identities, and no app id was found")
+		}
+
+		clientIDs := map[string]struct{}{}
+		c, err := b.provider.MSIClient(subscriptionID) // this is the second time we're calling this, is there a way to reuse that?
+		if err != nil {
+			return fmt.Errorf("failed to create client to retrieve app ids: %w", err)
+		}
+		pager := c.NewListByResourceGroupPager(resourceGroupName, &armmsi.UserAssignedIdentitiesClientListByResourceGroupOptions{})
+		for pager.More() {
+			page, err := pager.NextPage(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to advance page: %w", err)
+			}
+			for _, identity := range page.Value {
+				if identity.Properties != nil && identity.Properties.ClientID != nil {
+					clientIDs[*identity.Properties.ClientID] = struct{}{}
+				}
+			}
+		}
+
+		if _, ok := clientIDs[claims.AppID]; !ok {
+			return errors.New("neither token object id nor token app id match expected identities")
+		}
 	}
 
 	// Check bound subscriptions
@@ -452,6 +489,7 @@ func (b *azureAuthBackend) pathLoginRenew(ctx context.Context, req *logical.Requ
 type additionalClaims struct {
 	NotBefore jsonTime `json:"nbf"`
 	ObjectID  string   `json:"oid"`
+	AppID     string   `json:"appid"`
 	GroupIDs  []string `json:"groups"`
 }
 

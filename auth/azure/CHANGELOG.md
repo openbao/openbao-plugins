@@ -1,5 +1,8 @@
 ## Unreleased
 
+FEATURES:
+* Allow Workload Identity Federation based Azure resources to authenticate with Vault via appID
+
 ## v0.15.1
 
 BUG FIXES:

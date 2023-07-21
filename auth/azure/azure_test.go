@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
+
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
@@ -52,6 +54,7 @@ type mockVMSSClient struct {
 
 type mockMSIClient struct {
 	msiClientFunc func(resourceName string) (armmsi.UserAssignedIdentitiesClientGetResponse, error)
+	msiListFunc   func(resourceGroup string) armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse
 }
 
 type mockResourceClient struct {
@@ -83,6 +86,21 @@ func (c *mockMSIClient) Get(_ context.Context, _, resourceName string, _ *armmsi
 	return armmsi.UserAssignedIdentitiesClientGetResponse{}, nil
 }
 
+func (c *mockMSIClient) NewListByResourceGroupPager(resourceGroup string, _ *armmsi.UserAssignedIdentitiesClientListByResourceGroupOptions) *runtime.Pager[armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse] {
+	if c.msiListFunc != nil {
+		resp := c.msiListFunc(resourceGroup)
+		// the listfunc returns the response, here we wrap it in a pager, so that the mock-er only has to worry about the response we want.
+		return runtime.NewPager[armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse](runtime.PagingHandler[armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse]{
+			// since we only have one response, there are no more responses.
+			More: func(response armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse) bool { return false },
+			Fetcher: func(ctx context.Context, data *armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse) (armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse, error) {
+				return resp, nil
+			},
+		})
+	}
+	return nil
+}
+
 func (c *mockResourceClient) GetByID(_ context.Context, resourceID, _ string, _ *armresources.ClientGetByIDOptions) (armresources.ClientGetByIDResponse, error) {
 	if c.resourceClientFunc != nil {
 		return c.resourceClientFunc(resourceID)
@@ -103,6 +121,8 @@ type vmssClientFunc func(vmssName string) (armcompute.VirtualMachineScaleSetsCli
 
 type msiClientFunc func(resourceName string) (armmsi.UserAssignedIdentitiesClientGetResponse, error)
 
+type msiListFunc func(resoucename string) armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse
+
 type msGraphClientFunc func() (client.MSGraphClient, error)
 
 type resourceClientFunc func(resourceID string) (armresources.ClientGetByIDResponse, error)
@@ -113,16 +133,18 @@ type mockProvider struct {
 	computeClientFunc
 	vmssClientFunc
 	msiClientFunc
+	msiListFunc
 	msGraphClientFunc
 	resourceClientFunc
 	providersClientFunc
 }
 
-func newMockProvider(c computeClientFunc, v vmssClientFunc, m msiClientFunc, g msGraphClientFunc) *mockProvider {
+func newMockProvider(c computeClientFunc, v vmssClientFunc, m msiClientFunc, ml msiListFunc, g msGraphClientFunc) *mockProvider {
 	return &mockProvider{
 		computeClientFunc: c,
 		vmssClientFunc:    v,
 		msiClientFunc:     m,
+		msiListFunc:       ml,
 		msGraphClientFunc: g,
 	}
 }
@@ -146,6 +168,7 @@ func (p *mockProvider) VMSSClient(string) (vmssClient, error) {
 func (p *mockProvider) MSIClient(string) (msiClient, error) {
 	return &mockMSIClient{
 		msiClientFunc: p.msiClientFunc,
+		msiListFunc:   p.msiListFunc,
 	}, nil
 }
 

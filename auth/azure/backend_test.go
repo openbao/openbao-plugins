@@ -13,7 +13,7 @@ import (
 )
 
 func getTestBackend(t *testing.T) (*azureAuthBackend, logical.Storage) {
-	return getTestBackendWithComputeClient(t, nil, nil, nil, nil)
+	return getTestBackendWithComputeClient(t, nil, nil, nil, nil, nil)
 }
 
 func getTestBackendWithResourceClient(t *testing.T, r resourceClientFunc, p providersClientFunc) (*azureAuthBackend, logical.Storage) {
@@ -41,7 +41,7 @@ func getTestBackendWithResourceClient(t *testing.T, r resourceClientFunc, p prov
 	return b, config.StorageView
 }
 
-func getTestBackendWithComputeClient(t *testing.T, c computeClientFunc, v vmssClientFunc, m msiClientFunc, g msGraphClientFunc) (*azureAuthBackend, logical.Storage) {
+func getTestBackendWithComputeClient(t *testing.T, c computeClientFunc, v vmssClientFunc, m msiClientFunc, ml msiListFunc, g msGraphClientFunc) (*azureAuthBackend, logical.Storage) {
 	t.Helper()
 	defaultLeaseTTLVal := time.Hour * 12
 	maxLeaseTTLVal := time.Hour * 24
@@ -58,6 +58,6 @@ func getTestBackendWithComputeClient(t *testing.T, c computeClientFunc, v vmssCl
 	if err != nil {
 		t.Fatalf("unable to create backend: %v", err)
 	}
-	b.provider = newMockProvider(c, v, m, g)
+	b.provider = newMockProvider(c, v, m, ml, g)
 	return b, config.StorageView
 }
