@@ -151,7 +151,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 
 	// The OIDC verifier verifies the signature and checks the 'aud' and 'iss'
 	// claims and expiration time
-	idToken, err := provider.Verifier().Verify(ctx, signedJwt)
+	idToken, err := provider.TokenVerifier().Verify(ctx, signedJwt)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 	case vmssName != "":
 		client, err := b.provider.VMSSClient(subscriptionID)
 		if err != nil {
-			return fmt.Errorf("unable to create vmss client: %w", err)
+			return err
 		}
 
 		// Omit armcompute.ExpandTypesForGetVMScaleSetsUserData since we do not need that information for purpose of authenticating an instance
@@ -322,7 +322,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 			// must look up the user-assigned identity using the MSI client
 			msiClient, err := b.provider.MSIClient(msiID.SubscriptionID)
 			if err != nil {
-				return fmt.Errorf("unable to create msi client: %w", err)
+				return fmt.Errorf("failed to create client to retrieve user-assigned identity: %w", err)
 			}
 			userIdentityResponse, err := msiClient.Get(ctx, msiID.ResourceGroupName, msiID.Name, nil)
 			if err != nil {
@@ -336,7 +336,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 	case vmName != "":
 		client, err := b.provider.ComputeClient(subscriptionID)
 		if err != nil {
-			return fmt.Errorf("unable to create compute client: %w", err)
+			return err
 		}
 
 		instanceView := armcompute.InstanceViewTypesInstanceView
@@ -380,7 +380,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 
 		client, err := b.provider.ResourceClient(subscriptionID)
 		if err != nil {
-			return fmt.Errorf("unable to create resource client: %w", err)
+			return err
 		}
 
 		resp, err := client.GetByID(ctx, resourceID, apiVersion, nil)
@@ -419,7 +419,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		}
 
 		clientIDs := map[string]struct{}{}
-		c, err := b.provider.MSIClient(subscriptionID) // this is the second time we're calling this, is there a way to reuse that?
+		c, err := b.provider.MSIClient(subscriptionID)
 		if err != nil {
 			return fmt.Errorf("failed to create client to retrieve app ids: %w", err)
 		}
@@ -526,7 +526,7 @@ func (b *azureAuthBackend) getAPIVersionForResource(ctx context.Context, subscri
 
 	client, err := b.provider.ProvidersClient(subscriptionID)
 	if err != nil {
-		return "", fmt.Errorf("unable to create providers client: %w", err)
+		return "", err
 	}
 
 	response, err := client.Get(ctx, resourceType.Namespace, nil)

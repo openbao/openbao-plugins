@@ -19,8 +19,7 @@ func TestRotateRootSuccess(t *testing.T) {
 	b, s := getTestBackend(t)
 
 	tenantID, clientID, clientSecret := getAzureEnvironmentSettings()
-	if tenantID == "" ||
-		clientID == "" || clientSecret == "" {
+	if tenantID == "" || clientID == "" || clientSecret == "" {
 		t.Skip("environment variables not set, skipping test")
 	}
 
@@ -188,11 +187,7 @@ func TestRotateRootPeriodicFunctionBeforeMinute(t *testing.T) {
 	}
 }
 
-func getAzureEnvironmentSettings() (
-	string,
-	string,
-	string,
-) {
+func getAzureEnvironmentSettings() (string, string, string) {
 	tenantID := os.Getenv("TENANT_ID")
 	clientID := os.Getenv("CLIENT_ID")
 	clientSecret := os.Getenv("CLIENT_SECRET")

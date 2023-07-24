@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -16,12 +17,70 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
-	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2020-04-01-preview/authorization"
 	"github.com/coreos/go-oidc"
 	"github.com/hashicorp/vault-plugin-auth-azure/client"
 	"github.com/hashicorp/vault/sdk/helper/policyutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
+
+func TestLogin_Acceptance(t *testing.T) {
+	skipIfMissingEnvVars(t,
+		"TENANT_ID",
+		"CLIENT_ID",
+		"CLIENT_SECRET",
+		"SUBSCRIPTION_ID",
+		"RESOURCE_GROUP_NAME",
+		"ACCESS_TOKEN_JWT",
+		"VM_NAME",
+	)
+
+	tenantID := os.Getenv("TENANT_ID")
+	clientID := os.Getenv("CLIENT_ID")
+	clientSecret := os.Getenv("CLIENT_SECRET")
+	subscriptionID := os.Getenv("SUBSCRIPTION_ID")
+	resourceGroupName := os.Getenv("RESOURCE_GROUP_NAME")
+	accessTokenJWT := os.Getenv("ACCESS_TOKEN_JWT")
+	vmName := os.Getenv("VM_NAME")
+
+	b, s := getTestBackend(t)
+	configData := map[string]interface{}{
+		"resource":      "https://management.azure.com/",
+		"tenant_id":     tenantID,
+		"client_id":     clientID,
+		"client_secret": clientSecret,
+	}
+	if err := testConfigCreate(t, b, s, configData); err != nil {
+		t.Fatal(err)
+	}
+
+	roleName := "testrole"
+	roleData := map[string]interface{}{
+		"name":                   roleName,
+		"policies":               []string{"dev", "prod"},
+		"bound_subscription_ids": subscriptionID,
+		"bound_resource_groups":  resourceGroupName,
+	}
+	testRoleCreate(t, b, s, roleData)
+
+	loginData := map[string]interface{}{
+		"role":                roleName,
+		"subscription_id":     subscriptionID,
+		"resource_group_name": resourceGroupName,
+		"vm_name":             vmName,
+	}
+	if err := testLoginWithJWT(t, b, s, accessTokenJWT, loginData, roleData); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func skipIfMissingEnvVars(t *testing.T, envVars ...string) {
+	t.Helper()
+	for _, envVar := range envVars {
+		if os.Getenv(envVar) == "" {
+			t.Skipf("Missing env variable: [%s] - skipping test", envVar)
+		}
+	}
+}
 
 func TestResolveRole(t *testing.T) {
 	b, storage := getTestBackend(t)
@@ -696,21 +755,27 @@ func TestLogin_AppID(t *testing.T) {
 
 func testLoginSuccess(t *testing.T, b *azureAuthBackend, s logical.Storage, loginData, claims, roleData map[string]interface{}) {
 	t.Helper()
-	if err := testLogin(t, b, s, loginData, claims, roleData); err != nil {
+	if err := testLoginWithClaims(t, b, s, loginData, claims, roleData); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func testLoginFailure(t *testing.T, b *azureAuthBackend, s logical.Storage, loginData, claims, roleData map[string]interface{}) {
 	t.Helper()
-	if err := testLogin(t, b, s, loginData, claims, roleData); err == nil {
+	if err := testLoginWithClaims(t, b, s, loginData, claims, roleData); err == nil {
 		t.Fatal("no error thrown when expected")
 	}
 }
 
-func testLogin(t *testing.T, b *azureAuthBackend, s logical.Storage, loginData, claims, roleData map[string]interface{}) error {
+func testLoginWithClaims(t *testing.T, b *azureAuthBackend, s logical.Storage, loginData, claims, roleData map[string]interface{}) error {
 	t.Helper()
-	loginData["jwt"] = testJWT(t, claims)
+	return testLoginWithJWT(t, b, s, testJWT(t, claims), loginData, roleData)
+}
+
+func testLoginWithJWT(t *testing.T, b *azureAuthBackend, s logical.Storage, jwt string, loginData, roleData map[string]interface{}) error {
+	t.Helper()
+
+	loginData["jwt"] = jwt
 	resp, err := b.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.UpdateOperation,
 		Path:      "login",
@@ -743,7 +808,7 @@ func TestVerifyClaims(t *testing.T) {
 		"nbf": time.Now().Add(-10 * time.Second).Unix(),
 		"exp": time.Now().Add(10 * time.Second).Unix(),
 	}
-	idToken, err := b.provider.Verifier().Verify(context.Background(), testJWT(t, payload))
+	idToken, err := b.provider.TokenVerifier().Verify(context.Background(), testJWT(t, payload))
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1057,15 +1122,6 @@ func getTestBackendFunctions(withLocation bool) (
 
 func getTestMSGraphClient() func() (client.MSGraphClient, error) {
 	return func() (client.MSGraphClient, error) {
-		graphURI := "test-graph-uri"
-
-		// set up dummy test client
-		c := authorization.NewWithBaseURI(graphURI, "")
-		ac := &client.AppClient{
-			Client:   c,
-			GraphURI: graphURI,
-		}
-
-		return ac, nil
+		return nil, nil
 	}
 }

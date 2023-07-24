@@ -17,14 +17,10 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
-	az "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v4"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/coreos/go-oidc"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/vault-plugin-auth-azure/client"
@@ -33,39 +29,24 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type computeClient interface {
-	Get(ctx context.Context, resourceGroupName string, vmName string, options *armcompute.VirtualMachinesClientGetOptions) (armcompute.VirtualMachinesClientGetResponse, error)
-}
-
-type vmssClient interface {
-	Get(ctx context.Context, resourceGroupName string, vmScaleSetName string, options *armcompute.VirtualMachineScaleSetsClientGetOptions) (armcompute.VirtualMachineScaleSetsClientGetResponse, error)
-}
-
-type msiClient interface {
-	Get(ctx context.Context, resourceGroupName string, resourceName string, options *armmsi.UserAssignedIdentitiesClientGetOptions) (armmsi.UserAssignedIdentitiesClientGetResponse, error)
-	NewListByResourceGroupPager(resourceGroupName string, options *armmsi.UserAssignedIdentitiesClientListByResourceGroupOptions) *runtime.Pager[armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse]
-}
-
-type resourceClient interface {
-	GetByID(ctx context.Context, resourceID, apiVersion string, options *armresources.ClientGetByIDOptions) (armresources.ClientGetByIDResponse, error)
-}
-
-type providersClient interface {
-	Get(ctx context.Context, resourceProviderNamespace string, options *armresources.ProvidersClientGetOptions) (armresources.ProvidersClientGetResponse, error)
-}
-
-type tokenVerifier interface {
-	Verify(ctx context.Context, token string) (*oidc.IDToken, error)
-}
+// https://learn.microsoft.com/en-us/graph/sdks/national-clouds
+const (
+	azurePublicCloudBaseURI = "https://graph.microsoft.com"
+	azureChinaCloudBaseURI  = "https://microsoftgraph.chinacloudapi.cn"
+	azureUSGovCloudBaseURI  = "https://graph.microsoft.us"
+	azurePublicCloudEnvName = "AZUREPUBLICCLOUD"
+	azureChinaCloudEnvName  = "AZURECHINACLOUD"
+	azureUSGovCloudEnvName  = "AZUREUSGOVERNMENTCLOUD"
+)
 
 type provider interface {
-	Verifier() tokenVerifier
-	ComputeClient(subscriptionID string) (computeClient, error)
-	VMSSClient(subscriptionID string) (vmssClient, error)
-	MSIClient(subscriptionID string) (msiClient, error)
+	TokenVerifier() client.TokenVerifier
+	ComputeClient(subscriptionID string) (client.ComputeClient, error)
+	VMSSClient(subscriptionID string) (client.VMSSClient, error)
+	MSIClient(subscriptionID string) (client.MSIClient, error)
 	MSGraphClient() (client.MSGraphClient, error)
-	ResourceClient(subscriptionID string) (resourceClient, error)
-	ProvidersClient(subscriptionID string) (providersClient, error)
+	ResourceClient(subscriptionID string) (client.ResourceClient, error)
+	ProvidersClient(subscriptionID string) (client.ProvidersClient, error)
 }
 
 type azureProvider struct {
@@ -157,11 +138,25 @@ func (b *azureAuthBackend) newAzureProvider(ctx context.Context, config *azureCo
 	}, nil
 }
 
-func (p *azureProvider) Verifier() tokenVerifier {
+func (p *azureProvider) TokenVerifier() client.TokenVerifier {
 	return p.oidcVerifier
 }
 
-func (p *azureProvider) ComputeClient(subscriptionID string) (computeClient, error) {
+func (p *azureProvider) MSGraphClient() (client.MSGraphClient, error) {
+	cred, err := p.getTokenCredential()
+	if err != nil {
+		return nil, err
+	}
+
+	msGraphAppClient, err := client.NewMSGraphApplicationClient(p.settings.GraphURI, cred)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create MS graph client: %w", err)
+	}
+
+	return msGraphAppClient, nil
+}
+
+func (p *azureProvider) ComputeClient(subscriptionID string) (client.ComputeClient, error) {
 	cred, err := p.getTokenCredential()
 	if err != nil {
 		return nil, err
@@ -170,13 +165,13 @@ func (p *azureProvider) ComputeClient(subscriptionID string) (computeClient, err
 	clientOptions := p.getClientOptions()
 	client, err := armcompute.NewVirtualMachinesClient(subscriptionID, cred, clientOptions)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create virtual machines client: %w", err)
 	}
 
 	return client, nil
 }
 
-func (p *azureProvider) VMSSClient(subscriptionID string) (vmssClient, error) {
+func (p *azureProvider) VMSSClient(subscriptionID string) (client.VMSSClient, error) {
 	cred, err := p.getTokenCredential()
 	if err != nil {
 		return nil, err
@@ -185,13 +180,13 @@ func (p *azureProvider) VMSSClient(subscriptionID string) (vmssClient, error) {
 	clientOptions := p.getClientOptions()
 	client, err := armcompute.NewVirtualMachineScaleSetsClient(subscriptionID, cred, clientOptions)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create virtual machine scale sets client: %w", err)
 	}
 
 	return client, nil
 }
 
-func (p *azureProvider) MSIClient(subscriptionID string) (msiClient, error) {
+func (p *azureProvider) MSIClient(subscriptionID string) (client.MSIClient, error) {
 	cred, err := p.getTokenCredential()
 	if err != nil {
 		return nil, err
@@ -200,13 +195,13 @@ func (p *azureProvider) MSIClient(subscriptionID string) (msiClient, error) {
 	clientOptions := p.getClientOptions()
 	client, err := armmsi.NewUserAssignedIdentitiesClient(subscriptionID, cred, clientOptions)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create user assigned identity client: %w", err)
 	}
 
 	return client, nil
 }
 
-func (p *azureProvider) ProvidersClient(subscriptionID string) (providersClient, error) {
+func (p *azureProvider) ProvidersClient(subscriptionID string) (client.ProvidersClient, error) {
 	cred, err := p.getTokenCredential()
 	if err != nil {
 		return nil, err
@@ -215,13 +210,13 @@ func (p *azureProvider) ProvidersClient(subscriptionID string) (providersClient,
 	clientOptions := p.getClientOptions()
 	client, err := armresources.NewProvidersClient(subscriptionID, cred, clientOptions)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create providers client: %w", err)
 	}
 
 	return client, nil
 }
 
-func (p *azureProvider) ResourceClient(subscriptionID string) (resourceClient, error) {
+func (p *azureProvider) ResourceClient(subscriptionID string) (client.ResourceClient, error) {
 	cred, err := p.getTokenCredential()
 	if err != nil {
 		return nil, err
@@ -230,7 +225,7 @@ func (p *azureProvider) ResourceClient(subscriptionID string) (resourceClient, e
 	clientOptions := p.getClientOptions()
 	client, err := armresources.NewClient(subscriptionID, cred, clientOptions)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create resource client: %w", err)
 	}
 
 	return client, nil
@@ -248,58 +243,33 @@ func (p *azureProvider) getClientOptions() *arm.ClientOptions {
 	}
 }
 
-// getAuthorizer attempts to create an authorizer, preferring ClientID/Secret if present,
-// and falling back to MSI if not.
-func getAuthorizer(settings *azureSettings, resource string) (autorest.Authorizer, error) {
-	if settings.ClientID != "" && settings.ClientSecret != "" && settings.TenantID != "" {
-		config := auth.NewClientCredentialsConfig(settings.ClientID, settings.ClientSecret, settings.TenantID)
-		config.AADEndpoint = settings.Environment.ActiveDirectoryEndpoint
-		config.Resource = resource
-		return config.Authorizer()
-	}
-
-	config := auth.NewMSIConfig()
-	config.Resource = resource
-	return config.Authorizer()
-}
-
-func (p *azureProvider) MSGraphClient() (client.MSGraphClient, error) {
-	userAgent := useragent.PluginString(p.settings.PluginEnv, userAgentPluginName)
-
-	graphURI, err := client.GetGraphURI(p.settings.Environment.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	graphApiAuthorizer, err := getAuthorizer(p.settings, graphURI)
-	if err != nil {
-		return nil, err
-	}
-
-	msGraphAppClient, err := client.NewMSGraphApplicationClient(userAgent, graphURI, graphApiAuthorizer)
-	if err != nil {
-		return nil, err
-	}
-
-	return msGraphAppClient, nil
-}
-
 func (p *azureProvider) getTokenCredential() (azcore.TokenCredential, error) {
+	clientCloudOpts := azcore.ClientOptions{Cloud: p.settings.CloudConfig}
+
 	if p.settings.ClientSecret != "" {
-		cred, err := az.NewClientSecretCredential(p.settings.TenantID, p.settings.ClientID, p.settings.ClientSecret, nil)
-		if err != nil {
-			return nil, err
+		options := &azidentity.ClientSecretCredentialOptions{
+			ClientOptions: clientCloudOpts,
 		}
 
-		return cred, nil
-	} else {
-		cred, err := az.NewManagedIdentityCredential(nil)
+		cred, err := azidentity.NewClientSecretCredential(p.settings.TenantID, p.settings.ClientID,
+			p.settings.ClientSecret, options)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create client secret token credential: %w", err)
 		}
 
 		return cred, nil
 	}
+
+	// Fall back to using managed service identity
+	options := &azidentity.ManagedIdentityCredentialOptions{
+		ClientOptions: clientCloudOpts,
+	}
+	cred, err := azidentity.NewManagedIdentityCredential(options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create managed identity token credential: %w", err)
+	}
+
+	return cred, nil
 }
 
 type azureSettings struct {
@@ -307,8 +277,8 @@ type azureSettings struct {
 	ClientID     string
 	ClientSecret string
 	CloudConfig  cloud.Configuration
+	GraphURI     string
 	Resource     string
-	Environment  azure.Environment
 	PluginEnv    *logical.PluginEnvironment
 }
 
@@ -353,16 +323,17 @@ func (b *azureAuthBackend) getAzureSettings(ctx context.Context, config *azureCo
 		environment = config.Environment
 	}
 	if environment == "" {
-		// use default values if no environment is provided
+		// Default to Azure public cloud
 		settings.CloudConfig = cloud.AzurePublic
-		settings.Environment = azure.PublicCloud
+		settings.GraphURI = azurePublicCloudBaseURI
 	} else {
 		var err error
-		settings.CloudConfig, err = ConfigurationFromName(environment)
+		settings.CloudConfig, err = cloudConfigFromName(environment)
 		if err != nil {
 			return nil, err
 		}
-		settings.Environment, err = azure.EnvironmentFromName(environment)
+
+		settings.GraphURI, err = graphURIFromName(environment)
 		if err != nil {
 			return nil, err
 		}
@@ -378,17 +349,33 @@ func (b *azureAuthBackend) getAzureSettings(ctx context.Context, config *azureCo
 	return settings, nil
 }
 
-func ConfigurationFromName(name string) (cloud.Configuration, error) {
+func cloudConfigFromName(name string) (cloud.Configuration, error) {
 	configs := map[string]cloud.Configuration{
-		"AZURECHINACLOUD":        cloud.AzureChina,
-		"AZUREPUBLICCLOUD":       cloud.AzurePublic,
-		"AZUREUSGOVERNMENTCLOUD": cloud.AzureGovernment,
+		azureChinaCloudEnvName:  cloud.AzureChina,
+		azurePublicCloudEnvName: cloud.AzurePublic,
+		azureUSGovCloudEnvName:  cloud.AzureGovernment,
 	}
 
 	name = strings.ToUpper(name)
 	c, ok := configs[name]
 	if !ok {
 		return c, fmt.Errorf("err: no cloud configuration matching the name %q", name)
+	}
+
+	return c, nil
+}
+
+func graphURIFromName(name string) (string, error) {
+	configs := map[string]string{
+		azureChinaCloudEnvName:  azureChinaCloudBaseURI,
+		azurePublicCloudEnvName: azurePublicCloudBaseURI,
+		azureUSGovCloudEnvName:  azureUSGovCloudBaseURI,
+	}
+
+	name = strings.ToUpper(name)
+	c, ok := configs[name]
+	if !ok {
+		return c, fmt.Errorf("err: no MS Graph URI matching the name %q", name)
 	}
 
 	return c, nil

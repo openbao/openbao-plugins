@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/vault-plugin-auth-azure/client"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -63,30 +63,14 @@ func (b *azureAuthBackend) pathRotateRoot(ctx context.Context, req *logical.Requ
 		return nil, err
 	}
 
-	// We need to use List instead of Get here because we don't have the Object ID
-	// (which is different from the Application/Client ID)
-	apps, err := client.ListApplications(ctx, fmt.Sprintf("appId eq '%s'", config.ClientID))
+	app, err := client.GetApplication(ctx, config.ClientID)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(apps) == 0 {
-		return nil, fmt.Errorf("no application found")
-	}
-	if len(apps) > 1 {
-		return nil, fmt.Errorf("multiple applications found - double check your client_id")
-	}
-
-	app := apps[0]
-
-	uniqueID, err := uuid.GenerateUUID()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate UUID: %w", err)
-	}
-
 	// This could have the same username customization logic put on it if we really wanted it here
-	passwordDisplayName := fmt.Sprintf("vault-%s", uniqueID)
-	newPasswordResp, err := client.AddApplicationPassword(ctx, *app.ID, passwordDisplayName, expiration)
+	passwordDisplayName := fmt.Sprintf("vault-%s", uuid.New())
+	newPasswordResp, err := client.AddApplicationPassword(ctx, *app.GetId(), passwordDisplayName, expiration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add new password: %w", err)
 	}
@@ -94,15 +78,15 @@ func (b *azureAuthBackend) pathRotateRoot(ctx context.Context, req *logical.Requ
 	var wal walRotateRoot
 	walID, walErr := framework.PutWAL(ctx, req.Storage, walRotateRootCreds, wal)
 	if walErr != nil {
-		err = client.RemoveApplicationPassword(ctx, *app.ID, *newPasswordResp.PasswordCredential.KeyID)
+		err = client.RemoveApplicationPassword(ctx, *app.GetId(), newPasswordResp.GetKeyId())
 		merr := multierror.Append(err, err)
 		return &logical.Response{}, merr
 	}
 
-	config.NewClientSecret = *newPasswordResp.SecretText
+	config.NewClientSecret = *newPasswordResp.GetSecretText()
 	config.NewClientSecretCreated = time.Now()
-	config.NewClientSecretExpirationDate = newPasswordResp.EndDate.Time
-	config.NewClientSecretKeyID = *newPasswordResp.KeyID
+	config.NewClientSecretExpirationDate = *newPasswordResp.GetEndDateTime()
+	config.NewClientSecretKeyID = newPasswordResp.GetKeyId().String()
 
 	err = b.saveConfig(ctx, config, req.Storage)
 	if err != nil {
@@ -119,7 +103,7 @@ func (b *azureAuthBackend) pathRotateRoot(ctx context.Context, req *logical.Requ
 	return nil, err
 }
 
-func removeApplicationPasswords(ctx context.Context, c client.MSGraphClient, appID string, passwordKeyIDs ...string) (err error) {
+func removeApplicationPasswords(ctx context.Context, c client.MSGraphClient, appID string, passwordKeyIDs ...*uuid.UUID) (err error) {
 	merr := new(multierror.Error)
 	for _, keyID := range passwordKeyIDs {
 		// Attempt to remove all of them, don't fail early
