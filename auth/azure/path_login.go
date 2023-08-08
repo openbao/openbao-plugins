@@ -407,6 +407,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		}
 	}
 
+	var wifMatch bool
 	// Ensure the token OID is the principal id of the system-assigned identity
 	// or one of the user-assigned identities
 	if _, ok := principalIDs[claims.ObjectID]; !ok {
@@ -423,15 +424,23 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		if err != nil {
 			return fmt.Errorf("failed to create client to retrieve app ids: %w", err)
 		}
-		pager := c.NewListByResourceGroupPager(resourceGroupName, &armmsi.UserAssignedIdentitiesClientListByResourceGroupOptions{})
-		for pager.More() {
-			page, err := pager.NextPage(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to advance page: %w", err)
-			}
-			for _, identity := range page.Value {
-				if identity.Properties != nil && identity.Properties.ClientID != nil {
-					clientIDs[*identity.Properties.ClientID] = struct{}{}
+
+		// aggregate the list of valid resource groups to check (the resource group provided by the resource, plus
+		// the resouces specified as valid by the role entry)
+		rgChecks := []string{resourceGroupName}
+		rgChecks = append(rgChecks, role.BoundResourceGroups...)
+
+		for _, rg := range rgChecks {
+			pager := c.NewListByResourceGroupPager(rg, &armmsi.UserAssignedIdentitiesClientListByResourceGroupOptions{})
+			for pager.More() {
+				page, err := pager.NextPage(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to advance page: %w", err)
+				}
+				for _, id := range page.Value {
+					if id.Properties != nil && id.Properties.ClientID != nil {
+						clientIDs[*id.Properties.ClientID] = struct{}{}
+					}
 				}
 			}
 		}
@@ -439,6 +448,7 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		if _, ok := clientIDs[claims.AppID]; !ok {
 			return errors.New("neither token object id nor token app id match expected identities")
 		}
+		wifMatch = true
 	}
 
 	// Check bound subscriptions
@@ -446,8 +456,9 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 		return errors.New("subscription not authorized")
 	}
 
-	// Check bound resource groups
-	if len(role.BoundResourceGroups) > 0 && !strListContains(role.BoundResourceGroups, resourceGroupName) {
+	// Check bound resource groups unless we matched due to WIF (if we matched a valid clientID/appID by resource group, the
+	// group validity is implict)
+	if !wifMatch && len(role.BoundResourceGroups) > 0 && !strListContains(role.BoundResourceGroups, resourceGroupName) {
 		return errors.New("resource group not authorized")
 	}
 

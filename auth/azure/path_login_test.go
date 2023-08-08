@@ -706,18 +706,25 @@ func TestLogin_AppID(t *testing.T) {
 	appID := "123e4567-e89b-12d3-a456-426655440000"
 	badID := "aeoifkj"
 	resourceGroup := "rg"
+	boundResourceGroup := "brg"
 	c, v, m := getTestBackendFunctions(false)
 	cl := func(rg string) armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse {
-		return armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse{
-			UserAssignedIdentitiesListResult: armmsi.UserAssignedIdentitiesListResult{
-				Value: []*armmsi.Identity{
-					{
-						Properties: &armmsi.UserAssignedIdentityProperties{
-							ClientID: &appID,
+		if rg == "rg" {
+			return armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse{}
+		} else if rg == "brg" {
+			return armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse{
+				UserAssignedIdentitiesListResult: armmsi.UserAssignedIdentitiesListResult{
+					Value: []*armmsi.Identity{
+						{
+							Properties: &armmsi.UserAssignedIdentityProperties{
+								ClientID: &appID,
+							},
 						},
 					},
 				},
-			},
+			}
+		} else {
+			return armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse{}
 		}
 	}
 
@@ -729,7 +736,7 @@ func TestLogin_AppID(t *testing.T) {
 	roleData := map[string]interface{}{
 		"name":                  roleName,
 		"policies":              []string{"dev", "prod"},
-		"bound_resource_groups": []string{resourceGroup},
+		"bound_resource_groups": []string{resourceGroup, boundResourceGroup},
 	}
 	testRoleCreate(t, b, s, roleData)
 
