@@ -1,10 +1,14 @@
-## Unreleased
+## v0.16.0
 
 FEATURES:
 * Allow Workload Identity Federation based Azure resources to authenticate with Vault via appID
 
 IMPROVEMENTS:
 * Replaces the deprecated [go-autorest](https://github.com/Azure/go-autorest) client with [msgraph-sdk-go](https://github.com/microsoftgraph/msgraph-sdk-go) [[GH-121]](https://github.com/hashicorp/vault-plugin-auth-azure/pull/121)
+* Updated dependencies:
+  * `github.com/hashicorp/vault/sdk` v0.9.1 -> v0.9.2
+  * `github.com/microsoftgraph/msgraph-sdk-go` v1.12.0 -> v1.13.0
+  * `golang.org/x/oauth2` v0.9.0 -> v0.10.0
 
 ## v0.15.1
 
