@@ -1,4 +1,4 @@
-# Vault Plugin: Azure Secrets Backend [![Build Status](https://travis-ci.org/hashicorp/vault-plugin-secrets-azure.svg?branch=master)](https://travis-ci.org/hashicorp/vault-plugin-secrets-azure)
+# Vault Plugin: Azure Secrets Backend
 
 This is a standalone backend plugin for use with [Hashicorp Vault](https://www.github.com/hashicorp/vault).
 This plugin generates revocable, time-limited Service Principals for Microsoft Azure.
@@ -6,23 +6,23 @@ This plugin generates revocable, time-limited Service Principals for Microsoft A
 **Please note**: We take Vault's security and our users' trust very seriously. If you believe you have found a security issue in Vault, _please responsibly disclose_ by contacting us at [security@hashicorp.com](mailto:security@hashicorp.com).
 
 ## Quick Links
-- [Vault Website](https://www.vaultproject.io)
-- [Azure Secrets Docs](https://www.vaultproject.io/docs/secrets/azure/index.html)
+- [Vault Website](https://developer.hashicorp.com/vault/docs)
+- [Azure Secrets Docs](https://developer.hashicorp.com/vault/docs/secrets/azure)
 - [Vault Github Project](https://www.github.com/hashicorp/vault)
 
 ## Getting Started
 
-This is a [Vault plugin](https://www.vaultproject.io/docs/internals/plugins.html)
+This is a [Vault plugin](https://developer.hashicorp.com/vault/docs/plugins)
 and is meant to work with Vault. This guide assumes you have already installed Vault
 and have a basic understanding of how Vault works.
 
-Otherwise, first read this guide on how to [get started with Vault](https://www.vaultproject.io/intro/getting-started/install.html).
+Otherwise, first read this guide on how to [get started with Vault](https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-install).
 
-To learn specifically about how plugins work, see documentation on [Vault plugins](https://www.vaultproject.io/docs/internals/plugins.html).
+To learn specifically about how plugins work, see documentation on [Vault plugins](https://developer.hashicorp.com/vault/docs/plugins).
 
 ## Usage
 
-Please see [documentation for the plugin](https://www.vaultproject.io/docs/secrets/azure/index.html)
+Please see [documentation for the plugin](https://developer.hashicorp.com/vault/docs/secrets/azure)
 on the Vault website.
 
 This plugin is currently built into Vault and by default is accessed
@@ -60,7 +60,7 @@ $ make dev
 ```
 
 Put the plugin binary into a location of your choice. This directory
-will be specified as the [`plugin_directory`](https://www.vaultproject.io/docs/configuration/index.html#plugin_directory)
+will be specified as the [`plugin_directory`](https://developer.hashicorp.com/vault/docs/configuration#plugin_directory)
 in the Vault config used to start the server.
 
 ```json

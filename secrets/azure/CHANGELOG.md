@@ -1,9 +1,15 @@
 ## Unreleased
 
+## v0.16.2
+
+IMPROVEMENTS:
+* Update dependencies [[GH-160]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/160)
+  * github.com/hashicorp/vault/api v1.9.1 -> v1.10.0
+  * github.com/hashicorp/vault/sdk v0.9.0 -> v0.10.0
+
 ## v0.16.1
 
 BUG FIXES:
-
 * Fix intermittent 401s by preventing performance secondary clusters from rotating root credentials [[GH-150]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/150)
 
 ## v0.16.0
