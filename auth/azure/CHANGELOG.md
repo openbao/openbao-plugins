@@ -1,3 +1,11 @@
+## v0.16.1
+IMPROVEMENTS:
+* Updated dependencies:
+  * github.com/Azure/azure-sdk-for-go/sdk/azcore v1.7.1
+  * github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.3.1
+  * golang.org/x/oauth2 v0.11.0
+
+
 ## v0.16.0
 
 FEATURES:
