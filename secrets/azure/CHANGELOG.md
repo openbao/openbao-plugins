@@ -1,5 +1,16 @@
 ## Unreleased
 
+## v0.16.3
+
+IMPROVEMENTS:
+* Update dependencies [[GH-161]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/161)
+  * github.com/Azure/azure-sdk-for-go v68.0.0
+* Update dependencies [[GH-162]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/162)
+  * golang.org/x/crypto v0.13.0
+  * golang.org/x/net v0.15.0
+  * golang.org/x/sys v0.12.0
+  * golang.org/x/text v0.13.0
+
 ## v0.16.2
 
 IMPROVEMENTS:
