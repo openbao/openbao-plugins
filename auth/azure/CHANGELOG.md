@@ -1,3 +1,7 @@
+## Unreleased
+IMPROVEMENTS:
+    * Added Azure API configurable retry options [GH-133](https://github.com/hashicorp/vault-plugin-auth-azure/pull/133)
+
 ## v0.16.1
 IMPROVEMENTS:
 * Updated dependencies:
