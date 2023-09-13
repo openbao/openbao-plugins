@@ -1,4 +1,4 @@
-## Unreleased
+## v0.16.2
 IMPROVEMENTS:
     * Added Azure API configurable retry options [GH-133](https://github.com/hashicorp/vault-plugin-auth-azure/pull/133)
 
@@ -8,7 +8,6 @@ IMPROVEMENTS:
   * github.com/Azure/azure-sdk-for-go/sdk/azcore v1.7.1
   * github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.3.1
   * golang.org/x/oauth2 v0.11.0
-
 
 ## v0.16.0
 
