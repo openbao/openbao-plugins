@@ -6,6 +6,7 @@ package gcpkms
 import (
 	"context"
 	"fmt"
+	"github.com/patrickmn/go-cache"
 	"sync"
 	"time"
 
@@ -37,6 +38,9 @@ var (
 
 type backend struct {
 	*framework.Backend
+
+	// keysCache holds a temporal copy of keys retrieved from KMS
+	keysCache *cache.Cache
 
 	// kmsClient is the actual client for connecting to KMS. It is cached on
 	// the backend for efficiency.

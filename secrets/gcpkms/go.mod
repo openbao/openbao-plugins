@@ -13,6 +13,7 @@ require (
 	github.com/hashicorp/vault/api v1.9.2
 	github.com/hashicorp/vault/sdk v0.9.2
 	github.com/jeffchao/backoff v0.0.0-20140404060208-9d7fd7aa17f2
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/satori/go.uuid v1.2.0
 	golang.org/x/oauth2 v0.11.0
 	google.golang.org/api v0.138.0
