@@ -2,7 +2,12 @@
 
 IMPROVEMENTS:
 
+## v0.15.2 (September 22th, 2023)
+
+IMPROVEMENTS:
+
 * Added cache on key metadata lookup to avoid quota issues [GH-33](https://github.com/hashicorp/vault-plugin-secrets-gcpkms/pull/33)
+
 ## v0.15.1 (September 5th, 2023)
 
 IMPROVEMENTS:
