@@ -3,6 +3,7 @@
 ## v0.16.3
 
 IMPROVEMENTS:
+* Prevent write-ahead-log data from being replicated to performance secondaries [GH-164](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/164)
 * Update dependencies [[GH-161]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/161)
   * github.com/Azure/azure-sdk-for-go v68.0.0
 * Update dependencies [[GH-162]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/162)
