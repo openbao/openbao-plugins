@@ -56,6 +56,9 @@ func backend() *azureAuthBackend {
 		Invalidate:  b.invalidate,
 		Help:        backendHelp,
 		PathsSpecial: &logical.Paths{
+			LocalStorage: []string{
+				framework.WALPrefix,
+			},
 			Unauthenticated: []string{
 				"login",
 			},
