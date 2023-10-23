@@ -75,7 +75,7 @@ resource "azurerm_role_assignment" "vault_sp_read_assignment" {
 }
 
 resource "azuread_group" "test_group" {
-  display_name     = "azure-secrets-engine-test-group"
+  display_name     = "azure-secrets-engine-test-group-${random_id.random.hex}"
   owners           = [data.azuread_client_config.current.object_id]
   security_enabled = true
 }
