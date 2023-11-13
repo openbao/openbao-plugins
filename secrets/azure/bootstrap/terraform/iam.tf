@@ -87,6 +87,7 @@ export AZURE_TEST_RESOURCE_GROUP=${azurerm_resource_group.vault_azure_rg.name}
 export AZURE_SUBSCRIPTION_ID=${data.azurerm_client_config.current.subscription_id}
 export AZURE_TENANT_ID=${data.azurerm_client_config.current.tenant_id}
 export AZURE_GROUP_NAME=${azuread_group.test_group.display_name}
+export AZURE_APPLICATION_OBJECT_ID=${azuread_application.vault_azure_app.object_id}
 export AZURE_CLIENT_ID=${azuread_application.vault_azure_app.application_id}
 export AZURE_CLIENT_SECRET=${azuread_service_principal_password.vault_azure_sp_pwd.value}
 EOF
@@ -106,6 +107,13 @@ output "tenant_id" {
 
 output "group_name" {
   value = azuread_group.test_group.display_name
+}
+
+# Application Object ID for an existing service principal that can be used
+# instead of creating dynamic service principals
+# https://developer.hashicorp.com/vault/api-docs/secret/azure#application_object_id
+output "application_object_id" {
+  value = azuread_application.vault_azure_app.object_id
 }
 
 output "client_id" {
