@@ -80,7 +80,7 @@ func (b *azureSecretBackend) pathRotateRoot(ctx context.Context, req *logical.Re
 
 	// This could have the same username customization logic put on it if we really wanted it here
 	passwordDisplayName := fmt.Sprintf("vault-%s", uniqueID)
-	newPasswordResp, err := client.provider.AddApplicationPassword(ctx, *app.ID, passwordDisplayName, expiration)
+	newPasswordResp, err := client.provider.AddApplicationPassword(ctx, app.AppObjectID, passwordDisplayName, expiration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add new password: %w", err)
 	}
@@ -88,15 +88,15 @@ func (b *azureSecretBackend) pathRotateRoot(ctx context.Context, req *logical.Re
 	var wal walRotateRoot
 	walID, walErr := framework.PutWAL(ctx, req.Storage, walRotateRootCreds, wal)
 	if walErr != nil {
-		err = client.provider.RemoveApplicationPassword(ctx, *app.ID, *newPasswordResp.PasswordCredential.KeyID)
+		err = client.provider.RemoveApplicationPassword(ctx, app.AppObjectID, newPasswordResp.KeyID)
 		merr := multierror.Append(err, err)
 		return &logical.Response{}, merr
 	}
 
-	config.NewClientSecret = *newPasswordResp.SecretText
+	config.NewClientSecret = newPasswordResp.SecretText
 	config.NewClientSecretCreated = time.Now()
-	config.NewClientSecretExpirationDate = newPasswordResp.EndDate.Time
-	config.NewClientSecretKeyID = *newPasswordResp.KeyID
+	config.NewClientSecretExpirationDate = newPasswordResp.EndDate
+	config.NewClientSecretKeyID = newPasswordResp.KeyID
 
 	err = b.saveConfig(ctx, config, req.Storage)
 	if err != nil {

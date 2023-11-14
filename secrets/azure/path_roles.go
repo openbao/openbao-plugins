@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-09-01-preview/authorization"
-	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/hashicorp/vault-plugin-secrets-azure/api"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/jsonutil"
 	"github.com/hashicorp/vault/sdk/logical"
+
+	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 )
 
 const (
@@ -218,7 +218,7 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 		if err != nil {
 			return nil, fmt.Errorf("error loading Application: %w", err)
 		}
-		role.ApplicationID = to.String(app.AppID)
+		role.ApplicationID = app.AppID
 
 		if role.PermanentlyDelete {
 			return logical.ErrorResponse("permanently_delete must be false if application_object_id is provided"), nil
@@ -259,15 +259,17 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 	// update and verify Azure roles, including looking up each role by ID or name.
 	roleSet := make(map[string]bool)
 	for _, r := range role.AzureRoles {
-		var roleDef authorization.RoleDefinition
+		var roleDef armauthorization.RoleDefinition
 		if r.RoleID != "" {
-			roleDef, err = client.provider.GetRoleDefinitionByID(ctx, r.RoleID)
+			roleDefResp, err := client.provider.GetRoleDefinitionByID(ctx, r.RoleID)
 			if err != nil {
 				if strings.Contains(err.Error(), "RoleDefinitionDoesNotExist") {
 					return logical.ErrorResponse("no role found for role_id: '%s'", r.RoleID), nil
 				}
 				return nil, fmt.Errorf("unable to lookup Azure role: %w", err)
 			}
+
+			roleDef = roleDefResp.RoleDefinition
 		} else {
 			defs, err := client.findRoles(ctx, r.RoleName)
 			if err != nil {
@@ -278,11 +280,10 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 			} else if l > 1 {
 				return logical.ErrorResponse("multiple matches found for role_name: '%s'. Specify role by ID instead.", r.RoleName), nil
 			}
-			roleDef = defs[0]
+			roleDef = *defs[0]
 		}
-
-		roleDefID := to.String(roleDef.ID)
-		roleDefName := to.String(roleDef.RoleName)
+		roleDefID := *roleDef.ID
+		roleDefName := *roleDef.Name
 
 		r.RoleName, r.RoleID = roleDefName, roleDefID
 
@@ -316,6 +317,10 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 				return logical.ErrorResponse("multiple matches found for group_name: '%s'. Specify group by ObjectID instead.", r.GroupName), nil
 			}
 			groupDef = defs[0]
+		}
+
+		if groupDef == (api.Group{}) {
+			return logical.ErrorResponse("could not find a group with that ID", r.GroupName), nil
 		}
 
 		r.ObjectID = groupDef.ID
@@ -386,8 +391,8 @@ func (b *azureSecretBackend) createPersistedApp(ctx context.Context, req *logica
 	if err != nil {
 		return err
 	}
-	appID := to.String(app.AppID)
-	appObjID := to.String(app.ID)
+	appID := app.AppID
+	appObjID := app.AppObjectID
 	// Write a WAL entry in case the SP create process doesn't complete
 	walID, err := framework.PutWAL(ctx, req.Storage, walAppKey, &walApp{
 		AppID:      appID,

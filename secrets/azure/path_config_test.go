@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -112,7 +111,6 @@ func TestConfigEnvironmentClouds(t *testing.T) {
 		{"AZURECHINACLOUD", "https://microsoftgraph.chinacloudapi.cn", false},
 		{"AZUREPUBLICCLOUD", "https://graph.microsoft.com", false},
 		{"AZUREUSGOVERNMENTCLOUD", "https://graph.microsoft.us", false},
-		{"AZUREGERMANCLOUD", "https://graph.microsoft.de", false},
 		{"invalidEnv", "", true},
 	}
 
@@ -146,13 +144,8 @@ func TestConfigEnvironmentClouds(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			url, err := api.GetGraphURI(clientSettings.Environment.Name)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if url != test.url {
-				t.Fatalf("expected url %s, got %s", test.url, url)
+			if clientSettings.GraphURI != test.url {
+				t.Fatalf("expected url %s, got %s", test.url, clientSettings.GraphURI)
 			}
 		}
 	}

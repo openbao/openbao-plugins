@@ -5,16 +5,43 @@ package azuresecrets
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-09-01-preview/authorization"
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
-	"github.com/hashicorp/vault-plugin-secrets-azure/api"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/vault/sdk/logical"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2"
+
 	"github.com/hashicorp/vault/sdk/helper/useragent"
+
+	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 )
 
-var _ api.AzureProvider = (*provider)(nil)
+// AzureProvider is an interface to access underlying Azure Client objects and supporting services.
+// Where practical the original function signature is preserved. Client provides higher
+// level operations atop AzureProvider.
+type AzureProvider interface {
+	api.ApplicationsClient
+	api.GroupsClient
+	api.ServicePrincipalClient
+
+	CreateRoleAssignment(
+		ctx context.Context,
+		scope string,
+		roleAssignmentName string,
+		parameters armauthorization.RoleAssignmentCreateParameters) (armauthorization.RoleAssignmentsClientCreateResponse, error)
+	DeleteRoleAssignmentByID(ctx context.Context, roleID string) (armauthorization.RoleAssignmentsClientDeleteByIDResponse, error)
+	ListRoleDefinitions(ctx context.Context, scope string, filter string) (result []*armauthorization.RoleDefinition, err error)
+	GetRoleDefinitionByID(ctx context.Context, roleID string) (result armauthorization.RoleDefinitionsClientGetByIDResponse, err error)
+}
+
+var _ AzureProvider = (*provider)(nil)
 
 // provider is a concrete implementation of AzureProvider. In most cases it is a simple passthrough
 // to the appropriate client object. But if the response requires processing that is more practical
@@ -25,90 +52,122 @@ type provider struct {
 	appClient    api.ApplicationsClient
 	spClient     api.ServicePrincipalClient
 	groupsClient api.GroupsClient
-	raClient     *authorization.RoleAssignmentsClient
-	rdClient     *authorization.RoleDefinitionsClient
+	raClient     *armauthorization.RoleAssignmentsClient
+	rdClient     *armauthorization.RoleDefinitionsClient
 }
 
 // newAzureProvider creates an azureProvider, backed by Azure client objects for underlying services.
-func newAzureProvider(settings *clientSettings, passwords api.Passwords) (api.AzureProvider, error) {
-	// build clients that use the GraphRBAC endpoint
-	userAgent := useragent.PluginString(settings.PluginEnv, userAgentPluginName)
+func newAzureProvider(settings *clientSettings, passwords api.Passwords) (AzureProvider, error) {
+	httpClient := cleanhttp.DefaultClient()
 
-	var appClient api.ApplicationsClient
-	var groupsClient api.GroupsClient
-	var spClient api.ServicePrincipalClient
-
-	graphURI, err := api.GetGraphURI(settings.Environment.Name)
+	cred, err := getTokenCredential(settings)
 	if err != nil {
 		return nil, err
 	}
 
-	graphApiAuthorizer, err := getAuthorizer(settings, graphURI)
+	msGraphAppClient, err := api.NewMSGraphClient(settings.GraphURI, cred)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create MS graph client: %w", err)
+	}
+
+	opts := getClientOptions(settings, httpClient)
+
+	raClient, err := armauthorization.NewRoleAssignmentsClient(settings.SubscriptionID, cred, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	msGraphAppClient, err := api.NewMSGraphApplicationClient(settings.SubscriptionID, userAgent, graphURI, graphApiAuthorizer)
+	rdClient, err := armauthorization.NewRoleDefinitionsClient(cred, opts)
 	if err != nil {
 		return nil, err
 	}
-
-	appClient = msGraphAppClient
-	groupsClient = msGraphAppClient
-	spClient = msGraphAppClient
-
-	// build clients that use the Resource Manager endpoint
-	resourceManagerAuthorizer, err := getAuthorizer(settings, settings.Environment.ResourceManagerEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	raClient := authorization.NewRoleAssignmentsClientWithBaseURI(settings.Environment.ResourceManagerEndpoint, settings.SubscriptionID)
-	raClient.Authorizer = resourceManagerAuthorizer
-	raClient.AddToUserAgent(userAgent)
-
-	rdClient := authorization.NewRoleDefinitionsClientWithBaseURI(settings.Environment.ResourceManagerEndpoint, settings.SubscriptionID)
-	rdClient.Authorizer = resourceManagerAuthorizer
-	rdClient.AddToUserAgent(userAgent)
 
 	p := &provider{
-		settings: settings,
-
-		appClient:    appClient,
-		spClient:     spClient,
-		groupsClient: groupsClient,
-		raClient:     &raClient,
-		rdClient:     &rdClient,
+		appClient:    msGraphAppClient,
+		spClient:     msGraphAppClient,
+		groupsClient: msGraphAppClient,
+		raClient:     raClient,
+		rdClient:     rdClient,
 	}
 
 	return p, nil
 }
 
-// getAuthorizer attempts to create an authorizer, preferring ClientID/Secret if present,
-// and falling back to MSI if not.
-func getAuthorizer(settings *clientSettings, resource string) (autorest.Authorizer, error) {
-	if settings.ClientID != "" && settings.ClientSecret != "" && settings.TenantID != "" {
-		config := auth.NewClientCredentialsConfig(settings.ClientID, settings.ClientSecret, settings.TenantID)
-		config.AADEndpoint = settings.Environment.ActiveDirectoryEndpoint
-		config.Resource = resource
-		return config.Authorizer()
+func getTokenCredential(s *clientSettings) (azcore.TokenCredential, error) {
+	clientCloudOpts := azcore.ClientOptions{Cloud: s.CloudConfig}
+
+	if s.ClientSecret != "" {
+		options := &azidentity.ClientSecretCredentialOptions{
+			ClientOptions: clientCloudOpts,
+		}
+
+		cred, err := azidentity.NewClientSecretCredential(s.TenantID, s.ClientID,
+			s.ClientSecret, options)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create client secret token credential: %w", err)
+		}
+
+		return cred, nil
 	}
 
-	config := auth.NewMSIConfig()
-	config.Resource = resource
-	return config.Authorizer()
+	// Fall back to using managed service identity
+	options := &azidentity.ManagedIdentityCredentialOptions{
+		ClientOptions: clientCloudOpts,
+	}
+	cred, err := azidentity.NewManagedIdentityCredential(options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create managed identity token credential: %w", err)
+	}
+
+	return cred, nil
+}
+
+// transporter implements the azure exported.Transporter interface to send HTTP
+// requests. This allows us to set our custom http client and user agent.
+type transporter struct {
+	pluginEnv *logical.PluginEnvironment
+	sender    *http.Client
+}
+
+func (tp transporter) Do(req *http.Request) (*http.Response, error) {
+	req.Header.Set("User-Agent", useragent.PluginString(tp.pluginEnv,
+		userAgentPluginName))
+
+	client := tp.sender
+
+	// don't attempt redirects so we aren't acting as an unintended network proxy
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func getClientOptions(s *clientSettings, httpClient *http.Client) *arm.ClientOptions {
+	return &arm.ClientOptions{
+		ClientOptions: policy.ClientOptions{
+			Cloud: s.CloudConfig,
+			Transport: transporter{
+				pluginEnv: s.PluginEnv,
+				sender:    httpClient,
+			},
+		},
+	}
 }
 
 // CreateApplication create a new Azure application object.
-func (p *provider) CreateApplication(ctx context.Context, displayName string) (result api.ApplicationResult, err error) {
+func (p *provider) CreateApplication(ctx context.Context, displayName string) (result api.Application, err error) {
 	return p.appClient.CreateApplication(ctx, displayName)
 }
 
-func (p *provider) GetApplication(ctx context.Context, applicationObjectID string) (result api.ApplicationResult, err error) {
+func (p *provider) GetApplication(ctx context.Context, applicationObjectID string) (result api.Application, err error) {
 	return p.appClient.GetApplication(ctx, applicationObjectID)
 }
 
-func (p *provider) ListApplications(ctx context.Context, filter string) ([]api.ApplicationResult, error) {
+func (p *provider) ListApplications(ctx context.Context, filter string) ([]api.Application, error) {
 	return p.appClient.ListApplications(ctx, filter)
 }
 
@@ -118,7 +177,7 @@ func (p *provider) DeleteApplication(ctx context.Context, applicationObjectID st
 	return p.appClient.DeleteApplication(ctx, applicationObjectID, permanentlyDelete)
 }
 
-func (p *provider) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime time.Time) (result api.PasswordCredentialResult, err error) {
+func (p *provider) AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime time.Time) (result api.PasswordCredential, err error) {
 	return p.appClient.AddApplicationPassword(ctx, applicationObjectID, displayName, endDateTime)
 }
 
@@ -137,47 +196,37 @@ func (p *provider) DeleteServicePrincipal(ctx context.Context, spObjectID string
 }
 
 // ListRoles like all Azure roles with a scope (often subscription).
-func (p *provider) ListRoleDefinitions(ctx context.Context, scope string, filter string) (result []authorization.RoleDefinition, err error) {
-	page, err := p.rdClient.List(ctx, scope, filter)
-
+func (p *provider) ListRoleDefinitions(ctx context.Context, scope string, filter string) (result []*armauthorization.RoleDefinition, err error) {
+	options := armauthorization.RoleDefinitionsClientListOptions{
+		Filter: &filter,
+	}
+	page := p.rdClient.NewListPager(scope, &options)
+	listResp, err := page.NextPage(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return page.Values(), nil
+	return listResp.Value, err
 }
 
-// GetRoleByID fetches the full role definition given a roleID.
-func (p *provider) GetRoleDefinitionByID(ctx context.Context, roleID string) (result authorization.RoleDefinition, err error) {
-	return p.rdClient.GetByID(ctx, roleID)
+// GetRoleDefinitionByID fetches the full role definition given a roleID.
+func (p *provider) GetRoleDefinitionByID(ctx context.Context, roleID string) (result armauthorization.RoleDefinitionsClientGetByIDResponse, err error) {
+	return p.rdClient.GetByID(ctx, roleID, nil)
 }
 
 // CreateRoleAssignment assigns a role to a service principal.
-func (p *provider) CreateRoleAssignment(ctx context.Context, scope string, roleAssignmentName string, parameters authorization.RoleAssignmentCreateParameters) (authorization.RoleAssignment, error) {
-	return p.raClient.Create(ctx, scope, roleAssignmentName, parameters)
+func (p *provider) CreateRoleAssignment(ctx context.Context, scope string, roleAssignmentName string, parameters armauthorization.RoleAssignmentCreateParameters) (armauthorization.RoleAssignmentsClientCreateResponse, error) {
+	return p.raClient.Create(ctx, scope, roleAssignmentName, parameters, nil)
 }
 
 // GetRoleAssignmentByID fetches the full role assignment info given a roleAssignmentID.
-func (p *provider) GetRoleAssignmentByID(ctx context.Context, roleAssignmentID string) (result authorization.RoleAssignment, err error) {
-	return p.raClient.GetByID(ctx, roleAssignmentID)
+func (p *provider) GetRoleAssignmentByID(ctx context.Context, roleAssignmentID string) (armauthorization.RoleAssignmentsClientGetByIDResponse, error) {
+	return p.raClient.GetByID(ctx, roleAssignmentID, nil)
 }
 
 // DeleteRoleAssignmentByID deletes a role assignment.
-func (p *provider) DeleteRoleAssignmentByID(ctx context.Context, roleAssignmentID string) (result authorization.RoleAssignment, err error) {
-	return p.raClient.DeleteByID(ctx, roleAssignmentID)
-}
-
-// ListRoleAssignments lists all role assignments.
-// There is no need for paging; the caller only cares about the first match and whether
-// there are 0, 1 or >1 items. Unpacking here is a simpler interface.
-func (p *provider) ListRoleAssignments(ctx context.Context, filter string) ([]authorization.RoleAssignment, error) {
-	page, err := p.raClient.List(ctx, filter)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return page.Values(), nil
+func (p *provider) DeleteRoleAssignmentByID(ctx context.Context, roleAssignmentID string) (armauthorization.RoleAssignmentsClientDeleteByIDResponse, error) {
+	return p.raClient.DeleteByID(ctx, roleAssignmentID, nil)
 }
 
 // AddGroupMember adds a member to a Group.

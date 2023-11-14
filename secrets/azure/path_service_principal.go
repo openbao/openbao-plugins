@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"github.com/hashicorp/vault/sdk/logical"
@@ -110,8 +109,8 @@ func (b *azureSecretBackend) createSPSecret(ctx context.Context, s logical.Stora
 	if err != nil {
 		return nil, err
 	}
-	appID := to.String(app.AppID)
-	appObjID := to.String(app.ID)
+	appID := app.AppID
+	appObjID := app.AppObjectID
 
 	// Write a WAL entry in case the SP create process doesn't complete
 	walID, err := framework.PutWAL(ctx, s, walAppKey, &walApp{
@@ -131,7 +130,7 @@ func (b *azureSecretBackend) createSPSecret(ctx context.Context, s logical.Stora
 
 	assignmentIDs, err := c.generateUUIDs(len(role.AzureRoles))
 	if err != nil {
-		return nil, fmt.Errorf("error generating assginment IDs; err=%w", err)
+		return nil, fmt.Errorf("error generating assignment IDs; err=%w", err)
 	}
 
 	// Write a second WAL entry in case the Role assignments don't complete

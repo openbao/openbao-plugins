@@ -13,27 +13,36 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/preview/authorization/mgmt/2018-09-01-preview/authorization"
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure"
-	"github.com/Azure/go-autorest/autorest/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2"
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-uuid"
-	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 	"github.com/hashicorp/vault/sdk/logical"
+
+	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 )
 
 const (
 	appNamePrefix  = "vault-"
 	retryTimeout   = 80 * time.Second
 	clientLifetime = 30 * time.Minute
+
+	azurePublicCloudBaseURI = "https://graph.microsoft.com"
+	azureChinaCloudBaseURI  = "https://microsoftgraph.chinacloudapi.cn"
+	azureUSGovCloudBaseURI  = "https://graph.microsoft.us"
+	azurePublicCloudEnvName = "AZUREPUBLICCLOUD"
+	azureChinaCloudEnvName  = "AZURECHINACLOUD"
+	azureUSGovCloudEnvName  = "AZUREUSGOVERNMENTCLOUD"
+
+	errInvalidApplicationObject = "does not reference a valid application object"
 )
 
 // client offers higher level Azure operations that provide a simpler interface
 // for handlers. It in turn relies on a Provider interface to access the lower level
 // Azure Client SDK methods.
 type client struct {
-	provider   api.AzureProvider
+	provider   AzureProvider
 	settings   *clientSettings
 	expiration time.Time
 	passwords  api.Passwords
@@ -47,33 +56,30 @@ func (c *client) Valid() bool {
 // createApp creates a new Azure application.
 // An Application is a needed to create service principals used by
 // the caller for authentication.
-func (c *client) createApp(ctx context.Context) (app *api.ApplicationResult, err error) {
+func (c *client) createApp(ctx context.Context) (app api.Application, err error) {
 	// TODO: Make this name customizable with the same logic as username customization
-	name, err := uuid.GenerateUUID()
-	if err != nil {
-		return nil, err
-	}
+	name := uuid.New().String()
 
 	name = appNamePrefix + name
 
 	result, err := c.provider.CreateApplication(ctx, name)
 
-	return &result, err
+	return result, err
 }
 
-func (c *client) createAppWithName(ctx context.Context, rolename string) (app *api.ApplicationResult, err error) {
+func (c *client) createAppWithName(ctx context.Context, rolename string) (app api.Application, err error) {
 	intSuffix := fmt.Sprintf("%d", time.Now().Unix())
 	name := fmt.Sprintf("%s%s-%s", appNamePrefix, rolename, intSuffix)
 
 	result, err := c.provider.CreateApplication(ctx, name)
 
-	return &result, err
+	return result, err
 }
 
 // createSP creates a new service principal.
 func (c *client) createSP(
 	ctx context.Context,
-	app *api.ApplicationResult,
+	app api.Application,
 	duration time.Duration) (spID string, password string, err error) {
 
 	type idPass struct {
@@ -83,10 +89,10 @@ func (c *client) createSP(
 
 	resultRaw, err := retry(ctx, func() (interface{}, bool, error) {
 		now := time.Now()
-		spID, password, err := c.provider.CreateServicePrincipal(ctx, *app.AppID, now, now.Add(duration))
+		spID, password, err := c.provider.CreateServicePrincipal(ctx, app.AppID, now, now.Add(duration))
 
 		// Propagation delays within Azure can cause this error occasionally, so don't quit on it.
-		if err != nil && strings.Contains(err.Error(), "does not reference a valid application object") {
+		if err != nil && (strings.Contains(err.Error(), errInvalidApplicationObject)) {
 			return nil, false, nil
 		}
 
@@ -118,11 +124,11 @@ func (c *client) addAppPassword(ctx context.Context, appObjID string, expiresIn 
 		return "", "", fmt.Errorf("error updating credentials: %w", err)
 	}
 
-	return to.String(resp.KeyID), to.String(resp.SecretText), nil
+	return resp.KeyID, resp.SecretText, nil
 }
 
 // deleteAppPassword removes a password, if present, from an App's credentials list.
-func (c *client) deleteAppPassword(ctx context.Context, appObjID, keyID string) error {
+func (c *client) deleteAppPassword(ctx context.Context, appObjID string, keyID string) error {
 	err := c.provider.RemoveApplicationPassword(ctx, appObjID, keyID)
 	if err != nil {
 		if strings.Contains(err.Error(), "No password credential found with keyId") {
@@ -150,10 +156,7 @@ func (c *client) generateUUIDs(length int) ([]string, error) {
 	var assignmentIDs []string
 
 	for i := 0; i < length; i++ {
-		assignmentID, err := uuid.GenerateUUID()
-		if err != nil {
-			return nil, err
-		}
+		assignmentID := uuid.New().String()
 		assignmentIDs = append(assignmentIDs, assignmentID)
 	}
 
@@ -174,8 +177,8 @@ func (c *client) assignRoles(ctx context.Context, spID string, roles []*AzureRol
 				return nil, true, fmt.Errorf("assignmentID at index %d was empty", i)
 			}
 			ra, err := c.provider.CreateRoleAssignment(ctx, role.Scope, assignmentIDs[i],
-				authorization.RoleAssignmentCreateParameters{
-					RoleAssignmentProperties: &authorization.RoleAssignmentProperties{
+				armauthorization.RoleAssignmentCreateParameters{
+					Properties: &armauthorization.RoleAssignmentProperties{
 						RoleDefinitionID: &role.RoleID,
 						PrincipalID:      &spID,
 					},
@@ -185,8 +188,12 @@ func (c *client) assignRoles(ctx context.Context, spID string, roles []*AzureRol
 			if err != nil && strings.Contains(err.Error(), "PrincipalNotFound") {
 				return nil, false, nil
 			}
-
-			return to.String(ra.ID), true, err
+			// check if ra is an empty response
+			// if so, return empty string
+			if ra == (armauthorization.RoleAssignmentsClientCreateResponse{}) {
+				return "", true, err
+			}
+			return *ra.ID, true, err
 		})
 
 		if err != nil {
@@ -207,10 +214,11 @@ func (c *client) unassignRoles(ctx context.Context, roleIDs []string) error {
 	var merr *multierror.Error
 
 	for _, id := range roleIDs {
-		if _, err := c.provider.DeleteRoleAssignmentByID(ctx, id); err != nil {
-			detailedErr := new(autorest.DetailedError)
+		var rawResponse *http.Response
+		ctxWithResp := policy.WithCaptureResponse(ctx, &rawResponse)
+		if _, err := c.provider.DeleteRoleAssignmentByID(ctxWithResp, id); err != nil {
 			// If a role was deleted manually then Azure returns a error and status 204
-			if errors.As(err, detailedErr) && (detailedErr.StatusCode == http.StatusNoContent || detailedErr.StatusCode == http.StatusNotFound) {
+			if rawResponse.StatusCode == http.StatusNoContent || rawResponse.StatusCode == http.StatusNotFound {
 				continue
 			}
 
@@ -276,7 +284,7 @@ func groupObjectIDs(groups []*AzureGroup) []string {
 }
 
 // search for roles by name
-func (c *client) findRoles(ctx context.Context, roleName string) ([]authorization.RoleDefinition, error) {
+func (c *client) findRoles(ctx context.Context, roleName string) ([]*armauthorization.RoleDefinition, error) {
 	return c.provider.ListRoleDefinitions(ctx, fmt.Sprintf("subscriptions/%s", c.settings.SubscriptionID), fmt.Sprintf("roleName eq '%s'", roleName))
 }
 
@@ -293,7 +301,8 @@ type clientSettings struct {
 	TenantID       string
 	ClientID       string
 	ClientSecret   string
-	Environment    azure.Environment
+	GraphURI       string
+	CloudConfig    cloud.Configuration
 	PluginEnv      *logical.PluginEnvironment
 }
 
@@ -325,11 +334,22 @@ func (b *azureSecretBackend) getClientSettings(ctx context.Context, config *azur
 	}
 
 	envName := firstAvailable(os.Getenv("AZURE_ENVIRONMENT"), config.Environment, "AZUREPUBLICCLOUD")
-	env, err := azure.EnvironmentFromName(envName)
-	if err != nil {
-		return nil, err
+	if envName == "" {
+		// Default to Azure public cloud
+		settings.CloudConfig = cloud.AzurePublic
+		settings.GraphURI = azurePublicCloudBaseURI
+	} else {
+		var err error
+		settings.CloudConfig, err = cloudConfigFromName(envName)
+		if err != nil {
+			return nil, err
+		}
+
+		settings.GraphURI, err = graphURIFromName(envName)
+		if err != nil {
+			return nil, err
+		}
 	}
-	settings.Environment = env
 
 	pluginEnv, err := b.System().PluginEnv(ctx)
 	if err != nil {
@@ -338,6 +358,38 @@ func (b *azureSecretBackend) getClientSettings(ctx context.Context, config *azur
 	settings.PluginEnv = pluginEnv
 
 	return settings, nil
+}
+
+func cloudConfigFromName(name string) (cloud.Configuration, error) {
+	configs := map[string]cloud.Configuration{
+		azureChinaCloudEnvName:  cloud.AzureChina,
+		azurePublicCloudEnvName: cloud.AzurePublic,
+		azureUSGovCloudEnvName:  cloud.AzureGovernment,
+	}
+
+	name = strings.ToUpper(name)
+	c, ok := configs[name]
+	if !ok {
+		return c, fmt.Errorf("err: no cloud configuration matching the name %q", name)
+	}
+
+	return c, nil
+}
+
+func graphURIFromName(name string) (string, error) {
+	configs := map[string]string{
+		azureChinaCloudEnvName:  azureChinaCloudBaseURI,
+		azurePublicCloudEnvName: azurePublicCloudBaseURI,
+		azureUSGovCloudEnvName:  azureUSGovCloudBaseURI,
+	}
+
+	name = strings.ToUpper(name)
+	c, ok := configs[name]
+	if !ok {
+		return c, fmt.Errorf("err: no MS Graph URI matching the name %q", name)
+	}
+
+	return c, nil
 }
 
 // retry will repeatedly call f until one of:

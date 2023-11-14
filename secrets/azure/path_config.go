@@ -8,8 +8,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Azure/go-autorest/autorest/azure"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
 )
@@ -141,7 +140,7 @@ func (b *azureSecretBackend) pathConfigWrite(ctx context.Context, req *logical.R
 
 	if environment, ok := data.GetOk("environment"); ok {
 		e := environment.(string)
-		if _, err := azure.EnvironmentFromName(e); err != nil {
+		if _, err := cloudConfigFromName(e); err != nil {
 			merr = multierror.Append(merr, err)
 		} else {
 			config.Environment = e
