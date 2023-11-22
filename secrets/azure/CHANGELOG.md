@@ -1,5 +1,9 @@
 ## Unreleased
 
+IMPROVEMENTS:
+* Update dependencies [[GH-176]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/176)
+  * github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.0
+
 ## v0.16.3
 
 IMPROVEMENTS:

@@ -3,7 +3,7 @@ module github.com/hashicorp/vault-plugin-secrets-azure
 go 1.19
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.8.0
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2 v2.1.1
 	github.com/go-test/deep v1.1.0
@@ -21,7 +21,7 @@ require (
 )
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/internal v1.3.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.1.1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
@@ -88,7 +88,7 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	golang.org/x/crypto v0.14.0 // indirect
 	golang.org/x/mod v0.9.0 // indirect
-	golang.org/x/net v0.15.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
