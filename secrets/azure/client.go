@@ -56,22 +56,22 @@ func (c *client) Valid() bool {
 // createApp creates a new Azure application.
 // An Application is a needed to create service principals used by
 // the caller for authentication.
-func (c *client) createApp(ctx context.Context) (app api.Application, err error) {
+func (c *client) createApp(ctx context.Context, signInAudience string, tags []string) (app api.Application, err error) {
 	// TODO: Make this name customizable with the same logic as username customization
 	name := uuid.New().String()
 
 	name = appNamePrefix + name
 
-	result, err := c.provider.CreateApplication(ctx, name)
+	result, err := c.provider.CreateApplication(ctx, name, signInAudience, tags)
 
 	return result, err
 }
 
-func (c *client) createAppWithName(ctx context.Context, rolename string) (app api.Application, err error) {
+func (c *client) createAppWithName(ctx context.Context, rolename string, signInAudience string, tags []string) (app api.Application, err error) {
 	intSuffix := fmt.Sprintf("%d", time.Now().Unix())
 	name := fmt.Sprintf("%s%s-%s", appNamePrefix, rolename, intSuffix)
 
-	result, err := c.provider.CreateApplication(ctx, name)
+	result, err := c.provider.CreateApplication(ctx, name, signInAudience, tags)
 
 	return result, err
 }

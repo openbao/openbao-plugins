@@ -105,7 +105,7 @@ func (b *azureSecretBackend) createSPSecret(ctx context.Context, s logical.Stora
 	// Create the App, which is the top level object to be tracked in the secret
 	// and deleted upon revocation. If any subsequent step fails, the App will be
 	// deleted as part of WAL rollback.
-	app, err := c.createApp(ctx)
+	app, err := c.createApp(ctx, role.SignInAudience, role.Tags)
 	if err != nil {
 		return nil, err
 	}

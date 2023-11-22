@@ -111,7 +111,7 @@ func (m *mockProvider) CreateServicePrincipal(_ context.Context, _ string, _ tim
 	return id, pass, nil
 }
 
-func (m *mockProvider) CreateApplication(_ context.Context, _ string) (api.Application, error) {
+func (m *mockProvider) CreateApplication(_ context.Context, _ string, _ string, _ []string) (api.Application, error) {
 	if m.ctxTimeout != 0 {
 		// simulate a context deadline error by sleeping for timeout period
 		time.Sleep(m.ctxTimeout)

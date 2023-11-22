@@ -159,8 +159,8 @@ func getClientOptions(s *clientSettings, httpClient *http.Client) *arm.ClientOpt
 }
 
 // CreateApplication create a new Azure application object.
-func (p *provider) CreateApplication(ctx context.Context, displayName string) (result api.Application, err error) {
-	return p.appClient.CreateApplication(ctx, displayName)
+func (p *provider) CreateApplication(ctx context.Context, displayName string, signInAudience string, tags []string) (result api.Application, err error) {
+	return p.appClient.CreateApplication(ctx, displayName, signInAudience, tags)
 }
 
 func (p *provider) GetApplication(ctx context.Context, applicationObjectID string) (result api.Application, err error) {

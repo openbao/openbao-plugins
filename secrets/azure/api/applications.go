@@ -18,7 +18,7 @@ import (
 
 type ApplicationsClient interface {
 	GetApplication(ctx context.Context, clientID string) (Application, error)
-	CreateApplication(ctx context.Context, displayName string) (Application, error)
+	CreateApplication(ctx context.Context, displayName string, signInAudience string, tags []string) (Application, error)
 	DeleteApplication(ctx context.Context, applicationObjectID string, permanentlyDelete bool) error
 	ListApplications(ctx context.Context, filter string) ([]Application, error)
 	AddApplicationPassword(ctx context.Context, applicationObjectID string, displayName string, endDateTime time.Time) (PasswordCredential, error)
@@ -121,9 +121,15 @@ func (c *MSGraphClient) ListApplications(ctx context.Context, filter string) ([]
 }
 
 // CreateApplication create a new Azure application object.
-func (c *MSGraphClient) CreateApplication(ctx context.Context, displayName string) (Application, error) {
+func (c *MSGraphClient) CreateApplication(ctx context.Context, displayName string, signInAudience string, tags []string) (Application, error) {
 	requestBody := models.NewApplication()
 	requestBody.SetDisplayName(&displayName)
+	requestBody.SetTags(tags)
+
+	// only set signInAudience if it's non-empty
+	if signInAudience != "" {
+		requestBody.SetSignInAudience(&signInAudience)
+	}
 
 	resp, err := c.client.Applications().Post(ctx, requestBody, nil)
 	if err != nil {

@@ -13,6 +13,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/jsonutil"
+	"github.com/hashicorp/vault/sdk/helper/strutil"
 	"github.com/hashicorp/vault/sdk/logical"
 
 	"github.com/hashicorp/vault-plugin-secrets-azure/api"
@@ -31,6 +32,8 @@ type roleEntry struct {
 	AzureGroups         []*AzureGroup `json:"azure_groups"`
 	ApplicationID       string        `json:"application_id"`
 	ApplicationObjectID string        `json:"application_object_id"`
+	SignInAudience      string        `json:"sign_in_audience"`
+	Tags                []string      `json:"tags"`
 	TTL                 time.Duration `json:"ttl"`
 	MaxTTL              time.Duration `json:"max_ttl"`
 	PermanentlyDelete   bool          `json:"permanently_delete"`
@@ -86,6 +89,14 @@ func pathsRole(b *azureSecretBackend) []*framework.Path {
 				"azure_groups": {
 					Type:        framework.TypeString,
 					Description: "JSON list of Azure groups to add the service principal to.",
+				},
+				"sign_in_audience": {
+					Type:        framework.TypeString,
+					Description: "Specifies the security principal types that are allowed to sign in to the application. Valid values are: AzureADMyOrg, AzureADMultipleOrgs, AzureADandPersonalMicrosoftAccount, PersonalMicrosoftAccount",
+				},
+				"tags": {
+					Type:        framework.TypeCommaStringSlice,
+					Description: "Azure tags to attach to an application.",
 				},
 				"ttl": {
 					Type:        framework.TypeDurationSecond,
@@ -206,6 +217,32 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 		role.PermanentlyDelete = permanentlyDeleteRaw.(bool)
 	} else {
 		role.PermanentlyDelete = false
+	}
+
+	// update and validate SignInAudience if provided
+	if signInAudience, ok := d.GetOk("sign_in_audience"); ok {
+		signInAudienceValue, ok := signInAudience.(string)
+		if !ok {
+			return logical.ErrorResponse("Invalid type for sign_in_audience field. Expected string."), nil
+		}
+
+		validSignInAudiences := []string{"AzureADMyOrg", "AzureADMultipleOrgs", "AzureADandPersonalMicrosoftAccount", "PersonalMicrosoftAccount"}
+		if !strutil.StrListContains(validSignInAudiences, signInAudienceValue) {
+			validValuesString := strings.Join(validSignInAudiences, ", ")
+			return logical.ErrorResponse("Invalid value for sign_in_audience field. Valid values are: %s", validValuesString), nil
+		}
+
+		role.SignInAudience = signInAudienceValue
+	}
+
+	// update and verify Tags if provided
+	tags, ok := d.GetOk("tags")
+	if ok {
+		tagsList, err := validateTags(tags)
+		if err != nil {
+			return logical.ErrorResponse(err.Error()), nil
+		}
+		role.Tags = tagsList
 	}
 
 	// update and verify Application Object ID if provided
@@ -354,6 +391,31 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 	return resp, nil
 }
 
+func validateTags(tags interface{}) ([]string, error) {
+	if tags == nil {
+		return nil, nil
+	}
+
+	tagsList, ok := tags.([]string)
+	if !ok {
+		return nil, fmt.Errorf("expected tags to be []string, but got %T", tags)
+	}
+
+	tagsList = strutil.RemoveDuplicates(tagsList, false)
+
+	for _, tag := range tagsList {
+		// Check individual tag size
+		if len(tag) < 1 || len(tag) > 256 {
+			return nil, fmt.Errorf("individual tag size must be between 1 and 256 characters (inclusive)")
+		}
+		// Check for whitespaces
+		if strings.Contains(tag, " ") {
+			return nil, errors.New("whitespaces are not allowed in tags")
+		}
+	}
+	return tagsList, nil
+}
+
 func (b *azureSecretBackend) createPersistedApp(ctx context.Context, req *logical.Request, role *roleEntry, name string) error {
 
 	c, err := b.getClient(ctx, req.Storage)
@@ -387,7 +449,7 @@ func (b *azureSecretBackend) createPersistedApp(ctx context.Context, req *logica
 		return nil
 	}
 
-	app, err := c.createAppWithName(ctx, name)
+	app, err := c.createAppWithName(ctx, name, role.SignInAudience, role.Tags)
 	if err != nil {
 		return err
 	}
@@ -465,6 +527,8 @@ func (b *azureSecretBackend) pathRoleRead(ctx context.Context, req *logical.Requ
 			"application_object_id": r.ApplicationObjectID,
 			"permanently_delete":    r.PermanentlyDelete,
 			"persist_app":           r.PersistApp,
+			"sign_in_audience":      r.SignInAudience,
+			"tags":                  r.Tags,
 		},
 	}
 	return resp, nil

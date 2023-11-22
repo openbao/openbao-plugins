@@ -7,6 +7,7 @@ IMPROVEMENTS:
 ## v0.16.3
 
 IMPROVEMENTS:
+* Add sign_in_audience and tags fields to application registration [GH-174](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/174)
 * Prevent write-ahead-log data from being replicated to performance secondaries [GH-164](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/164)
 * Update dependencies [[GH-161]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/161)
   * github.com/Azure/azure-sdk-for-go v68.0.0

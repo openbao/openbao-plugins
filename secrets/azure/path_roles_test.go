@@ -44,6 +44,8 @@ func TestRoleCreate(t *testing.T) {
 			"application_object_id": "",
 			"permanently_delete":    true,
 			"persist_app":           false,
+			"sign_in_audience":      "AzureADMyOrg",
+			"tags":                  []string{"project:vault_test"},
 		}
 
 		spRole2 := map[string]interface{}{
@@ -72,6 +74,8 @@ func TestRoleCreate(t *testing.T) {
 			"application_object_id": "",
 			"permanently_delete":    true,
 			"persist_app":           false,
+			"sign_in_audience":      "AzureADMultipleOrgs",
+			"tags":                  []string{"project:vault_test"},
 		}
 
 		// Verify basic updates of the name role
@@ -193,6 +197,8 @@ func TestRoleCreate(t *testing.T) {
 			"max_ttl":               int64(3000),
 			"azure_roles":           "[]",
 			"azure_groups":          "[]",
+			"sign_in_audience":      "PersonalMicrosoftAccount",
+			"tags":                  []string{"environment:production"},
 			"permanently_delete":    false,
 			"persist_app":           false,
 		}
@@ -217,6 +223,8 @@ func TestRoleCreate(t *testing.T) {
 				}]`,
 			),
 			"application_object_id": "",
+			"sign_in_audience":      "AzureADandPersonalMicrosoftAccount",
+			"tags":                  []string{"project:vault_testing"},
 			"azure_groups":          "[]",
 			"persist_app":           false,
 		}
@@ -538,6 +546,59 @@ func TestRoleCreateBad(t *testing.T) {
 	msg = "error parsing Azure roles"
 	if !strings.Contains(resp.Error().Error(), msg) {
 		t.Fatalf("expected to find: %s, got: %s", msg, resp.Error().Error())
+	}
+
+	// invalid signInAudience
+	role = map[string]interface{}{"sign_in_audience": "asdfg"}
+	resp = testRoleCreateBasic(t, b, s, "test_role_1", role)
+	msg = "Invalid value for sign_in_audience field. Valid values are: AzureADMyOrg, AzureADMultipleOrgs, AzureADandPersonalMicrosoftAccount, PersonalMicrosoftAccount"
+	if !strings.Contains(resp.Error().Error(), msg) {
+		t.Fatalf("expected to find: %s, got: %s", msg, resp.Error().Error())
+	}
+}
+
+func TestValidateTags(t *testing.T) {
+	tests := []struct {
+		name  string
+		tags  []string
+		valid bool
+	}{
+		{
+			name:  "Valid tags",
+			tags:  []string{"project:vault_test", "team:engineering"},
+			valid: true,
+		},
+		{
+			name:  "Empty tags",
+			tags:  []string{},
+			valid: true,
+		},
+		{
+			name:  "Duplicate tags",
+			tags:  []string{"project:vault_test", "project:vault_test"},
+			valid: true,
+		},
+		{
+			name:  "Tags with whitespaces",
+			tags:  []string{"environment development"},
+			valid: false,
+		},
+		{
+			name:  "Invalid long tag size (must be between 1 and 256 characters)",
+			tags:  []string{"abc" + strings.Repeat("d", 256)},
+			valid: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := validateTags(tt.tags)
+			if tt.valid && err != nil {
+				t.Errorf("unexpected error: %v", err)
+			} else if !tt.valid && err == nil {
+				t.Error("expected error but got nil")
+			}
+		})
 	}
 }
 
