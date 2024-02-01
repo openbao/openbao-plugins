@@ -1,8 +1,16 @@
-## Unreleased
+## v0.17.0
 
 IMPROVEMENTS:
 * Update dependencies [[GH-176]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/176)
-  * github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.0
+  * github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.0 -> v1.9.1
+  * github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.4.0 -> v1.5.1
+  * github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2 v2.1.1 -> v2.2.0
+  * github.com/google/uuid v1.3.1 -> v1.6.0
+  * github.com/hashicorp/go-hclog v1.5.0 -> v1.6.2
+  * github.com/hashicorp/vault/api v1.10.0 -> v1.11.0
+  * github.com/hashicorp/vault/sdk v0.10.0 -> v0.10.2
+  * github.com/microsoftgraph/msgraph-sdk-go v1.22.0 -> v1.32.0
+  * github.com/microsoftgraph/msgraph-sdk-go-core v1.0.0 -> v1.0.1
 
 ## v0.16.3
 
