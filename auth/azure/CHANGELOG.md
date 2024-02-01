@@ -1,3 +1,19 @@
+## v0.17.0
+IMPROVEMENTS:
+* Make `framework.WALPrefix`` a local path [[GH-137](https://github.com/hashicorp/vault-plugin-auth-azure/pull/137)]
+* Updated dependencies:
+   * `github.com/Azure/azure-sdk-for-go/sdk/azcore` v1.7.1 -> v1.9.1
+   * `github.com/Azure/azure-sdk-for-go/sdk/azidentity` v1.3.1 -> v1.5.1
+   * `github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi` v1.1.0 -> v1.2.0
+   * `github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources` v1.1.1 -> v1.2.0
+   * `github.com/google/uuid` v1.3.1 -> v1.6.0
+   * `github.com/hashicorp/go-hclog` v1.5.0 -> v1.6.2
+   * `github.com/hashicorp/vault/api` v1.9.2 -> v1.11.0
+   * `github.com/hashicorp/vault/sdk` v0.9.2 -> v0.10.2
+   * `github.com/microsoftgraph/msgraph-sdk-go` v1.13.0 -> v1.32.0
+   * `github.com/microsoftgraph/msgraph-sdk-go-core` v1.0.0 -> v1.0.1
+   * `golang.org/x/oauth2` v0.11.0 -> v0.16.0
+
 ## v0.16.2
 IMPROVEMENTS:
     * Prevent write-ahead-log data from being replicated to performance secondaries [GH-137](https://github.com/hashicorp/vault-plugin-auth-azure/pull/137)
