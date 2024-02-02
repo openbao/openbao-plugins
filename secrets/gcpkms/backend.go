@@ -6,7 +6,6 @@ package gcpkms
 import (
 	"context"
 	"fmt"
-	"github.com/patrickmn/go-cache"
 	"sync"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/useragent"
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/patrickmn/go-cache"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 
@@ -75,6 +75,7 @@ func Backend() *backend {
 
 	b.kmsClientLifetime = defaultClientLifetime
 	b.ctx, b.ctxCancel = context.WithCancel(context.Background())
+	b.keysCache = cache.New(cache.DefaultExpiration, 60*time.Minute)
 
 	b.Backend = &framework.Backend{
 		BackendType: logical.TypeLogical,
