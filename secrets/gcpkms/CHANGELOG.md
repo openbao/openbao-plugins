@@ -2,6 +2,23 @@
 
 IMPROVEMENTS:
 
+## v0.16.0 (February 2nd, 2024)
+
+IMPROVEMENTS:
+
+* Updated dependencies:
+  * `cloud.google.com/go/kms` v1.15.1 -> v1.15.6
+  * `github.com/hashicorp/go-hclog` v1.5.0 -> v1.6.2
+  * `github.com/hashicorp/vault/api` v1.9.2 -> v1.11.0
+  * `github.com/hashicorp/vault/sdk` v0.9.2 -> v0.10.2
+  * `golang.org/x/oauth2` v0.11.0 -> v0.16.0
+  * `google.golang.org/api` v0.138.0 -> v0.161.0
+  * `google.golang.org/genproto` v0.0.0-20230822172742-b8732ec3820d -> v0.0.0-20240125205218-1f4bbc51befe
+  * `google.golang.org/grpc` v1.57.0 -> v1.61.0
+
+FIXES:
+* Fixed an issue where the newly introduced key metadata cache would cause a nil dereference error [GH-37](https://github.com/hashicorp/vault-plugin-secrets-gcpkms/pull/37)
+
 ## v0.15.2 (September 22th, 2023)
 
 IMPROVEMENTS:
