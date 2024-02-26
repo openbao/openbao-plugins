@@ -35,7 +35,6 @@ type azureConfig struct {
 	NewClientSecretExpirationDate time.Time     `json:"new_client_secret_expiration_date"`
 	NewClientSecretKeyID          string        `json:"new_client_secret_key_id"`
 	Environment                   string        `json:"environment"`
-	PasswordPolicy                string        `json:"password_policy"`
 	RootPasswordTTL               time.Duration `json:"root_password_ttl"`
 	RootPasswordExpirationDate    time.Time     `json:"root_password_expiration_date"`
 }
@@ -71,10 +70,6 @@ func pathConfig(b *azureSecretBackend) *framework.Path {
 				Type: framework.TypeString,
 				Description: `The OAuth2 client secret to connect to Azure.
 				This value can also be provided with the AZURE_CLIENT_SECRET environment variable.`,
-			},
-			"password_policy": {
-				Type:        framework.TypeString,
-				Description: "Name of the password policy to use to generate passwords for dynamic credentials.",
 			},
 			"root_password_ttl": {
 				Type:        framework.TypeDurationSecond,
@@ -154,8 +149,6 @@ func (b *azureSecretBackend) pathConfigWrite(ctx context.Context, req *logical.R
 	if clientSecret, ok := data.GetOk("client_secret"); ok {
 		config.ClientSecret = clientSecret.(string)
 	}
-
-	config.PasswordPolicy = data.Get("password_policy").(string)
 
 	if rootExpirationRaw, ok := data.GetOk("root_password_ttl"); ok {
 		config.RootPasswordTTL = time.Second * time.Duration(rootExpirationRaw.(int))

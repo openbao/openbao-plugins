@@ -22,6 +22,10 @@ import (
 	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 )
 
+const (
+	PasswordLength = 36
+)
+
 var (
 	errDoesNotExist = "does not exist"
 	testRole        = map[string]interface{}{
@@ -100,7 +104,7 @@ func TestSP_WAL_Cleanup(t *testing.T) {
 	mp := newMockProvider()
 	// ensure timeout is exceeds the context deadline setup below
 	mp.(*mockProvider).ctxTimeout = 6 * time.Second
-	b.getProvider = func(s *clientSettings, p api.Passwords) (AzureProvider, error) {
+	b.getProvider = func(s *clientSettings) (AzureProvider, error) {
 		return mp, nil
 	}
 
@@ -1044,8 +1048,8 @@ func assertClientSecret(tb testing.TB, data map[string]interface{}) {
 	if !ok {
 		tb.Fatalf("client_secret is not a string")
 	}
-	if len(actualPassword) != api.PasswordLength {
-		tb.Fatalf("client_secret is not the correct length: expected %d but was %d", api.PasswordLength, len(actualPassword))
+	if len(actualPassword) != PasswordLength {
+		tb.Fatalf("client_secret is not the correct length: expected %d but was %d", PasswordLength, len(actualPassword))
 	}
 }
 

@@ -11,7 +11,6 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-hclog v1.6.2
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/hashicorp/go-secure-stdlib/base62 v0.1.2
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/hashicorp/vault/api v1.11.0
 	github.com/hashicorp/vault/sdk v0.10.2

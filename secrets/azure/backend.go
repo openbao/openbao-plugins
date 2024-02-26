@@ -14,8 +14,6 @@ import (
 	"github.com/hashicorp/vault/sdk/helper/consts"
 	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"github.com/hashicorp/vault/sdk/logical"
-
-	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 )
 
 const (
@@ -28,7 +26,7 @@ const (
 type azureSecretBackend struct {
 	*framework.Backend
 
-	getProvider func(*clientSettings, api.Passwords) (AzureProvider, error)
+	getProvider func(*clientSettings) (AzureProvider, error)
 	client      *client
 	settings    *clientSettings
 	lock        sync.RWMutex
@@ -230,12 +228,7 @@ func (b *azureSecretBackend) getClient(ctx context.Context, s logical.Storage) (
 		return nil, fmt.Errorf("config is nil")
 	}
 
-	passwords := api.Passwords{
-		PolicyGenerator: b.System(),
-		PolicyName:      config.PasswordPolicy,
-	}
-
-	p, err := b.getProvider(b.settings, passwords)
+	p, err := b.getProvider(b.settings)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +237,6 @@ func (b *azureSecretBackend) getClient(ctx context.Context, s logical.Storage) (
 		provider:   p,
 		settings:   b.settings,
 		expiration: time.Now().Add(clientLifetime),
-		passwords:  passwords,
 	}
 	b.client = c
 

@@ -45,7 +45,6 @@ type client struct {
 	provider   AzureProvider
 	settings   *clientSettings
 	expiration time.Time
-	passwords  api.Passwords
 }
 
 // Valid returns whether the client defined and not expired.

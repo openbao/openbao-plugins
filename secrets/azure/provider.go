@@ -57,7 +57,7 @@ type provider struct {
 }
 
 // newAzureProvider creates an azureProvider, backed by Azure client objects for underlying services.
-func newAzureProvider(settings *clientSettings, passwords api.Passwords) (AzureProvider, error) {
+func newAzureProvider(settings *clientSettings) (AzureProvider, error) {
 	httpClient := cleanhttp.DefaultClient()
 
 	cred, err := getTokenCredential(settings)
