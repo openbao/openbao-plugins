@@ -1,3 +1,13 @@
+## Unreleased
+IMPROVEMENTS:
+* Updated dependencies:
+  * `github.com/Azure/azure-sdk-for-go/sdk/azcore` v1.9.1 -> v1.10.0
+  * `github.com/hashicorp/vault/api` v1.11.0 -> v1.12.0
+  * `github.com/hashicorp/vault/sdk` v0.10.2 -> v0.11.0
+  * `github.com/microsoftgraph/msgraph-sdk-go` v1.32.0 -> v1.35.0
+  * `github.com/microsoftgraph/msgraph-sdk-go-core` v1.0.1 -> v1.1.0
+  * `golang.org/x/oauth2` v0.16.0 -> v0.17.0
+
 ## v0.17.0
 IMPROVEMENTS:
 * Make `framework.WALPrefix`` a local path [[GH-137](https://github.com/hashicorp/vault-plugin-auth-azure/pull/137)]
