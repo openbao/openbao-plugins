@@ -2,6 +2,7 @@
 IMPROVEMENTS:
 * Updated dependencies:
   * `github.com/Azure/azure-sdk-for-go/sdk/azcore` v1.9.1 -> v1.10.0
+  * `github.com/go-jose/go-jose/v3` v3.0.1 -> v3.0.3
   * `github.com/hashicorp/vault/api` v1.11.0 -> v1.12.0
   * `github.com/hashicorp/vault/sdk` v0.10.2 -> v0.11.0
   * `github.com/microsoftgraph/msgraph-sdk-go` v1.32.0 -> v1.35.0
