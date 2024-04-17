@@ -217,7 +217,7 @@ func (c *client) unassignRoles(ctx context.Context, roleIDs []string) error {
 		ctxWithResp := policy.WithCaptureResponse(ctx, &rawResponse)
 		if _, err := c.provider.DeleteRoleAssignmentByID(ctxWithResp, id); err != nil {
 			// If a role was deleted manually then Azure returns a error and status 204
-			if rawResponse.StatusCode == http.StatusNoContent || rawResponse.StatusCode == http.StatusNotFound {
+			if rawResponse != nil && rawResponse.StatusCode == http.StatusNoContent || rawResponse.StatusCode == http.StatusNotFound {
 				continue
 			}
 
