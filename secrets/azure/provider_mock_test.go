@@ -135,15 +135,15 @@ func (m *mockProvider) CreateApplication(_ context.Context, _ string, _ string, 
 	}, nil
 }
 
-func (m *mockProvider) GetApplication(_ context.Context, clientID string) (api.Application, error) {
+func (m *mockProvider) GetApplication(_ context.Context, applicationObjectID string) (api.Application, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	appID := m.applications[clientID]
+	appID := m.applications[applicationObjectID]
 
 	return api.Application{
 		AppID:       appID,
-		AppObjectID: clientID,
+		AppObjectID: applicationObjectID,
 	}, nil
 }
 

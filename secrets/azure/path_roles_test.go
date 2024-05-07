@@ -6,11 +6,14 @@ package azuresecrets
 import (
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
+	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/vault/sdk/helper/logging"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -555,6 +558,89 @@ func TestRoleCreateBad(t *testing.T) {
 	if !strings.Contains(resp.Error().Error(), msg) {
 		t.Fatalf("expected to find: %s, got: %s", msg, resp.Error().Error())
 	}
+}
+
+// TestRolesCreate_applicationObjectID tests that a role
+// can be created using the Application Object ID field.
+// This test requires valid, sufficiently-privileged
+// Azure credentials in env variables.
+func TestRolesCreate_applicationObjectID(t *testing.T) {
+	if os.Getenv("VAULT_ACC") != "1" {
+		t.SkipNow()
+	}
+
+	if os.Getenv("AZURE_CLIENT_SECRET") == "" {
+		t.Skip("Azure Secrets: Azure environment variables not set. Skipping.")
+	}
+
+	t.Run("service principals", func(t *testing.T) {
+		t.Parallel()
+
+		skipIfMissingEnvVars(t,
+			"AZURE_SUBSCRIPTION_ID",
+			"AZURE_CLIENT_ID",
+			"AZURE_CLIENT_SECRET",
+			"AZURE_TENANT_ID",
+			"AZURE_TEST_RESOURCE_GROUP",
+		)
+
+		b := backend()
+		s := new(logical.InmemStorage)
+		subscriptionID := os.Getenv("AZURE_SUBSCRIPTION_ID")
+		clientID := os.Getenv("AZURE_CLIENT_ID")
+		clientSecret := os.Getenv("AZURE_CLIENT_SECRET")
+		tenantID := os.Getenv("AZURE_TENANT_ID")
+		appObjectID := os.Getenv("AZURE_APPLICATION_OBJECT_ID")
+
+		config := &logical.BackendConfig{
+			Logger: logging.NewVaultLogger(log.Trace),
+			System: &logical.StaticSystemView{
+				DefaultLeaseTTLVal: defaultLeaseTTLHr,
+				MaxLeaseTTLVal:     maxLeaseTTLHr,
+			},
+			StorageView: s,
+		}
+		err := b.Setup(context.Background(), config)
+		assertErrorIsNil(t, err)
+
+		configData := map[string]interface{}{
+			"application_object_id": subscriptionID,
+			"client_id":             clientID,
+			"client_secret":         clientSecret,
+			"tenant_id":             tenantID,
+		}
+
+		configResp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      "config",
+			Data:      configData,
+			Storage:   s,
+		})
+		assertRespNoError(t, configResp, err)
+
+		roleName := "test_role_object_id"
+
+		roleData := map[string]interface{}{
+			"application_object_id": appObjectID,
+			"ttl":                   "1h",
+		}
+
+		roleResp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.CreateOperation,
+			Path:      fmt.Sprintf("roles/%s", roleName),
+			Data:      roleData,
+			Storage:   s,
+		})
+		assertRespNoError(t, roleResp, err)
+
+		credsResp, err := b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      fmt.Sprintf("creds/%s", roleName),
+			Storage:   s,
+		})
+		assertRespNoError(t, credsResp, err)
+
+	})
 }
 
 func TestValidateTags(t *testing.T) {

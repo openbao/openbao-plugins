@@ -17,7 +17,7 @@ import (
 )
 
 type ApplicationsClient interface {
-	GetApplication(ctx context.Context, clientID string) (Application, error)
+	GetApplication(ctx context.Context, applicationObjectID string) (Application, error)
 	CreateApplication(ctx context.Context, displayName string, signInAudience string, tags []string) (Application, error)
 	DeleteApplication(ctx context.Context, applicationObjectID string, permanentlyDelete bool) error
 	ListApplications(ctx context.Context, filter string) ([]Application, error)
@@ -73,30 +73,21 @@ func NewMSGraphClient(graphURI string, creds azcore.TokenCredential) (*MSGraphCl
 	return ac, nil
 }
 
-func (c *MSGraphClient) GetApplication(ctx context.Context, clientID string) (Application, error) {
-	filter := fmt.Sprintf("appId eq '%s'", clientID)
-	req := applications.ApplicationsRequestBuilderGetRequestConfiguration{
-		QueryParameters: &applications.ApplicationsRequestBuilderGetQueryParameters{
-			Filter: &filter,
-		},
-	}
-
-	resp, err := c.client.Applications().Get(ctx, &req)
+func (c *MSGraphClient) GetApplication(ctx context.Context, applicationObjectID string) (Application, error) {
+	app, err := c.client.Applications().ByApplicationId(applicationObjectID).Get(ctx, nil)
 	if err != nil {
 		return Application{}, err
 	}
 
-	apps := resp.GetValue()
-	if len(apps) == 0 {
+	if app == nil {
 		return Application{}, fmt.Errorf("no application found")
 	}
-	if len(apps) > 1 {
-		return Application{}, fmt.Errorf("multiple applications found - double check your client_id")
-	}
 
-	app := apps[0]
-
-	return getApplicationResponse(app), nil
+	return Application{
+		AppID:               *app.GetAppId(),
+		AppObjectID:         *app.GetId(),
+		PasswordCredentials: getPasswordCredentialsForApplication(app),
+	}, nil
 }
 
 func (c *MSGraphClient) ListApplications(ctx context.Context, filter string) ([]Application, error) {
