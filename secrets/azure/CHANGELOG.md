@@ -32,6 +32,11 @@ IMPROVEMENTS:
 * `github.com/docker/docker` v25.0.2+incompatible -> v25.0.5+incompatible [[GH-185]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/185)
 * `golang.org/x/net` 0.21.0 -> 0.23.0 [[GH-195]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/195)
 
+## v0.17.2
+
+BUG FIXES:
+* Use applicationObjectID instead of clientID in GetApplication filter [[GH-200]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/200)
+
 ## v0.17.1
 
 BUG FIXES:
