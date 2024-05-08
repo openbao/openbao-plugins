@@ -9,32 +9,134 @@ import (
 	"time"
 
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestConfig_Write(t *testing.T) {
-	b, s := getTestBackend(t)
-
-	configData := map[string]interface{}{}
-	if err := testConfigCreate(t, b, s, configData); err == nil {
-		t.Fatal("expected error")
+func TestConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   map[string]interface{}
+		expected map[string]interface{}
+		wantErr  bool
+	}{
+		{
+			name: "required params happy path",
+			config: map[string]interface{}{
+				"resource":  "resource",
+				"tenant_id": "tid",
+			},
+			expected: map[string]interface{}{
+				"client_id":               "",
+				"environment":             "",
+				"identity_token_audience": "",
+				"identity_token_ttl":      int64(0),
+				"max_retries":             defaultMaxRetries,
+				"max_retry_delay":         defaultMaxRetryDelay,
+				"resource":                "resource",
+				"retry_delay":             defaultRetryDelay,
+				"root_password_ttl":       15768000,
+				"tenant_id":               "tid",
+			},
+		},
+		{
+			name: "environment happy path",
+			config: map[string]interface{}{
+				"resource":    "resource",
+				"tenant_id":   "tid",
+				"environment": "AzurePublicCloud",
+			},
+			expected: map[string]interface{}{
+				"client_id":               "",
+				"environment":             "AzurePublicCloud",
+				"identity_token_audience": "",
+				"identity_token_ttl":      int64(0),
+				"max_retries":             defaultMaxRetries,
+				"max_retry_delay":         defaultMaxRetryDelay,
+				"resource":                "resource",
+				"retry_delay":             defaultRetryDelay,
+				"root_password_ttl":       15768000,
+				"tenant_id":               "tid",
+			},
+		},
+		{
+			name:    "errors when required params unset",
+			config:  map[string]interface{}{},
+			wantErr: true,
+		},
+		{
+			name: "errors on invalid environment",
+			config: map[string]interface{}{
+				"resource":    "resource",
+				"tenant_id":   "tid",
+				"environment": "AzureNotRealCloud",
+			},
+			wantErr: true,
+		},
+		{
+			name: "client_secret and identity_token_audience are mutually exclusive",
+			config: map[string]interface{}{
+				"client_id":               "testClientId",
+				"client_secret":           "testClientSecret",
+				"identity_token_audience": "vault-azure-secrets-d0f0d253",
+				"resource":                "resource",
+				"tenant_id":               "tid",
+			},
+			wantErr: true,
+		},
+		{
+			name: "wif happy path",
+			config: map[string]interface{}{
+				"identity_token_audience": "vault-azure-secrets-d0f0d253",
+				"identity_token_ttl":      int64(500),
+				"resource":                "resource",
+				"tenant_id":               "tid",
+			},
+			expected: map[string]interface{}{
+				"client_id":               "",
+				"environment":             "",
+				"identity_token_audience": "vault-azure-secrets-d0f0d253",
+				"identity_token_ttl":      int64(500),
+				"max_retries":             int32(3),
+				"max_retry_delay":         time.Duration(60000000000),
+				"resource":                "resource",
+				"retry_delay":             time.Duration(4000000000),
+				"root_password_ttl":       15768000,
+				"tenant_id":               "tid",
+			},
+		},
 	}
 
-	configData = map[string]interface{}{
-		"tenant_id": "tid",
-		"resource":  "resource",
-	}
-	if err := testConfigCreate(t, b, s, configData); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			b, s := getTestBackend(t)
+			_, err := testConfigCreate(t, b, s, tc.config)
 
-	configData["environment"] = "AzureNotRealCloud"
-	if err := testConfigCreate(t, b, s, configData); err == nil {
-		t.Fatal("expected error")
-	}
+			if tc.wantErr {
+				assert.True(t, err != nil, "expected error, got none")
+			}
 
-	configData["environment"] = "AzurePublicCloud"
-	if err := testConfigCreate(t, b, s, configData); err != nil {
-		t.Fatalf("err: %v", err)
+			if !tc.wantErr {
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				testConfigRead(t, b, s, tc.expected)
+
+				// Test that updating one element retains the others
+				tc.expected["tenant_id"] = "foo"
+				configSubset := map[string]interface{}{
+					"tenant_id": "foo",
+				}
+
+				_, err = testConfigUpdate(t, b, s, configSubset)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				testConfigRead(t, b, s, tc.expected)
+			}
+		})
 	}
 }
 
@@ -45,7 +147,7 @@ func TestConfigDelete(t *testing.T) {
 		"tenant_id": "tid",
 		"resource":  "resource",
 	}
-	if err := testConfigCreate(t, b, s, configData); err != nil {
+	if _, err := testConfigCreate(t, b, s, configData); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -72,7 +174,17 @@ func TestConfigDelete(t *testing.T) {
 	}
 }
 
-func testConfigCreate(t *testing.T, b *azureAuthBackend, s logical.Storage, d map[string]interface{}) error {
+func testConfigCreate(t *testing.T, b logical.Backend, s logical.Storage, d map[string]interface{}) (*logical.Response, error) {
+	t.Helper()
+	return testConfigCreateUpdate(t, b, logical.CreateOperation, s, d)
+}
+
+func testConfigUpdate(t *testing.T, b logical.Backend, s logical.Storage, d map[string]interface{}) (*logical.Response, error) {
+	t.Helper()
+	return testConfigCreateUpdate(t, b, logical.UpdateOperation, s, d)
+}
+
+func testConfigCreateUpdate(t *testing.T, b logical.Backend, op logical.Operation, s logical.Storage, d map[string]interface{}) (*logical.Response, error) {
 	t.Helper()
 	resp, err := b.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.CreateOperation,
@@ -81,21 +193,30 @@ func testConfigCreate(t *testing.T, b *azureAuthBackend, s logical.Storage, d ma
 		Storage:   s,
 	})
 	if err != nil {
-		return err
+		return resp, err
 	}
 	if resp != nil && resp.IsError() {
-		return resp.Error()
+		return resp, resp.Error()
 	}
-	return nil
+	return resp, nil
 }
 
-func testConfigRead(t *testing.T, b *azureAuthBackend, s logical.Storage) (*logical.Response, error) {
+func testConfigRead(t *testing.T, b *azureAuthBackend, s logical.Storage, expected map[string]interface{}) {
 	t.Helper()
-	return b.HandleRequest(context.Background(), &logical.Request{
+	resp, err := b.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.ReadOperation,
 		Path:      "config",
 		Storage:   s,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp != nil && resp.IsError() {
+		t.Fatal(resp.Error())
+	}
+
+	require.Equal(t, expected, resp.Data)
 }
 
 func TestConfig_RetryDefaults(t *testing.T) {
@@ -106,26 +227,23 @@ func TestConfig_RetryDefaults(t *testing.T) {
 		"resource":  "resource",
 	}
 
-	if err := testConfigCreate(t, b, s, configData); err != nil {
+	if _, err := testConfigCreate(t, b, s, configData); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	resp, err := testConfigRead(t, b, s)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	expected := map[string]interface{}{
+		"client_id":               "",
+		"environment":             "",
+		"identity_token_audience": "",
+		"identity_token_ttl":      int64(0),
+		"max_retries":             defaultMaxRetries,
+		"max_retry_delay":         defaultMaxRetryDelay,
+		"resource":                "resource",
+		"retry_delay":             defaultRetryDelay,
+		"root_password_ttl":       15768000,
+		"tenant_id":               "tid",
 	}
-
-	if resp.Data["max_retries"] != defaultMaxRetries {
-		t.Fatalf("wrong max_retries default: expected %v, got %v", defaultMaxRetries, resp.Data["max_retries"])
-	}
-
-	if resp.Data["max_retry_delay"] != defaultMaxRetryDelay {
-		t.Fatalf("wrong 'max_retry_delay' default: expected %v, got %v", defaultMaxRetryDelay, resp.Data["max_retry_delay"])
-	}
-
-	if resp.Data["retry_delay"] != defaultRetryDelay {
-		t.Fatalf("wrong 'retry_delay' default: expected %v, got %v", defaultRetryDelay, resp.Data["retry_delay"])
-	}
+	testConfigRead(t, b, s, expected)
 
 	config, err := b.config(context.Background(), s)
 	if err != nil {
@@ -164,26 +282,23 @@ func TestConfig_RetryCustom(t *testing.T) {
 		"retry_delay":     retryDelay,
 	}
 
-	if err := testConfigCreate(t, b, s, configData); err != nil {
+	if _, err := testConfigCreate(t, b, s, configData); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
-	resp, err := testConfigRead(t, b, s)
-	if err != nil {
-		t.Fatalf("err: %v", err)
+	expected := map[string]interface{}{
+		"client_id":               "",
+		"environment":             "",
+		"identity_token_audience": "",
+		"identity_token_ttl":      int64(0),
+		"max_retries":             maxRetries,
+		"max_retry_delay":         maxRetryDelay,
+		"resource":                "resource",
+		"retry_delay":             retryDelay,
+		"root_password_ttl":       15768000,
+		"tenant_id":               "tid",
 	}
-
-	if resp.Data["max_retries"] != maxRetries {
-		t.Fatalf("wrong max_retries value: expected %v, got %v", maxRetries, resp.Data["max_retries"])
-	}
-
-	if resp.Data["max_retry_delay"] != maxRetryDelay {
-		t.Fatalf("wrong 'max_retry_delay' value: expected %v, got %v", maxRetryDelay, resp.Data["max_retry_delay"])
-	}
-
-	if resp.Data["retry_delay"] != retryDelay {
-		t.Fatalf("wrong 'retry_delay' value: expected %v, got %v", retryDelay, resp.Data["retry_delay"])
-	}
+	testConfigRead(t, b, s, expected)
 
 	config, err := b.config(context.Background(), s)
 	if err != nil {

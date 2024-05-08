@@ -10,9 +10,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/vault-plugin-auth-azure/client"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
+
+	"github.com/hashicorp/vault-plugin-auth-azure/client"
 )
 
 func pathRotateRoot(b *azureAuthBackend) *framework.Path {

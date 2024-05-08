@@ -18,9 +18,10 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/msi/armmsi"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/coreos/go-oidc"
-	"github.com/hashicorp/vault-plugin-auth-azure/client"
 	"github.com/hashicorp/vault/sdk/helper/policyutil"
 	"github.com/hashicorp/vault/sdk/logical"
+
+	"github.com/hashicorp/vault-plugin-auth-azure/client"
 )
 
 func TestLogin_Acceptance(t *testing.T) {
@@ -49,7 +50,7 @@ func TestLogin_Acceptance(t *testing.T) {
 		"client_id":     clientID,
 		"client_secret": clientSecret,
 	}
-	if err := testConfigCreate(t, b, s, configData); err != nil {
+	if _, err := testConfigCreate(t, b, s, configData); err != nil {
 		t.Fatal(err)
 	}
 

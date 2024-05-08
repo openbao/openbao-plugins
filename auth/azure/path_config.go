@@ -5,14 +5,17 @@ package azureauth
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
+	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
 func pathConfig(b *azureAuthBackend) *framework.Path {
-	return &framework.Path{
+	p := &framework.Path{
 		Pattern: "config",
 		DisplayAttrs: &framework.DisplayAttributes{
 			OperationPrefix: operationPrefixAzure,
@@ -104,9 +107,15 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 		HelpSynopsis:    confHelpSyn,
 		HelpDescription: confHelpDesc,
 	}
+
+	pluginidentityutil.AddPluginIdentityTokenFields(p.Fields)
+
+	return p
 }
 
 type azureConfig struct {
+	pluginidentityutil.PluginIdentityTokenParams
+
 	TenantID                      string        `json:"tenant_id"`
 	Resource                      string        `json:"resource"`
 	Environment                   string        `json:"environment"`
@@ -206,6 +215,27 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 		config.RetryDelay = time.Second * time.Duration(retryDelayRaw.(int))
 	}
 
+	if err := config.ParsePluginIdentityTokenFields(data); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
+
+	if config.IdentityTokenAudience != "" && config.ClientSecret != "" {
+		return logical.ErrorResponse("only one of 'client_secret' or 'identity_token_audience' can be set"), nil
+	}
+
+	// generate token to check if WIF is enabled on this edition of Vault
+	if config.IdentityTokenAudience != "" {
+		_, err := b.System().GenerateIdentityToken(ctx, &pluginutil.IdentityTokenRequest{
+			Audience: config.IdentityTokenAudience,
+		})
+		if err != nil {
+			if errors.Is(err, pluginidentityutil.ErrPluginWorkloadIdentityUnsupported) {
+				return logical.ErrorResponse(err.Error()), nil
+			}
+			return nil, err
+		}
+	}
+
 	// Create a settings object to validate all required settings
 	// are available
 	if _, err := b.getAzureSettings(ctx, config); err != nil {
@@ -247,6 +277,7 @@ func (b *azureAuthBackend) pathConfigRead(ctx context.Context, req *logical.Requ
 			"max_retries":       config.MaxRetries,
 		},
 	}
+	config.PopulatePluginIdentityTokenData(resp.Data)
 
 	if !config.RootPasswordExpirationDate.IsZero() {
 		resp.Data["root_password_expiration_date"] = config.RootPasswordExpirationDate

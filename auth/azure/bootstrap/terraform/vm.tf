@@ -111,7 +111,7 @@ resource "azurerm_public_ip" "vault_azure_pub_ip" {
 
 # Restrict SSH access to the local public IP
 data "http" "my_ip" {
-  url = "https://ifconfig.me/ip"
+  url = "https://ipinfo.io/ip"
 }
 
 resource "azurerm_network_security_group" "vault_azure_sg" {

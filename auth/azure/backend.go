@@ -91,7 +91,7 @@ func backend() *azureAuthBackend {
 // operations. Due to Azure's eventual consistency model, the new credential will not be
 // available immediately, and hence we check periodically and delete the old credential
 // only once the new credential is at least a minute old
-func (b *azureAuthBackend) periodicFunc(ctx context.Context, sys *logical.Request) error {
+func (b *azureAuthBackend) periodicFunc(ctx context.Context, req *logical.Request) error {
 	// Root rotation through the periodic func writes to storage. Only run this on the
 	// active instance in the primary cluster or local mounts. The periodic func doesn't
 	// run on perf standbys or DR secondaries, but we still protect against this here.
@@ -106,7 +106,7 @@ func (b *azureAuthBackend) periodicFunc(ctx context.Context, sys *logical.Reques
 			return nil
 		}
 
-		config, err := b.config(ctx, sys.Storage)
+		config, err := b.config(ctx, req.Storage)
 		if err != nil {
 			return err
 		}
@@ -161,7 +161,7 @@ func (b *azureAuthBackend) periodicFunc(ctx context.Context, sys *logical.Reques
 		config.NewClientSecretKeyID = ""
 		config.NewClientSecretCreated = time.Time{}
 
-		err = b.saveConfig(ctx, config, sys.Storage)
+		err = b.saveConfig(ctx, config, req.Storage)
 		if err != nil {
 			return err
 		}

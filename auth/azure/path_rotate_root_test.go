@@ -30,7 +30,7 @@ func TestRotateRootSuccess(t *testing.T) {
 		"environment":   "azurepublicCloud",
 		"client_secret": clientSecret,
 	}
-	if err := testConfigCreate(t, b, s, configData); err != nil {
+	if _, err := testConfigCreate(t, b, s, configData); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -82,7 +82,6 @@ func TestRotateRootSuccess(t *testing.T) {
 	err = b.periodicFunc(context.Background(), &logical.Request{
 		Storage: s,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +114,7 @@ func TestRotateRootPeriodicFunctionBeforeMinute(t *testing.T) {
 		"client_id":     clientID,
 		"client_secret": clientSecret,
 	}
-	if err := testConfigCreate(t, b, s, configData); err != nil {
+	if _, err := testConfigCreate(t, b, s, configData); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -171,7 +170,6 @@ func TestRotateRootPeriodicFunctionBeforeMinute(t *testing.T) {
 		err = b.periodicFunc(context.Background(), &logical.Request{
 			Storage: s,
 		})
-
 		if err != nil {
 			t.Fatal(test.Name, err)
 		}
