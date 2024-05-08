@@ -27,7 +27,7 @@ func TestRotateRootSuccess(t *testing.T) {
 		"client_id":     os.Getenv("AZURE_CLIENT_ID"),
 		"client_secret": os.Getenv("AZURE_CLIENT_SECRET"),
 	}
-	testConfigCreate(t, b, s, configData)
+	testConfigCreate(t, b, s, configData, false)
 
 	resp, err := b.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.UpdateOperation,
@@ -77,7 +77,6 @@ func TestRotateRootSuccess(t *testing.T) {
 	err = b.periodicFunc(context.Background(), &logical.Request{
 		Storage: s,
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +105,7 @@ func TestRotateRootPeriodicFunctionBeforeMinute(t *testing.T) {
 		"client_id":     os.Getenv("AZURE_CLIENT_ID"),
 		"client_secret": os.Getenv("AZURE_CLIENT_SECRET"),
 	}
-	testConfigCreate(t, b, s, configData)
+	testConfigCreate(t, b, s, configData, false)
 
 	resp, err := b.HandleRequest(context.Background(), &logical.Request{
 		Operation: logical.UpdateOperation,
@@ -160,7 +159,6 @@ func TestRotateRootPeriodicFunctionBeforeMinute(t *testing.T) {
 		err = b.periodicFunc(context.Background(), &logical.Request{
 			Storage: s,
 		})
-
 		if err != nil {
 			t.Fatal(test.Name, err)
 		}

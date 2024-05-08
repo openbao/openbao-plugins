@@ -8,8 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/sdk/helper/logging"
+	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -25,15 +27,23 @@ var (
 	testClientSecret = "testClientSecret"
 )
 
+type testSystemViewEnt struct {
+	logical.StaticSystemView
+}
+
+func (d testSystemViewEnt) GenerateIdentityToken(_ context.Context, _ *pluginutil.IdentityTokenRequest) (*pluginutil.IdentityTokenResponse, error) {
+	return &pluginutil.IdentityTokenResponse{}, nil
+}
+
 func getTestBackendMocked(t *testing.T, initConfig bool) (*azureSecretBackend, logical.Storage) {
 	b := backend()
+	sysView := testSystemViewEnt{}
+	sysView.DefaultLeaseTTLVal = defaultLeaseTTLHr
+	sysView.MaxLeaseTTLVal = maxLeaseTTLHr
 
 	config := &logical.BackendConfig{
-		Logger: logging.NewVaultLogger(log.Trace),
-		System: &logical.StaticSystemView{
-			DefaultLeaseTTLVal: defaultLeaseTTLHr,
-			MaxLeaseTTLVal:     maxLeaseTTLHr,
-		},
+		Logger:      logging.NewVaultLogger(log.Trace),
+		System:      &sysView,
 		StorageView: &logical.InmemStorage{},
 	}
 	err := b.Setup(context.Background(), config)
@@ -43,7 +53,7 @@ func getTestBackendMocked(t *testing.T, initConfig bool) (*azureSecretBackend, l
 
 	b.settings = new(clientSettings)
 	mockProvider := newMockProvider()
-	b.getProvider = func(s *clientSettings) (AzureProvider, error) {
+	b.getProvider = func(context.Context, hclog.Logger, logical.SystemView, *clientSettings) (AzureProvider, error) {
 		return mockProvider, nil
 	}
 
@@ -58,7 +68,7 @@ func getTestBackendMocked(t *testing.T, initConfig bool) (*azureSecretBackend, l
 			"max_ttl":         defaultTestMaxTTL,
 		}
 
-		testConfigCreate(t, b, config.StorageView, cfg)
+		testConfigCreate(t, b, config.StorageView, cfg, false)
 	}
 
 	return b, config.StorageView
@@ -101,14 +111,13 @@ func TestPeriodicFuncNilConfig(t *testing.T) {
 
 	b.settings = new(clientSettings)
 	mockProvider := newMockProvider()
-	b.getProvider = func(s *clientSettings) (AzureProvider, error) {
+	b.getProvider = func(context.Context, hclog.Logger, logical.SystemView, *clientSettings) (AzureProvider, error) {
 		return mockProvider, nil
 	}
 
 	err = b.periodicFunc(context.Background(), &logical.Request{
 		Storage: config.StorageView,
 	})
-
 	if err != nil {
 		t.Fatalf("periodicFunc error not nil, it should have been: %v", err)
 	}

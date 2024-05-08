@@ -10,6 +10,8 @@ import (
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
+	"github.com/hashicorp/vault/sdk/helper/pluginutil"
 	"github.com/hashicorp/vault/sdk/logical"
 )
 
@@ -25,6 +27,8 @@ const (
 // defaults for roles. The zero value is useful and results in
 // environments variable and system defaults being used.
 type azureConfig struct {
+	pluginidentityutil.PluginIdentityTokenParams
+
 	SubscriptionID                string        `json:"subscription_id"`
 	TenantID                      string        `json:"tenant_id"`
 	ClientID                      string        `json:"client_id"`
@@ -40,7 +44,7 @@ type azureConfig struct {
 }
 
 func pathConfig(b *azureSecretBackend) *framework.Path {
-	return &framework.Path{
+	p := &framework.Path{
 		Pattern: "config",
 		DisplayAttrs: &framework.DisplayAttributes{
 			OperationPrefix: operationPrefixAzure,
@@ -108,6 +112,9 @@ func pathConfig(b *azureSecretBackend) *framework.Path {
 		HelpSynopsis:    confHelpSyn,
 		HelpDescription: confHelpDesc,
 	}
+	pluginidentityutil.AddPluginIdentityTokenFields(p.Fields)
+
+	return p
 }
 
 func (b *azureSecretBackend) pathConfigWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
@@ -156,6 +163,27 @@ func (b *azureSecretBackend) pathConfigWrite(ctx context.Context, req *logical.R
 		config.RootPasswordTTL = defaultRootPasswordTTL
 	}
 
+	if err := config.ParsePluginIdentityTokenFields(data); err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
+
+	if config.IdentityTokenAudience != "" && config.ClientSecret != "" {
+		return logical.ErrorResponse("only one of 'client_secret' or 'identity_token_audience' can be set"), nil
+	}
+
+	// generate token to check if WIF is enabled on this edition of Vault
+	if config.IdentityTokenAudience != "" {
+		_, err := b.System().GenerateIdentityToken(ctx, &pluginutil.IdentityTokenRequest{
+			Audience: config.IdentityTokenAudience,
+		})
+		if err != nil {
+			if errors.Is(err, pluginidentityutil.ErrPluginWorkloadIdentityUnsupported) {
+				return logical.ErrorResponse(err.Error()), nil
+			}
+			return nil, err
+		}
+	}
+
 	if merr.ErrorOrNil() != nil {
 		return logical.ErrorResponse(merr.Error()), nil
 	}
@@ -170,7 +198,6 @@ func (b *azureSecretBackend) pathConfigWrite(ctx context.Context, req *logical.R
 
 func (b *azureSecretBackend) pathConfigRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	config, err := b.getConfig(ctx, req.Storage)
-
 	if err != nil {
 		return nil, err
 	}
@@ -188,6 +215,7 @@ func (b *azureSecretBackend) pathConfigRead(ctx context.Context, req *logical.Re
 			"root_password_ttl": int(config.RootPasswordTTL.Seconds()),
 		},
 	}
+	config.PopulatePluginIdentityTokenData(resp.Data)
 
 	if !config.RootPasswordExpirationDate.IsZero() {
 		resp.Data["root_password_expiration_date"] = config.RootPasswordExpirationDate
@@ -235,7 +263,6 @@ func (b *azureSecretBackend) getConfig(ctx context.Context, s logical.Storage) (
 
 func (b *azureSecretBackend) saveConfig(ctx context.Context, config *azureConfig, s logical.Storage) error {
 	entry, err := logical.StorageEntryJSON(configStoragePath, config)
-
 	if err != nil {
 		return err
 	}
@@ -252,9 +279,11 @@ func (b *azureSecretBackend) saveConfig(ctx context.Context, config *azureConfig
 	return nil
 }
 
-const confHelpSyn = `Configure the Azure Secret backend.`
-const confHelpDesc = `
+const (
+	confHelpSyn  = `Configure the Azure Secret backend.`
+	confHelpDesc = `
 The Azure secret backend requires credentials for managing applications and
 service principals. This endpoint is used to configure those credentials as
 well as default values for the backend in general.
 `
+)

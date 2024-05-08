@@ -1,5 +1,8 @@
 ## Unreleased
 
+FEATURES:
+* Adds secret-less configuration of Azure secret engine using plugin Workload Identity Federation (https://github.com/hashicorp/vault-plugin-secrets-azure/pull/188)
+
 ## v0.18.1
 
 BUG FIXES:

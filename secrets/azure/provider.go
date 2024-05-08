@@ -13,14 +13,13 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/hashicorp/go-cleanhttp"
-	"github.com/hashicorp/vault/sdk/logical"
-
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2"
-
-	"github.com/hashicorp/vault/sdk/helper/useragent"
-
+	"github.com/hashicorp/go-cleanhttp"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault-plugin-secrets-azure/api"
+	"github.com/hashicorp/vault/sdk/helper/pluginutil"
+	"github.com/hashicorp/vault/sdk/helper/useragent"
+	"github.com/hashicorp/vault/sdk/logical"
 )
 
 // AzureProvider is an interface to access underlying Azure Client objects and supporting services.
@@ -57,10 +56,10 @@ type provider struct {
 }
 
 // newAzureProvider creates an azureProvider, backed by Azure client objects for underlying services.
-func newAzureProvider(settings *clientSettings) (AzureProvider, error) {
+func newAzureProvider(ctx context.Context, logger hclog.Logger, sys logical.SystemView, settings *clientSettings) (AzureProvider, error) {
 	httpClient := cleanhttp.DefaultClient()
 
-	cred, err := getTokenCredential(settings)
+	cred, err := getTokenCredential(ctx, logger, sys, settings)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +92,7 @@ func newAzureProvider(settings *clientSettings) (AzureProvider, error) {
 	return p, nil
 }
 
-func getTokenCredential(s *clientSettings) (azcore.TokenCredential, error) {
+func getTokenCredential(ctx context.Context, logger hclog.Logger, sys logical.SystemView, s *clientSettings) (azcore.TokenCredential, error) {
 	clientCloudOpts := azcore.ClientOptions{Cloud: s.CloudConfig}
 
 	if s.ClientSecret != "" {
@@ -110,6 +109,20 @@ func getTokenCredential(s *clientSettings) (azcore.TokenCredential, error) {
 		return cred, nil
 	}
 
+	if s.IdentityTokenAudience != "" {
+		options := &azidentity.ClientAssertionCredentialOptions{
+			ClientOptions: clientCloudOpts,
+		}
+		getAssertion := getAssertionFunc(ctx, logger, sys, s)
+		cred, err := azidentity.NewClientAssertionCredential(s.TenantID, s.ClientID,
+			getAssertion, options)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create client assertion credential: %w", err)
+		}
+
+		return cred, nil
+	}
+
 	// Fall back to using managed service identity
 	options := &azidentity.ManagedIdentityCredentialOptions{
 		ClientOptions: clientCloudOpts,
@@ -120,6 +133,29 @@ func getTokenCredential(s *clientSettings) (azcore.TokenCredential, error) {
 	}
 
 	return cred, nil
+}
+
+type getAssertion func(context.Context) (string, error)
+
+func getAssertionFunc(ctx context.Context, logger hclog.Logger, sys logical.SystemView, s *clientSettings) getAssertion {
+	return func(ctx context.Context) (string, error) {
+		req := &pluginutil.IdentityTokenRequest{
+			Audience: s.IdentityTokenAudience,
+			TTL:      s.IdentityTokenTTL * time.Second,
+		}
+		resp, err := sys.GenerateIdentityToken(ctx, req)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate plugin identity token: %w", err)
+		}
+		logger.Info("fetched new plugin identity token")
+
+		if resp.TTL < req.TTL {
+			logger.Debug("generated plugin identity token has shorter TTL than requested",
+				"requested", req.TTL, "actual", resp.TTL)
+		}
+
+		return resp.Token.Token(), nil
+	}
 }
 
 // transporter implements the azure exported.Transporter interface to send HTTP

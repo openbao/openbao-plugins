@@ -140,7 +140,6 @@ func pathsRole(b *azureSecretBackend) []*framework.Path {
 			HelpDescription: roleListHelpDesc,
 		},
 	}
-
 }
 
 // pathRoleUpdate creates or updates Vault roles.
@@ -303,14 +302,14 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 				if strings.Contains(err.Error(), "RoleDefinitionDoesNotExist") {
 					return logical.ErrorResponse("no role found for role_id: '%s'", r.RoleID), nil
 				}
-				return nil, fmt.Errorf("unable to lookup Azure role: %w", err)
+				return nil, fmt.Errorf("unable to lookup Azure role by id: %w", err)
 			}
 
 			roleDef = roleDefResp.RoleDefinition
 		} else {
 			defs, err := client.findRoles(ctx, r.RoleName)
 			if err != nil {
-				return nil, fmt.Errorf("unable to lookup Azure role: %w", err)
+				return nil, fmt.Errorf("unable to lookup Azure role by name: %w", err)
 			}
 			if l := len(defs); l == 0 {
 				return logical.ErrorResponse("no role found for role_name: '%s'", r.RoleName), nil
@@ -417,7 +416,6 @@ func validateTags(tags interface{}) ([]string, error) {
 }
 
 func (b *azureSecretBackend) createPersistedApp(ctx context.Context, req *logical.Request, role *roleEntry, name string) error {
-
 	c, err := b.getClient(ctx, req.Storage)
 	if err != nil {
 		return err
@@ -629,8 +627,9 @@ func getRole(ctx context.Context, name string, s logical.Storage) (*roleEntry, e
 	return role, nil
 }
 
-const roleHelpSyn = "Manage the Vault roles used to generate Azure credentials."
-const roleHelpDesc = `
+const (
+	roleHelpSyn  = "Manage the Vault roles used to generate Azure credentials."
+	roleHelpDesc = `
 This path allows you to read and write roles that are used to generate Azure login
 credentials. These roles are associated with either an existing Application, or a set
 of Azure roles, which are used to control permissions to Azure resources.
@@ -649,5 +648,9 @@ configured. Otherwise, a new service principal will be created and the
 configured set of Azure roles are assigned to it and it will be added to the
 configured groups.
 `
-const roleListHelpSyn = `List existing roles.`
-const roleListHelpDesc = `List existing roles by name.`
+)
+
+const (
+	roleListHelpSyn  = `List existing roles.`
+	roleListHelpDesc = `List existing roles by name.`
+)

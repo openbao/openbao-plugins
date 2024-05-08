@@ -17,6 +17,7 @@ require (
 	github.com/microsoftgraph/msgraph-sdk-go v1.40.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.1.0
 	github.com/mitchellh/mapstructure v1.5.0
+	github.com/stretchr/testify v1.9.0
 )
 
 require (
@@ -85,7 +86,6 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/sasha-s/go-deadlock v0.2.0 // indirect
 	github.com/std-uritemplate/std-uritemplate/go v0.0.55 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.47.0 // indirect
 	go.opentelemetry.io/otel v1.24.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.22.0 // indirect

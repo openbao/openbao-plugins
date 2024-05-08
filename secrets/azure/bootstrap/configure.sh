@@ -37,7 +37,7 @@ vault write "${PLUGIN_PATH}"/roles/dev-role ttl="5m" azure_roles=-<<EOF
     [
         {
             "role_name": "Storage Blob Data Owner",
-            "scope":  "/subscriptions/${SUBSCRIPTION_ID}"
+            "scope":  "/subscriptions/${AZURE_SUBSCRIPTION_ID}"
         }
     ]
 EOF

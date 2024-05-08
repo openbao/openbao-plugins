@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/vault/sdk/framework"
@@ -104,7 +105,7 @@ func TestSP_WAL_Cleanup(t *testing.T) {
 	mp := newMockProvider()
 	// ensure timeout is exceeds the context deadline setup below
 	mp.(*mockProvider).ctxTimeout = 6 * time.Second
-	b.getProvider = func(s *clientSettings) (AzureProvider, error) {
+	b.getProvider = func(context.Context, hclog.Logger, logical.SystemView, *clientSettings) (AzureProvider, error) {
 		return mp, nil
 	}
 

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/helper/consts"
 	"github.com/hashicorp/vault/sdk/helper/locksutil"
@@ -26,7 +27,7 @@ const (
 type azureSecretBackend struct {
 	*framework.Backend
 
-	getProvider func(*clientSettings) (AzureProvider, error)
+	getProvider func(context.Context, hclog.Logger, logical.SystemView, *clientSettings) (AzureProvider, error)
 	client      *client
 	settings    *clientSettings
 	lock        sync.RWMutex
@@ -46,7 +47,7 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 }
 
 func backend() *azureSecretBackend {
-	var b = azureSecretBackend{
+	b := azureSecretBackend{
 		updatePassword: true,
 	}
 
@@ -228,7 +229,7 @@ func (b *azureSecretBackend) getClient(ctx context.Context, s logical.Storage) (
 		return nil, fmt.Errorf("config is nil")
 	}
 
-	p, err := b.getProvider(b.settings)
+	p, err := b.getProvider(ctx, b.Logger(), b.System(), b.settings)
 	if err != nil {
 		return nil, err
 	}
