@@ -1,5 +1,12 @@
 ## Unreleased
+
+## v0.18.0
+
+FEATURES:
+* Add support for Workload Identify Federation (https://github.com/hashicorp/vault-plugin-auth-azure/pull/151)
+
 IMPROVEMENTS:
+* Updated dependencies: (https://github.com/hashicorp/vault-plugin-auth-azure/pull/154)
 * Updated dependencies:
   * `github.com/Azure/azure-sdk-for-go/sdk/azcore` v1.9.1 -> v1.10.0
   * `github.com/go-jose/go-jose/v3` v3.0.1 -> v3.0.3
