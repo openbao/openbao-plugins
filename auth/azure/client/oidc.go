@@ -6,7 +6,7 @@ package client
 import (
 	"context"
 
-	"github.com/coreos/go-oidc"
+	"github.com/coreos/go-oidc/v3/oidc"
 )
 
 type TokenVerifier interface {
