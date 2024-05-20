@@ -14,7 +14,7 @@ require (
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/hashicorp/vault/api v1.13.0
 	github.com/hashicorp/vault/sdk v0.12.0
-	github.com/microsoftgraph/msgraph-sdk-go v1.40.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.42.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.1.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/stretchr/testify v1.9.0
