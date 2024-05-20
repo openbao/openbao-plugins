@@ -1,5 +1,11 @@
 ## Unreleased
 
+## v0.19.0
+
+IMPROVEMENTS:
+* Updated dependencies:
+  * `github.com/microsoftgraph/msgraph-sdk-go` v1.40.0 -> v1.42.0
+
 FEATURES:
 * Adds secret-less configuration of Azure secret engine using plugin Workload Identity Federation (https://github.com/hashicorp/vault-plugin-secrets-azure/pull/188)
 
