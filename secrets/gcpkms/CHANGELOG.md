@@ -1,6 +1,19 @@
 ## Unreleased
 
+## v0.17.0 (May 21st, 2024)
 IMPROVEMENTS:
+* Updated dependencies:
+  * `cloud.google.com/go/kms` v1.15.6 -> v1.17.0
+  * `github.com/docker/docker` v25.0.2 -> v25.0.5
+  * `github.com/golang/protobuf` v1.5.3 -> v1.5.4
+  * `github.com/hashicorp/go-hclog` v1.6.2 -> v1.6.3
+  * `github.com/hashicorp/vault/api` v1.11.0 -> v1.13.0
+  * `github.com/hashicorp/vault/sdk` v0.10.2 -> v0.12.0
+  * `golang.org/x/oauth2` v0.16.0 -> v0.20.0
+  * `google.golang.org/api` v0.161.0 -> v0.181.0
+  * `google.golang.org/genproto` v0.0.0-20240125205218-1f4bbc51befe -> v0.0.0-20240520151616-dc85e6b867a5
+  * `google.golang.org/grpc` v1.61.0 -> v1.64.0
+
 
 ## v0.16.0 (February 2nd, 2024)
 

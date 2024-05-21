@@ -1,6 +1,8 @@
 module github.com/hashicorp/vault-plugin-secrets-gcpkms
 
-go 1.19
+go 1.21
+
+toolchain go1.22.3
 
 require (
 	cloud.google.com/go/kms v1.17.0
