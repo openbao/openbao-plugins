@@ -1,5 +1,8 @@
 ## Unreleased
 
+IMPROVEMENTS:
+* Add login field validation for subscription id, resource group name, vmss name, and vm name
+
 ## v0.18.0
 
 FEATURES:

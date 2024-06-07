@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -446,4 +447,15 @@ func graphURIFromName(name string) (string, error) {
 	}
 
 	return c, nil
+}
+
+// guidRx from https://learn.microsoft.com/en-us/rest/api/defenderforcloud/tasks/get-subscription-level-task
+var guidRx = regexp.MustCompile(`^[0-9A-Fa-f]{8}-([0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}$`)
+var nameRx = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9\-]*$`)
+var rgRx = regexp.MustCompile(`^[\-_.\pL\pN]*[\-_\pL\pN]$`)
+
+// verify the field provided matches Azure's requirements
+// (see: https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/resource-name-rules).
+func validateAzureField(regex *regexp.Regexp, value string) bool {
+	return regex.MatchString(value)
 }

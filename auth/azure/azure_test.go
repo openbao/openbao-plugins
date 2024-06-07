@@ -8,7 +8,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
+	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 
@@ -187,4 +189,59 @@ func (p *mockProvider) ProvidersClient(subscriptionID string) (client.ProvidersC
 	return &mockProvidersClient{
 		providersClientFunc: p.providersClientFunc,
 	}, nil
+}
+
+func TestValidationRegex(t *testing.T) {
+	cases := []struct {
+		name    string
+		in      string
+		regex   *regexp.Regexp
+		isMatch bool
+	}{
+		{
+			name:    "normal subscriptionID",
+			in:      "1234abcd-1234-1234-defa-5678fedc90ba",
+			regex:   guidRx,
+			isMatch: true,
+		},
+		{
+			name:    "bad subscriptionID",
+			in:      "xyzg..",
+			regex:   guidRx,
+			isMatch: false,
+		},
+		{
+			name:    "tricky name",
+			in:      "real/../../secret/top-secret",
+			regex:   nameRx,
+			isMatch: false,
+		},
+		{
+			name:    "valid name",
+			in:      "this-name-is-good-14",
+			regex:   nameRx,
+			isMatch: true,
+		},
+		{
+			name:    "tricky resource group",
+			in:      "real/../../secret/top-secret",
+			regex:   rgRx,
+			isMatch: false,
+		},
+		{
+			name:    "non-ascii resource group",
+			in:      "сыноо",
+			regex:   rgRx,
+			isMatch: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			out := validateAzureField(tc.regex, tc.in)
+			if tc.isMatch != out {
+				t.Fail()
+			}
+		})
+	}
 }
