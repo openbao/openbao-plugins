@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
@@ -214,11 +214,10 @@ func (c *client) unassignRoles(ctx context.Context, roleIDs []string) error {
 	var merr *multierror.Error
 
 	for _, id := range roleIDs {
-		var rawResponse *http.Response
-		ctxWithResp := policy.WithCaptureResponse(ctx, &rawResponse)
-		if _, err := c.provider.DeleteRoleAssignmentByID(ctxWithResp, id); err != nil {
-			// If a role was deleted manually then Azure returns a error and status 204
-			if rawResponse != nil && rawResponse.StatusCode == http.StatusNoContent || rawResponse.StatusCode == http.StatusNotFound {
+		if _, err := c.provider.DeleteRoleAssignmentByID(ctx, id); err != nil {
+			// If a role was deleted out-of-band then Azure returns an error and status 204
+			respErr := new(azcore.ResponseError)
+			if errors.As(err, &respErr) && (respErr.StatusCode == http.StatusNoContent || respErr.StatusCode == http.StatusNotFound) {
 				continue
 			}
 

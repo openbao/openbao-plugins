@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2"
 	"github.com/google/uuid"
 
@@ -20,13 +21,20 @@ import (
 
 // mockProvider is a Provider that provides stubs and simple, deterministic responses.
 type mockProvider struct {
-	applications              map[string]string
-	servicePrincipals         map[string]bool
-	deletedObjects            map[string]bool
-	passwords                 map[string]string
-	failNextCreateApplication bool
-	ctxTimeout                time.Duration
-	lock                      sync.Mutex
+	applications               map[string]string
+	servicePrincipals          map[string]bool
+	deletedObjects             map[string]bool
+	passwords                  map[string]string
+	failNextCreateApplication  bool
+	failUnassignRoles          bool
+	unassignRolesFailureParams failureParams
+	ctxTimeout                 time.Duration
+	lock                       sync.Mutex
+}
+
+type failureParams struct {
+	statusCode  int
+	expectError bool
 }
 
 func newMockProvider() AzureProvider {
@@ -224,6 +232,21 @@ func (m *mockProvider) CreateRoleAssignment(_ context.Context, scope string, nam
 }
 
 func (m *mockProvider) DeleteRoleAssignmentByID(_ context.Context, _ string) (armauthorization.RoleAssignmentsClientDeleteByIDResponse, error) {
+	if m.failUnassignRoles {
+		if m.unassignRolesFailureParams.expectError {
+			// return empty response and no 200 status codes to throw error
+			return armauthorization.RoleAssignmentsClientDeleteByIDResponse{}, &azcore.ResponseError{
+				ErrorCode: "mock: fail to delete role assignment",
+			}
+		}
+
+		// return empty response and with status code; will ignore error and assume role
+		// assignment was manually deleted based on status code
+		return armauthorization.RoleAssignmentsClientDeleteByIDResponse{}, &azcore.ResponseError{
+			StatusCode: m.unassignRolesFailureParams.statusCode,
+			ErrorCode:  "mock: fail to delete role assignment",
+		}
+	}
 	return armauthorization.RoleAssignmentsClientDeleteByIDResponse{}, nil
 }
 

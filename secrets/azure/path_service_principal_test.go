@@ -888,6 +888,64 @@ func TestRoleAssignmentWALRollback(t *testing.T) {
 	})
 }
 
+// TestUnassignRoleFailures ensures that the plugin can
+// cleanly resolve any errors received when unassigning roles
+func TestUnassignRoleFailures(t *testing.T) {
+	b, s := getTestBackendMocked(t, true)
+
+	mp := newMockProvider()
+	mp.(*mockProvider).failUnassignRoles = true
+	mp.(*mockProvider).unassignRolesFailureParams = failureParams{
+		expectError: true,
+	}
+	b.getProvider = func(context.Context, hclog.Logger, logical.SystemView, *clientSettings) (AzureProvider, error) {
+		return mp, nil
+	}
+
+	c, err := b.getClient(context.Background(), s)
+	if err != nil {
+		t.Fatalf("error getting client: %s", err.Error())
+	}
+
+	// verify error is received
+	t.Run("Role unassign fail", func(t *testing.T) {
+		testAssignmentIDs := []string{"test-1", "test-2"}
+		// Remove one of the RA IDs to simulate a failure to assign a role
+		if err := c.unassignRoles(context.Background(), testAssignmentIDs); err == nil {
+			t.Fatalf("expected error but got nil")
+		}
+	})
+
+	mp.(*mockProvider).unassignRolesFailureParams = failureParams{
+		expectError: false,
+		statusCode:  204,
+	}
+
+	// verify the error is properly handled and ignored in 204 case
+	t.Run("Role unassign error handled for 204", func(t *testing.T) {
+		testAssignmentIDs := []string{"test-1", "test-2"}
+		// Remove one of the RA IDs to simulate a failure to assign a role
+		if err := c.unassignRoles(context.Background(), testAssignmentIDs); err != nil {
+			t.Fatalf("error unassigning Role: %s", err.Error())
+		}
+	})
+
+	mp.(*mockProvider).unassignRolesFailureParams = failureParams{
+		expectError: false,
+		statusCode:  404,
+	}
+
+	// verify the error is properly handled and ignored in 404 case
+	t.Run("Role unassign error handled for 404", func(t *testing.T) {
+		testAssignmentIDs := []string{"test-1", "test-2"}
+		// Remove one of the RA IDs to simulate a failure to assign a role
+		if err := c.unassignRoles(context.Background(), testAssignmentIDs); err != nil {
+			t.Fatalf("error unassigning Role: %s", err.Error())
+		}
+	})
+
+}
+
 // This is an integration test against the live Azure service. It requires
 // valid, sufficiently-privileged Azure credentials in env variables.
 func TestCredentialInteg_msgraph(t *testing.T) {
