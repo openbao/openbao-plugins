@@ -80,16 +80,18 @@ func (c *client) createAppWithName(ctx context.Context, rolename string, signInA
 func (c *client) createSP(
 	ctx context.Context,
 	app api.Application,
-	duration time.Duration) (spID string, password string, err error) {
+	duration time.Duration) (spID string, password string, endDate time.Time, err error) {
 
 	type idPass struct {
 		ID       string
 		Password string
+		EndDate  time.Time
 	}
 
 	resultRaw, err := retry(ctx, func() (interface{}, bool, error) {
 		now := time.Now()
-		spID, password, err := c.provider.CreateServicePrincipal(ctx, app.AppID, now, now.Add(duration))
+		endDate := now.Add(duration)
+		spID, password, err := c.provider.CreateServicePrincipal(ctx, app.AppID, now, endDate)
 
 		// Propagation delays within Azure can cause this error occasionally, so don't quit on it.
 		if err != nil && (strings.Contains(err.Error(), errInvalidApplicationObject)) {
@@ -99,32 +101,33 @@ func (c *client) createSP(
 		result := idPass{
 			ID:       spID,
 			Password: password,
+			EndDate:  endDate,
 		}
 
 		return result, true, err
 	})
 
 	if err != nil {
-		return "", "", fmt.Errorf("error creating service principal: %w", err)
+		return "", "", time.Time{}, fmt.Errorf("error creating service principal: %w", err)
 	}
 
 	result := resultRaw.(idPass)
 
-	return result.ID, result.Password, nil
+	return result.ID, result.Password, result.EndDate, nil
 }
 
 // addAppPassword adds a new password to an App's credentials list.
-func (c *client) addAppPassword(ctx context.Context, appObjID string, expiresIn time.Duration) (string, string, error) {
+func (c *client) addAppPassword(ctx context.Context, appObjID string, expiresIn time.Duration) (string, string, time.Time, error) {
 	exp := time.Now().Add(expiresIn)
 	resp, err := c.provider.AddApplicationPassword(ctx, appObjID, "vault-plugin-secrets-azure", exp)
 	if err != nil {
 		if strings.Contains(err.Error(), "size of the object has exceeded its limit") {
 			err = errors.New("maximum number of Application passwords reached")
 		}
-		return "", "", fmt.Errorf("error updating credentials: %w", err)
+		return "", "", time.Time{}, fmt.Errorf("error updating credentials: %w", err)
 	}
 
-	return resp.KeyID, resp.SecretText, nil
+	return resp.KeyID, resp.SecretText, resp.EndDate, nil
 }
 
 // deleteAppPassword removes a password, if present, from an App's credentials list.

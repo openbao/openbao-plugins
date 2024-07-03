@@ -315,6 +315,23 @@ func TestSPRead(t *testing.T) {
 
 		equal(t, 20*time.Second, resp.Secret.TTL)
 		equal(t, 30*time.Second, resp.Secret.MaxTTL)
+
+		roleUpdate = map[string]interface{}{
+			"ttl":              20,
+			"explicit_max_ttl": 60,
+		}
+		testRoleCreate(t, b, s, name, roleUpdate)
+
+		resp, err = b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "creds/" + name,
+			Storage:   s,
+		})
+
+		assertErrorIsNil(t, err)
+
+		equal(t, 20*time.Second, resp.Secret.TTL)
+		equal(t, 60*time.Second, resp.Secret.MaxTTL)
 	})
 }
 
@@ -389,6 +406,23 @@ func TestStaticSPRead(t *testing.T) {
 
 		equal(t, 20*time.Second, resp.Secret.TTL)
 		equal(t, 30*time.Second, resp.Secret.MaxTTL)
+
+		roleUpdate = map[string]interface{}{
+			"ttl":              20,
+			"explicit_max_ttl": 60,
+		}
+		testRoleCreate(t, b, s, name, roleUpdate)
+
+		resp, err = b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "creds/" + name,
+			Storage:   s,
+		})
+
+		assertErrorIsNil(t, err)
+
+		equal(t, 20*time.Second, resp.Secret.TTL)
+		equal(t, 60*time.Second, resp.Secret.MaxTTL)
 	})
 }
 
@@ -463,6 +497,23 @@ func TestPersistentAppSPRead(t *testing.T) {
 
 		equal(t, 20*time.Second, resp.Secret.TTL)
 		equal(t, 30*time.Second, resp.Secret.MaxTTL)
+
+		roleUpdate = map[string]interface{}{
+			"ttl":              20,
+			"explicit_max_ttl": 60,
+		}
+		testRoleCreate(t, b, s, name, roleUpdate)
+
+		resp, err = b.HandleRequest(context.Background(), &logical.Request{
+			Operation: logical.ReadOperation,
+			Path:      "creds/" + name,
+			Storage:   s,
+		})
+
+		assertErrorIsNil(t, err)
+
+		equal(t, 20*time.Second, resp.Secret.TTL)
+		equal(t, 60*time.Second, resp.Secret.MaxTTL)
 	})
 }
 

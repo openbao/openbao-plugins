@@ -44,6 +44,7 @@ func TestRoleCreate(t *testing.T) {
 		}]`),
 			"ttl":                   int64(0),
 			"max_ttl":               int64(0),
+			"explicit_max_ttl":      int64(0),
 			"application_object_id": "",
 			"permanently_delete":    true,
 			"persist_app":           false,
@@ -74,6 +75,7 @@ func TestRoleCreate(t *testing.T) {
 		}]`),
 			"ttl":                   int64(300),
 			"max_ttl":               int64(3000),
+			"explicit_max_ttl":      int64(3000),
 			"application_object_id": "",
 			"permanently_delete":    true,
 			"persist_app":           false,
@@ -124,6 +126,7 @@ func TestRoleCreate(t *testing.T) {
 		}]`),
 			"ttl":                   int64(0),
 			"max_ttl":               int64(0),
+			"explicit_max_ttl":      int64(0),
 			"application_object_id": "",
 			"persist_app":           true,
 		}
@@ -151,6 +154,7 @@ func TestRoleCreate(t *testing.T) {
 		}]`),
 			"ttl":                   int64(300),
 			"max_ttl":               int64(3000),
+			"explicit_max_ttl":      int64(3000),
 			"application_object_id": "",
 			"persist_app":           true,
 		}
@@ -198,6 +202,7 @@ func TestRoleCreate(t *testing.T) {
 			"application_object_id": "00000000-0000-0000-0000-000000000000",
 			"ttl":                   int64(300),
 			"max_ttl":               int64(3000),
+			"explicit_max_ttl":      int64(3000),
 			"azure_roles":           "[]",
 			"azure_groups":          "[]",
 			"sign_in_audience":      "PersonalMicrosoftAccount",
@@ -232,13 +237,14 @@ func TestRoleCreate(t *testing.T) {
 			"persist_app":           false,
 		}
 
-		// Verify that ttl and max_ttl are 0 if not provided
+		// Verify that ttl, max_ttl and explicit_max_ttl are 0 if not provided
 		// and that permanently_delete is false if not provided
 		name := generateUUID()
 		testRoleCreate(t, b, s, name, testRole)
 
 		testRole["ttl"] = int64(0)
 		testRole["max_ttl"] = int64(0)
+		testRole["explicit_max_ttl"] = int64(0)
 		testRole["permanently_delete"] = false
 
 		resp, err := testRoleRead(t, b, s, name)
@@ -253,16 +259,21 @@ func TestRoleCreate(t *testing.T) {
 
 		const skip = -999
 		tests := []struct {
-			ttl      int64
-			maxTTL   int64
-			expError bool
+			ttl            int64
+			maxTTL         int64
+			explicitMaxTTL int64
+			expError       bool
 		}{
-			{5, 10, false},
-			{5, skip, false},
-			{skip, 10, false},
-			{100, 100, false},
-			{101, 100, true},
-			{101, 0, false},
+			{5, 10, skip, false},
+			{5, skip, skip, false},
+			{skip, 10, skip, false},
+			{100, 100, skip, false},
+			{101, 100, skip, true},
+			{101, 0, skip, false},
+			{5, 10, 10, false},
+			{10, skip, 5, true},
+			{10, 10, 5, true},
+			{skip, skip, 10, false},
 		}
 
 		for i, test := range tests {
@@ -275,6 +286,9 @@ func TestRoleCreate(t *testing.T) {
 			}
 			if test.maxTTL != skip {
 				role["max_ttl"] = test.maxTTL
+			}
+			if test.explicitMaxTTL != skip {
+				role["explicit_max_ttl"] = test.explicitMaxTTL
 			}
 			name := generateUUID()
 			resp, err := b.HandleRequest(context.Background(), &logical.Request{
@@ -864,4 +878,5 @@ func convertRespTypes(data map[string]interface{}) {
 	}
 	data["ttl"] = int64(data["ttl"].(time.Duration))
 	data["max_ttl"] = int64(data["max_ttl"].(time.Duration))
+	data["explicit_max_ttl"] = int64(data["explicit_max_ttl"].(time.Duration))
 }

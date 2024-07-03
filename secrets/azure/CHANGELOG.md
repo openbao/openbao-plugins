@@ -1,5 +1,8 @@
 ## Unreleased
 
+FEATURES:
+* Adds ability to limit the lifetime of service principal secrets in Azure through `explicit_max_ttl` on roles ([GH-199](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/199))
+
 ## v0.19.0
 
 IMPROVEMENTS:

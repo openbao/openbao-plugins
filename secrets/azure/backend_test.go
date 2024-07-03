@@ -16,10 +16,11 @@ import (
 )
 
 const (
-	defaultLeaseTTLHr = 1 * time.Hour
-	maxLeaseTTLHr     = 12 * time.Hour
-	defaultTestTTL    = 300
-	defaultTestMaxTTL = 3600
+	defaultLeaseTTLHr         = 1 * time.Hour
+	maxLeaseTTLHr             = 12 * time.Hour
+	defaultTestTTL            = 300
+	defaultTestMaxTTL         = 3600
+	defaultTestExplicitMaxTTL = 7200
 )
 
 var (
@@ -59,13 +60,14 @@ func getTestBackendMocked(t *testing.T, initConfig bool) (*azureSecretBackend, l
 
 	if initConfig {
 		cfg := map[string]interface{}{
-			"subscription_id": generateUUID(),
-			"tenant_id":       generateUUID(),
-			"client_id":       testClientID,
-			"client_secret":   testClientSecret,
-			"environment":     "AZURECHINACLOUD",
-			"ttl":             defaultTestTTL,
-			"max_ttl":         defaultTestMaxTTL,
+			"subscription_id":  generateUUID(),
+			"tenant_id":        generateUUID(),
+			"client_id":        testClientID,
+			"client_secret":    testClientSecret,
+			"environment":      "AZURECHINACLOUD",
+			"ttl":              defaultTestTTL,
+			"max_ttl":          defaultTestMaxTTL,
+			"explicit_max_ttl": defaultTestExplicitMaxTTL,
 		}
 
 		testConfigCreate(t, b, config.StorageView, cfg, false)

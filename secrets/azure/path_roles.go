@@ -36,6 +36,7 @@ type roleEntry struct {
 	Tags                []string      `json:"tags"`
 	TTL                 time.Duration `json:"ttl"`
 	MaxTTL              time.Duration `json:"max_ttl"`
+	ExplicitMaxTTL      time.Duration `json:"explicit_max_ttl"`
 	PermanentlyDelete   bool          `json:"permanently_delete"`
 	PersistApp          bool          `json:"persist_app"`
 
@@ -105,6 +106,10 @@ func pathsRole(b *azureSecretBackend) []*framework.Path {
 				"max_ttl": {
 					Type:        framework.TypeDurationSecond,
 					Description: "Maximum time a service principal. If not set or set to 0, will use system default.",
+				},
+				"explicit_max_ttl": {
+					Type:        framework.TypeDurationSecond,
+					Description: "Maximum lifetime of the lease and service principal. If not set or set to 0, will use the system default.",
 				},
 				"permanently_delete": {
 					Type:        framework.TypeBool,
@@ -207,8 +212,22 @@ func (b *azureSecretBackend) pathRoleUpdate(ctx context.Context, req *logical.Re
 		role.MaxTTL = time.Duration(d.Get("max_ttl").(int)) * time.Second
 	}
 
+	if explicitMaxTTLRaw, ok := d.GetOk("explicit_max_ttl"); ok {
+		role.ExplicitMaxTTL = time.Duration(explicitMaxTTLRaw.(int)) * time.Second
+	} else if req.Operation == logical.CreateOperation {
+		role.ExplicitMaxTTL = time.Duration(d.Get("explicit_max_ttl").(int)) * time.Second
+	}
+
 	if role.MaxTTL != 0 && role.TTL > role.MaxTTL {
 		return logical.ErrorResponse("ttl cannot be greater than max_ttl"), nil
+	}
+
+	if role.ExplicitMaxTTL != 0 && role.TTL > role.ExplicitMaxTTL {
+		return logical.ErrorResponse("ttl cannot be greater than explicit_max_ttl"), nil
+	}
+
+	if role.ExplicitMaxTTL != 0 && role.MaxTTL > role.ExplicitMaxTTL {
+		return logical.ErrorResponse("max_ttl cannot be greater than explicit_max_ttl"), nil
 	}
 
 	// load and verify deletion options
@@ -463,8 +482,14 @@ func (b *azureSecretBackend) createPersistedApp(ctx context.Context, req *logica
 		return fmt.Errorf("error writing WAL: %w", err)
 	}
 
-	// TODO: should we expire the PW?
-	spObjID, _, err := c.createSP(ctx, app, spExpiration)
+	// Determine SP duration
+	spDuration := spExpiration
+	if role.ExplicitMaxTTL != 0 {
+		spDuration = role.ExplicitMaxTTL
+	}
+
+	// Create the SP
+	spObjID, _, _, err := c.createSP(ctx, app, spDuration)
 	if err != nil {
 		return err
 	}
@@ -520,6 +545,7 @@ func (b *azureSecretBackend) pathRoleRead(ctx context.Context, req *logical.Requ
 		Data: map[string]interface{}{
 			"ttl":                   r.TTL / time.Second,
 			"max_ttl":               r.MaxTTL / time.Second,
+			"explicit_max_ttl":      r.ExplicitMaxTTL / time.Second,
 			"azure_roles":           r.AzureRoles,
 			"azure_groups":          r.AzureGroups,
 			"application_object_id": r.ApplicationObjectID,

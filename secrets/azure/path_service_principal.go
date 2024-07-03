@@ -20,6 +20,7 @@ const (
 )
 
 // SPs will be created with a far-future expiration in Azure
+// unless `explicit_max_ttl` is set in the role
 var spExpiration = 10 * 365 * 24 * time.Hour
 
 func secretServicePrincipal(b *azureSecretBackend) *framework.Secret {
@@ -97,6 +98,9 @@ func (b *azureSecretBackend) pathSPRead(ctx context.Context, req *logical.Reques
 
 	resp.Secret.TTL = role.TTL
 	resp.Secret.MaxTTL = role.MaxTTL
+	if role.ExplicitMaxTTL != 0 && (role.ExplicitMaxTTL < role.MaxTTL || role.MaxTTL == 0) {
+		resp.Secret.MaxTTL = role.ExplicitMaxTTL
+	}
 	return resp, nil
 }
 
@@ -122,8 +126,14 @@ func (b *azureSecretBackend) createSPSecret(ctx context.Context, s logical.Stora
 		return nil, fmt.Errorf("error writing WAL: %w", err)
 	}
 
+	// Determine SP duration
+	spDuration := spExpiration
+	if role.ExplicitMaxTTL != 0 {
+		spDuration = role.ExplicitMaxTTL
+	}
+
 	// Create a service principal associated with the new App
-	spID, password, err := c.createSP(ctx, app, spExpiration)
+	spID, password, endDate, err := c.createSP(ctx, app, spDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -175,6 +185,7 @@ func (b *azureSecretBackend) createSPSecret(ctx context.Context, s logical.Stora
 		"group_membership_ids": groupObjectIDs(role.AzureGroups),
 		"role":                 roleName,
 		"permanently_delete":   role.PermanentlyDelete,
+		"key_end_date":         endDate.Format(time.RFC3339Nano),
 	}
 
 	return b.Secret(SecretTypeSP).Response(data, internalData), nil
@@ -186,7 +197,13 @@ func (b *azureSecretBackend) createStaticSPSecret(ctx context.Context, c *client
 	lock.Lock()
 	defer lock.Unlock()
 
-	keyID, password, err := c.addAppPassword(ctx, role.ApplicationObjectID, spExpiration)
+	// Determine SP duration
+	spDuration := spExpiration
+	if role.ExplicitMaxTTL != 0 {
+		spDuration = role.ExplicitMaxTTL
+	}
+
+	keyID, password, endDate, err := c.addAppPassword(ctx, role.ApplicationObjectID, spDuration)
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +215,7 @@ func (b *azureSecretBackend) createStaticSPSecret(ctx context.Context, c *client
 	internalData := map[string]interface{}{
 		"app_object_id": role.ApplicationObjectID,
 		"key_id":        keyID,
+		"key_end_date":  endDate.Format(time.RFC3339Nano),
 		"role":          roleName,
 	}
 
@@ -219,9 +237,21 @@ func (b *azureSecretBackend) spRenew(ctx context.Context, req *logical.Request, 
 		return nil, nil
 	}
 
+	// Determine remaining lifetime of SP secret in Azure
+	keyEndDateRaw, ok := req.Secret.InternalData["key_end_date"]
+	if !ok {
+		return nil, errors.New("internal data 'key_end_date' not found")
+	}
+	keyEndDate, err := time.Parse(time.RFC3339Nano, keyEndDateRaw.(string))
+	if err != nil {
+		return nil, errors.New("cannot parse 'key_end_date' to timestamp")
+	}
+	keyLifetime := time.Until(keyEndDate)
+
 	resp := &logical.Response{Secret: req.Secret}
-	resp.Secret.TTL = role.TTL
-	resp.Secret.MaxTTL = role.MaxTTL
+	resp.Secret.TTL = min(role.TTL, keyLifetime)
+	resp.Secret.MaxTTL = min(role.MaxTTL, keyLifetime)
+	resp.Secret.Renewable = role.TTL < keyLifetime // Lease cannot be renewed beyond service-side endDate
 
 	return resp, nil
 }
