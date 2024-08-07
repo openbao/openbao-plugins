@@ -3,6 +3,20 @@
 FEATURES:
 * Adds ability to limit the lifetime of service principal secrets in Azure through `explicit_max_ttl` on roles ([GH-199](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/199))
 
+## v0.19.2
+IMPROVEMENTS:
+* Updated dependencies [[GH-215]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/215)
+  * `github.com/Azure/azure-sdk-for-go/sdk/azidentity` v1.5.2 ->  v1.6.0
+  * `github.com/hashicorp/go-retryablehttp` v0.7.1 -> v0.7.7
+  * `golang.org/x/crypto` v0.21.0 -> v0.24.0
+  * `golang.org/x/net` v0.23.0 -> v0.26.0
+  * `golang.org/x/sys` v0.18.0 -> v0.21.0
+
+## v0.19.1
+
+BUG FIXES:
+* Fix segmentation fault when unassigning role assignments [[GH-213]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/213)
+
 ## v0.19.0
 
 IMPROVEMENTS:
@@ -40,6 +54,22 @@ IMPROVEMENTS:
 * `google.golang.org/protobuf` v1.32.0 -> v1.33.0 [[GH-184]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/184)
 * `github.com/docker/docker` v25.0.2+incompatible -> v25.0.5+incompatible [[GH-185]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/185)
 * `golang.org/x/net` 0.21.0 -> 0.23.0 [[GH-195]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/195)
+
+## v0.17.3
+
+BUG FIXES:
+* Fix segmentation fault when unassigning role assignments [[GH-213]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/213)
+
+IMPROVEMENTS:
+* Update dependencies [[GH-214]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/214)
+  * `github.com/Azure/azure-sdk-for-go/sdk/azcore` v1.9.1 -> v1.11.1
+  * `github.com/Azure/azure-sdk-for-go/sdk/azidentity` v1.5.1 -> v1.6.0
+  * `github.com/hashicorp/go-hclog` v1.6.2 -> v1.6.3
+  * `github.com/docker/docker` v25.0.2+incompatible -> v25.0.5+incompatible
+  * `github.com/go-jose/go-jose/v3` v3.0.1 -> v3.0.3
+  * `github.com/hashicorp/go-retryablehttp` v0.7.1 -> v0.7.7
+  * `golang.org/x/crypto` v0.17.0 -> v0.24.0
+  * `golang.org/x/net` v0.19.0 -> v0.26.0
 
 ## v0.17.2
 
