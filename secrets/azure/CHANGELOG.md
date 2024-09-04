@@ -1,5 +1,18 @@
 ## Unreleased
 
+## v0.20.0
+IMPROVEMENTS:
+* Bump Go version to 1.22.6
+* Updated dependencies [[GH-208]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/208):
+  * `github.com/Azure/azure-sdk-for-go/sdk/azcore` v1.11.1 -> v1.14.0
+  * `github.com/Azure/azure-sdk-for-go/sdk/azidentity` v1.6.0 -> v1.7.0
+  * `github.com/go-test/deep` v1.1.0 -> v1.1.1
+  * `github.com/hashicorp/vault/api` v1.13.0 -> v1.14.0
+  * `github.com/hashicorp/vault/sdk` v0.12.0 -> v0.13.0
+  * `github.com/microsoftgraph/msgraph-sdk-go` v1.42.0 -> v1.47.0
+  * `github.com/microsoftgraph/msgraph-sdk-go-core` v1.1.0 -> v1.2.1
+  * `github.com/docker/docker` v25.0.5+incompatible -> v25.0.6+incompatible [[GH-217]](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/217)
+
 FEATURES:
 * Adds ability to limit the lifetime of service principal secrets in Azure through `explicit_max_ttl` on roles ([GH-199](https://github.com/hashicorp/vault-plugin-secrets-azure/pull/199))
 
