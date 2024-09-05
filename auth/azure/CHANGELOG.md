@@ -1,7 +1,21 @@
 ## Unreleased
 
+## v0.19.0
+
 IMPROVEMENTS:
 * Add login field validation for subscription id, resource group name, vmss name, and vm name
+* Bump Go version to 1.22.6
+* Updated dependencies:
+  * `github.com/docker/docker` v25.0.5+incompatible -> v25.0.6+incompatible
+  * `github.com/hashicorp/go-retryablehttp` v0.7.1 -> v0.7.7
+  * `github.com/Azure/azure-sdk-for-go/sdk/azcore` v1.11.1 -> v1.14.0
+  * `github.com/Azure/azure-sdk-for-go/sdk/azidentity` v1.5.2 -> v1.7.0
+  * `github.com/coreos/go-oidc/v3` v3.10.0 -> v3.11.0
+  * `github.com/hashicorp/vault/api` v1.13.0 -> v1.14.0
+  * `github.com/hashicorp/vault/sdk` v0.12.0 -> v0.13.0
+  * `github.com/microsoftgraph/msgraph-sdk-go` v1.42.0 -> v1.47.0
+  * `github.com/microsoftgraph/msgraph-sdk-go-core` v1.1.0 -> v1.2.1
+  * `golang.org/x/oauth2` v0.20.0 -> v0.23.0
 
 ## v0.18.0
 
