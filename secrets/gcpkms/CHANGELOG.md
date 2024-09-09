@@ -1,5 +1,11 @@
 ## Unreleased
 
+## v0.19.0 (Sep 9th, 2024)
+* Updated dependencies:
+  * `github.com/googleapis/enterprise-certificate-proxy` v0.3.3 -> v0.3.4
+  * `github.com/docker/docker` v25.0.6 -> v25.0.5
+  
+
 ## v0.18.0 (Sep 5th, 2024)
 * Updated dependencies:
   * `cloud.google.com/go/kms` v1.17.0 -> v1.19.0
