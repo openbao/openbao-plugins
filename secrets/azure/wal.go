@@ -5,10 +5,13 @@ package azuresecrets
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/mitchellh/mapstructure"
@@ -69,7 +72,13 @@ func (b *azureSecretBackend) rollbackAppWAL(ctx context.Context, req *logical.Re
 	// maxWALAge (e.g. client creds have changed and the delete will never succeed),
 	// unconditionally remove the WAL.
 	if err := client.deleteApp(ctx, entry.AppObjID, true); err != nil {
-		b.Logger().Warn("rollback error deleting App", "err", err)
+		// Prevent noisy logs for non-existent or deleted out-of-band errors
+		respErr := new(azcore.ResponseError)
+		if errors.As(err, &respErr) && (respErr.StatusCode == http.StatusNoContent || respErr.StatusCode == http.StatusNotFound) {
+			b.Logger().Trace("app already deleted or does not exist", "err", err.Error())
+		} else {
+			b.Logger().Warn("rollback error deleting App", "err", err)
+		}
 
 		if time.Now().After(entry.Expiration) {
 			b.Logger().Warn("app WAL expired prior to rollback; resources may still exist")

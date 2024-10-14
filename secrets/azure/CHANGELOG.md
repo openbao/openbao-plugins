@@ -1,5 +1,12 @@
 ## Unreleased
 
+## v0.20.1
+### October 14, 2024
+
+IMPROVEMENTS:
+
+* Prevent noisy logs for non-existent or deleted out-of-band errors (https://github.com/hashicorp/vault-plugin-secrets-azure/pull/220)
+
 ## v0.20.0
 IMPROVEMENTS:
 * Bump Go version to 1.22.6
