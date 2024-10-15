@@ -450,6 +450,9 @@ func (b *azureAuthBackend) verifyResource(ctx context.Context, subscriptionID, r
 				if err != nil {
 					// don't fail the whole auth, but note that a page failed to load:
 					b.Logger().Warn("couldn't load next page for", "resource_group", rg, "error", err.Error())
+
+					// ensure we don't loop forever
+					break
 				}
 				for _, id := range page.Value {
 					if id.Properties != nil && id.Properties.ClientID != nil {
