@@ -23,6 +23,12 @@ IMPROVEMENTS:
   * `github.com/microsoftgraph/msgraph-sdk-go-core` v1.1.0 -> v1.2.1
   * `golang.org/x/oauth2` v0.20.0 -> v0.23.0
 
+## v0.18.1
+
+BUGS:
+
+* fix an endless loop of warning spamming the logs on login error
+
 ## v0.18.0
 
 FEATURES:
@@ -39,6 +45,12 @@ IMPROVEMENTS:
   * `github.com/microsoftgraph/msgraph-sdk-go` v1.32.0 -> v1.35.0
   * `github.com/microsoftgraph/msgraph-sdk-go-core` v1.0.1 -> v1.1.0
   * `golang.org/x/oauth2` v0.16.0 -> v0.17.0
+
+## v0.17.1
+
+BUGS:
+
+* fix an endless loop of warning spamming the logs on login error
 
 ## v0.17.0
 IMPROVEMENTS:
