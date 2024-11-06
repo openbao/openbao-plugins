@@ -1,5 +1,11 @@
 ## Unreleased
 
+## v0.19.2
+
+BUGS:
+
+* fix a bug that prevented logins when validating vm names, vmss names, and resource groups  (https://github.com/hashicorp/vault-plugin-auth-azure/pull/172)
+
 ## v0.19.1
 
 BUGS:
