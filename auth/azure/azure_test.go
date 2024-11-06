@@ -211,16 +211,52 @@ func TestValidationRegex(t *testing.T) {
 			isMatch: false,
 		},
 		{
+			name:    "short name",
+			in:      "a",
+			regex:   nameRx,
+			isMatch: true,
+		},
+		{
 			name:    "tricky name",
 			in:      "real/../../secret/top-secret",
 			regex:   nameRx,
 			isMatch: false,
 		},
 		{
+			name:    "tricky but valid name",
+			in:      "real.._..secret_top-secret",
+			regex:   nameRx,
+			isMatch: true,
+		},
+		{
 			name:    "valid name",
 			in:      "this-name-is-good-14",
 			regex:   nameRx,
 			isMatch: true,
+		},
+		{
+			name:    "valid with underscore",
+			in:      "this_name_is_good_15",
+			regex:   nameRx,
+			isMatch: true,
+		},
+		{
+			name:    "invalid start",
+			in:      "15abc",
+			regex:   nameRx,
+			isMatch: false,
+		},
+		{
+			name:    "invalid end, period",
+			in:      "a.",
+			regex:   nameRx,
+			isMatch: false,
+		},
+		{
+			name:    "invalid end, hyphen",
+			in:      "a-",
+			regex:   nameRx,
+			isMatch: false,
 		},
 		{
 			name:    "tricky resource group",
@@ -233,6 +269,18 @@ func TestValidationRegex(t *testing.T) {
 			in:      "сыноо",
 			regex:   rgRx,
 			isMatch: true,
+		},
+		{
+			name:    "paren resource group",
+			in:      ".(сыноо)",
+			regex:   rgRx,
+			isMatch: true,
+		},
+		{
+			name:    "resource group, invalid end with period",
+			in:      ".(сыноо-_).",
+			regex:   rgRx,
+			isMatch: false,
 		},
 	}
 
