@@ -27,16 +27,20 @@ func TestConfig(t *testing.T) {
 				"tenant_id": "tid",
 			},
 			expected: map[string]interface{}{
-				"client_id":               "",
-				"environment":             "",
-				"identity_token_audience": "",
-				"identity_token_ttl":      int64(0),
-				"max_retries":             defaultMaxRetries,
-				"max_retry_delay":         defaultMaxRetryDelay,
-				"resource":                "resource",
-				"retry_delay":             defaultRetryDelay,
-				"root_password_ttl":       15768000,
-				"tenant_id":               "tid",
+				"client_id":                  "",
+				"environment":                "",
+				"identity_token_audience":    "",
+				"identity_token_ttl":         int64(0),
+				"max_retries":                defaultMaxRetries,
+				"max_retry_delay":            defaultMaxRetryDelay,
+				"resource":                   "resource",
+				"retry_delay":                defaultRetryDelay,
+				"root_password_ttl":          15768000,
+				"tenant_id":                  "tid",
+				"rotation_window":            0,
+				"rotation_period":            0,
+				"rotation_schedule":          "",
+				"disable_automated_rotation": false,
 			},
 		},
 		{
@@ -47,16 +51,20 @@ func TestConfig(t *testing.T) {
 				"environment": "AzurePublicCloud",
 			},
 			expected: map[string]interface{}{
-				"client_id":               "",
-				"environment":             "AzurePublicCloud",
-				"identity_token_audience": "",
-				"identity_token_ttl":      int64(0),
-				"max_retries":             defaultMaxRetries,
-				"max_retry_delay":         defaultMaxRetryDelay,
-				"resource":                "resource",
-				"retry_delay":             defaultRetryDelay,
-				"root_password_ttl":       15768000,
-				"tenant_id":               "tid",
+				"client_id":                  "",
+				"environment":                "AzurePublicCloud",
+				"identity_token_audience":    "",
+				"identity_token_ttl":         int64(0),
+				"max_retries":                defaultMaxRetries,
+				"max_retry_delay":            defaultMaxRetryDelay,
+				"resource":                   "resource",
+				"retry_delay":                defaultRetryDelay,
+				"root_password_ttl":          15768000,
+				"tenant_id":                  "tid",
+				"rotation_window":            0,
+				"rotation_period":            0,
+				"rotation_schedule":          "",
+				"disable_automated_rotation": false,
 			},
 		},
 		{
@@ -93,16 +101,20 @@ func TestConfig(t *testing.T) {
 				"tenant_id":               "tid",
 			},
 			expected: map[string]interface{}{
-				"client_id":               "",
-				"environment":             "",
-				"identity_token_audience": "vault-azure-secrets-d0f0d253",
-				"identity_token_ttl":      int64(500),
-				"max_retries":             int32(3),
-				"max_retry_delay":         time.Duration(60000000000),
-				"resource":                "resource",
-				"retry_delay":             time.Duration(4000000000),
-				"root_password_ttl":       15768000,
-				"tenant_id":               "tid",
+				"client_id":                  "",
+				"environment":                "",
+				"identity_token_audience":    "vault-azure-secrets-d0f0d253",
+				"identity_token_ttl":         int64(500),
+				"max_retries":                int32(3),
+				"max_retry_delay":            time.Duration(60000000000),
+				"resource":                   "resource",
+				"retry_delay":                time.Duration(4000000000),
+				"root_password_ttl":          15768000,
+				"tenant_id":                  "tid",
+				"rotation_window":            0,
+				"rotation_period":            0,
+				"rotation_schedule":          "",
+				"disable_automated_rotation": false,
 			},
 		},
 	}
@@ -137,6 +149,21 @@ func TestConfig(t *testing.T) {
 				testConfigRead(t, b, s, tc.expected)
 			}
 		})
+	}
+}
+
+func TestRotationConfig(t *testing.T) {
+	// Ensure rotation settings return an error
+	b, s := getTestBackend(t)
+
+	configData := map[string]interface{}{
+		"tenant_id":       "tid",
+		"resource":        "res",
+		"rotation_period": 10,
+	}
+	_, err := testConfigCreate(t, b, s, configData)
+	if err.Error() != "error registering rotation job: rotation manager capabilities not supported in Vault community edition" {
+		t.Fail()
 	}
 }
 
@@ -232,16 +259,20 @@ func TestConfig_RetryDefaults(t *testing.T) {
 	}
 
 	expected := map[string]interface{}{
-		"client_id":               "",
-		"environment":             "",
-		"identity_token_audience": "",
-		"identity_token_ttl":      int64(0),
-		"max_retries":             defaultMaxRetries,
-		"max_retry_delay":         defaultMaxRetryDelay,
-		"resource":                "resource",
-		"retry_delay":             defaultRetryDelay,
-		"root_password_ttl":       15768000,
-		"tenant_id":               "tid",
+		"client_id":                  "",
+		"environment":                "",
+		"identity_token_audience":    "",
+		"identity_token_ttl":         int64(0),
+		"max_retries":                defaultMaxRetries,
+		"max_retry_delay":            defaultMaxRetryDelay,
+		"resource":                   "resource",
+		"retry_delay":                defaultRetryDelay,
+		"root_password_ttl":          15768000,
+		"tenant_id":                  "tid",
+		"rotation_window":            0,
+		"rotation_period":            0,
+		"rotation_schedule":          "",
+		"disable_automated_rotation": false,
 	}
 	testConfigRead(t, b, s, expected)
 
@@ -287,16 +318,20 @@ func TestConfig_RetryCustom(t *testing.T) {
 	}
 
 	expected := map[string]interface{}{
-		"client_id":               "",
-		"environment":             "",
-		"identity_token_audience": "",
-		"identity_token_ttl":      int64(0),
-		"max_retries":             maxRetries,
-		"max_retry_delay":         maxRetryDelay,
-		"resource":                "resource",
-		"retry_delay":             retryDelay,
-		"root_password_ttl":       15768000,
-		"tenant_id":               "tid",
+		"client_id":                  "",
+		"environment":                "",
+		"identity_token_audience":    "",
+		"identity_token_ttl":         int64(0),
+		"max_retries":                maxRetries,
+		"max_retry_delay":            maxRetryDelay,
+		"resource":                   "resource",
+		"retry_delay":                retryDelay,
+		"root_password_ttl":          15768000,
+		"tenant_id":                  "tid",
+		"rotation_window":            0,
+		"rotation_period":            0,
+		"rotation_schedule":          "",
+		"disable_automated_rotation": false,
 	}
 	testConfigRead(t, b, s, expected)
 

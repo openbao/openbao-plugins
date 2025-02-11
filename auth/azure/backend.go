@@ -80,6 +80,8 @@ func backend() *azureAuthBackend {
 		WALRollback:       b.walRollback,
 		// periodicFunc to clean up old credentials
 		PeriodicFunc: b.periodicFunc,
+
+		RotateCredential: b.rotateRootCredential,
 	}
 
 	b.resourceAPIVersionCache = make(map[string]string)

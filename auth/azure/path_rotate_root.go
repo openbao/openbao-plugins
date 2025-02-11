@@ -5,6 +5,7 @@ package azureauth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -38,14 +39,24 @@ func pathRotateRoot(b *azureAuthBackend) *framework.Path {
 	}
 }
 
-func (b *azureAuthBackend) pathRotateRoot(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func (b *azureAuthBackend) pathRotateRoot(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
+	err := b.rotateRootCredential(ctx, req)
+	var error *multierror.Error
+	if errors.As(err, &error) {
+		return &logical.Response{}, err // match multierror return from old rotate call
+	}
+
+	return nil, err
+}
+
+func (b *azureAuthBackend) rotateRootCredential(ctx context.Context, req *logical.Request) error {
 	config, err := b.config(ctx, req.Storage)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	if config == nil {
-		return nil, fmt.Errorf("config is nil")
+		return fmt.Errorf("config is nil")
 	}
 
 	expDur := config.RootPasswordTTL
@@ -56,24 +67,24 @@ func (b *azureAuthBackend) pathRotateRoot(ctx context.Context, req *logical.Requ
 
 	provider, err := b.getProvider(ctx, config)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	client, err := provider.MSGraphClient()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	app, err := client.GetApplication(ctx, config.ClientID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// This could have the same username customization logic put on it if we really wanted it here
 	passwordDisplayName := fmt.Sprintf("vault-%s", uuid.New())
 	newPasswordResp, err := client.AddApplicationPassword(ctx, *app.GetId(), passwordDisplayName, expiration)
 	if err != nil {
-		return nil, fmt.Errorf("failed to add new password: %w", err)
+		return fmt.Errorf("failed to add new password: %w", err)
 	}
 
 	var wal walRotateRoot
@@ -81,7 +92,7 @@ func (b *azureAuthBackend) pathRotateRoot(ctx context.Context, req *logical.Requ
 	if walErr != nil {
 		err = client.RemoveApplicationPassword(ctx, *app.GetId(), newPasswordResp.GetKeyId())
 		merr := multierror.Append(err, err)
-		return &logical.Response{}, merr
+		return merr
 	}
 
 	config.NewClientSecret = *newPasswordResp.GetSecretText()
@@ -91,7 +102,7 @@ func (b *azureAuthBackend) pathRotateRoot(ctx context.Context, req *logical.Requ
 
 	err = b.saveConfig(ctx, config, req.Storage)
 	if err != nil {
-		return nil, fmt.Errorf("failed to save new configuration: %w", err)
+		return fmt.Errorf("failed to save new configuration: %w", err)
 	}
 
 	b.updatePassword = true
@@ -101,7 +112,7 @@ func (b *azureAuthBackend) pathRotateRoot(ctx context.Context, req *logical.Requ
 		b.Logger().Error("rotate root", "delete wal", err)
 	}
 
-	return nil, err
+	return err
 }
 
 func removeApplicationPasswords(ctx context.Context, c client.MSGraphClient, appID string, passwordKeyIDs ...*uuid.UUID) (err error) {
