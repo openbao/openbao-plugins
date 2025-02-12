@@ -1,5 +1,9 @@
 ## Unreleased
 
+IMPROVEMENTS:
+
+* (Enterprise feature) Add api fields to allow for scheduled rotation of root credentials. (https://github.com/vault-plugin-auth-azure/pull/181)
+
 ## v0.19.2
 
 BUGS:
