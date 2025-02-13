@@ -1,7 +1,17 @@
-## Unreleased
+## v0.21.0
+### February 13, 2025
 
 FEATURES:
 * (Enterprise feature) Add api fields to allow for scheduled rotation of root credentials. (https://github.com/vault-plugin-secrets-azure/pull/227)
+
+IMPROVEMENTS
+* Updated dependencies:
+  * `golang.org/x/net` v0.27.0 -> v0.35.0
+  * `golang.org/x/crypto` v0.25.0 -> v0.33.0
+  * `github.com/Azure/azure-sdk-for-go/sdk/azcore` v1.14.0 -> v1.17.0
+  * `github.com/Azure/azure-sdk-for-go/sdk/azidentity` v1.7.0 -> v1.8.2
+  * `github.com/hashicorp/vault/api` v1.15.0 -> v1.16.0
+  * `github.com/microsoftgraph/msgraph-sdk-go` v1.47.0 -> v1.61.0
 
 ## v0.20.1
 ### October 14, 2024
