@@ -1,8 +1,12 @@
-## Unreleased
+## v0.20.0
+
+FEATURES:
+* (Enterprise feature) Add api fields to allow for scheduled rotation of root credentials. (https://github.com/vault-plugin-auth-azure/pull/181)
 
 IMPROVEMENTS:
-
-* (Enterprise feature) Add api fields to allow for scheduled rotation of root credentials. (https://github.com/vault-plugin-auth-azure/pull/181)
+* Updated dependencies:
+  * `golang.org/x/net` v0.29.0 -> v0.35.0
+  * `golang.org/x/crypto` v0.27.0 -> v0.33.0
 
 ## v0.19.2
 
