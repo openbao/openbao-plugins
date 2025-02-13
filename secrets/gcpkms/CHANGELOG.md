@@ -1,5 +1,11 @@
 ## Unreleased
 
+## v0.19.0 (Feb 12th, 2025)
+* Updated dependencies:
+  * https://github.com/hashicorp/vault-plugin-secrets-gcpkms/pull/58
+  * https://github.com/hashicorp/vault-plugin-secrets-gcpkms/pull/62 
+
+
 ## v0.19.0 (Sep 9th, 2024)
 * Updated dependencies:
   * `github.com/googleapis/enterprise-certificate-proxy` v0.3.3 -> v0.3.4 
