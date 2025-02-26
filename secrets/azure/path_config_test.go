@@ -35,8 +35,8 @@ func TestConfig(t *testing.T) {
 				"root_password_ttl":          15768000,
 				"identity_token_ttl":         int64(0),
 				"identity_token_audience":    "",
-				"rotation_window":            0,
-				"rotation_period":            0,
+				"rotation_window":            float64(0),
+				"rotation_period":            float64(0),
 				"rotation_schedule":          "",
 				"disable_automated_rotation": false,
 			},
@@ -58,8 +58,8 @@ func TestConfig(t *testing.T) {
 				"root_password_ttl":          60,
 				"identity_token_ttl":         int64(0),
 				"identity_token_audience":    "",
-				"rotation_window":            0,
-				"rotation_period":            0,
+				"rotation_window":            float64(0),
+				"rotation_period":            float64(0),
 				"rotation_schedule":          "",
 				"disable_automated_rotation": false,
 			},
@@ -81,8 +81,8 @@ func TestConfig(t *testing.T) {
 				"environment":                "AZURECHINACLOUD",
 				"identity_token_ttl":         int64(0),
 				"identity_token_audience":    "",
-				"rotation_window":            0,
-				"rotation_period":            0,
+				"rotation_window":            float64(0),
+				"rotation_period":            float64(0),
 				"rotation_schedule":          "",
 				"disable_automated_rotation": false,
 			},
@@ -105,8 +105,8 @@ func TestConfig(t *testing.T) {
 				"environment":                "AZURECHINACLOUD",
 				"identity_token_ttl":         int64(0),
 				"identity_token_audience":    "vault-azure-secrets-d0f0d253",
-				"rotation_window":            0,
-				"rotation_period":            0,
+				"rotation_window":            float64(0),
+				"rotation_period":            float64(0),
 				"rotation_schedule":          "",
 				"disable_automated_rotation": false,
 			},
@@ -128,8 +128,8 @@ func TestConfig(t *testing.T) {
 				"environment":                "",
 				"identity_token_ttl":         int64(500),
 				"identity_token_audience":    "vault-azure-secrets-d0f0d253",
-				"rotation_window":            0,
-				"rotation_period":            0,
+				"rotation_window":            float64(0),
+				"rotation_period":            float64(0),
 				"rotation_schedule":          "",
 				"disable_automated_rotation": false,
 			},
@@ -244,7 +244,7 @@ func TestConfigDelete(t *testing.T) {
 		"root_password_ttl":          int((24 * time.Hour).Seconds()),
 		"identity_token_audience":    "",
 		"identity_token_ttl":         int64(0),
-		"rotation_window":            0,
+		"rotation_window":            "1h",
 		"rotation_schedule":          "",
 		"disable_automated_rotation": false,
 	}
@@ -252,7 +252,8 @@ func TestConfigDelete(t *testing.T) {
 	testConfigCreate(t, b, s, config, false)
 
 	delete(config, "client_secret")
-	config["rotation_period"] = 0
+	config["rotation_period"] = float64(0)
+	config["rotation_window"] = time.Hour.Seconds()
 	testConfigRead(t, b, s, config)
 
 	resp, err := b.HandleRequest(context.Background(), &logical.Request{
@@ -275,9 +276,9 @@ func TestConfigDelete(t *testing.T) {
 		"root_password_ttl":          0,
 		"identity_token_audience":    "",
 		"identity_token_ttl":         int64(0),
-		"rotation_window":            0,
+		"rotation_window":            float64(0),
 		"rotation_schedule":          "",
-		"rotation_period":            0,
+		"rotation_period":            float64(0),
 		"disable_automated_rotation": false,
 	}
 	testConfigRead(t, b, s, config)
