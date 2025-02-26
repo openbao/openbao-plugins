@@ -257,7 +257,7 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 
 	var rotOp string
 	if config.ShouldDeregisterRotationJob() {
-		rotOp = "deregistration"
+		rotOp = rotation.PerformedDeregistration
 		dr := &rotation.RotationJobDeregisterRequest{
 			MountPoint: req.MountPoint,
 			ReqPath:    req.Path,
@@ -268,7 +268,7 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 			return logical.ErrorResponse("error deregistering rotation job: %s", err), nil
 		}
 	} else if config.ShouldRegisterRotationJob() {
-		rotOp = "registration"
+		rotOp = rotation.PerformedRegistration
 		r := &rotation.RotationJobConfigureRequest{
 			Name:             rootRotationJobName,
 			MountPoint:       req.MountPoint,
