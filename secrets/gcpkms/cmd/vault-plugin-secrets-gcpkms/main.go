@@ -7,7 +7,7 @@ import (
 	"os"
 
 	hclog "github.com/hashicorp/go-hclog"
-	gcpkms "github.com/hashicorp/vault-plugin-secrets-gcpkms"
+	gcpkms "github.com/openbao/openbao-plugins/secrets/gcpkms"
 	"github.com/openbao/openbao/api/v2"
 	"github.com/openbao/openbao/sdk/v2/plugin"
 )

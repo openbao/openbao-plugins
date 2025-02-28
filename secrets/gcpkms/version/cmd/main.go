@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/hashicorp/vault-plugin-secrets-gcpkms/version"
+	"github.com/openbao/openbao-plugins/secrets/gcpkms/version"
 )
 
 func main() {
