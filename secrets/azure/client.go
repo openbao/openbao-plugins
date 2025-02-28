@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package azuresecrets
+package azure
 
 import (
 	"context"
@@ -21,7 +21,7 @@ import (
 	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
 
-	"github.com/hashicorp/vault-plugin-secrets-azure/api"
+	"github.com/openbao/openbao-plugins/secrets/azure/api"
 )
 
 const (

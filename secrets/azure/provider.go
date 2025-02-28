@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package azuresecrets
+package azure
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/vault-plugin-secrets-azure/api"
+	"github.com/openbao/openbao-plugins/secrets/azure/api"
 	"github.com/openbao/openbao/sdk/v2/helper/pluginutil"
 	"github.com/openbao/openbao/sdk/v2/helper/useragent"
 	"github.com/openbao/openbao/sdk/v2/logical"

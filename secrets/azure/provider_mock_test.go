@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package azuresecrets
+package azure
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2"
 	"github.com/google/uuid"
 
-	"github.com/hashicorp/vault-plugin-secrets-azure/api"
+	"github.com/openbao/openbao-plugins/secrets/azure/api"
 )
 
 // mockProvider is a Provider that provides stubs and simple, deterministic responses.
