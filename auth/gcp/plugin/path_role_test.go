@@ -15,9 +15,9 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/hashicorp/go-secure-stdlib/strutil"
-	"github.com/hashicorp/vault/sdk/helper/consts"
-	"github.com/hashicorp/vault/sdk/helper/tokenutil"
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/helper/consts"
+	"github.com/openbao/openbao/sdk/v2/helper/tokenutil"
+	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 // Defaults for verifying response data. If a value is not included here, it must be included in the

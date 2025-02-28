@@ -18,7 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 func TestBackend_pathLogin_getCallerIdentityResponse(t *testing.T) {

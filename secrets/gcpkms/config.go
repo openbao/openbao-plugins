@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-secure-stdlib/strutil"
-	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/openbao/openbao/sdk/v2/framework"
 )
 
 const (

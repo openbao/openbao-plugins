@@ -8,8 +8,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/hashicorp/errwrap"
-	"github.com/hashicorp/vault/sdk/framework"
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/framework"
+	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/patrickmn/go-cache"
 
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"

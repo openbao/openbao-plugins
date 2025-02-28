@@ -10,10 +10,10 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
-	"github.com/hashicorp/vault/sdk/framework"
-	"github.com/hashicorp/vault/sdk/helper/authmetadata"
 	"github.com/hashicorp/vault/sdk/helper/automatedrotationutil"
 	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
+	"github.com/openbao/openbao/sdk/v2/framework"
+	"github.com/openbao/openbao/sdk/v2/helper/authmetadata"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/iam/v1"
 )

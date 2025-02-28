@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-secure-stdlib/parseutil"
-	"github.com/hashicorp/vault/api"
+	"github.com/openbao/openbao/api/v2"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/iamcredentials/v1"
 	"google.golang.org/api/option"

@@ -19,7 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/logical"
 
 	"github.com/hashicorp/vault-plugin-secrets-azure/api"
 )

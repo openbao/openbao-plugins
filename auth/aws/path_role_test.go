@@ -14,10 +14,10 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-secure-stdlib/awsutil"
 	"github.com/hashicorp/go-secure-stdlib/strutil"
-	vlttesting "github.com/hashicorp/vault/helper/testhelpers/logical"
-	"github.com/hashicorp/vault/sdk/helper/logging"
-	"github.com/hashicorp/vault/sdk/helper/policyutil"
-	"github.com/hashicorp/vault/sdk/logical"
+	vlttesting "github.com/openbao/openbao/helper/testhelpers/logical"
+	"github.com/openbao/openbao/sdk/v2/helper/logging"
+	"github.com/openbao/openbao/sdk/v2/helper/policyutil"
+	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 func TestBackend_pathRoleEc2(t *testing.T) {

@@ -12,8 +12,8 @@ import (
 	"github.com/hashicorp/vault/sdk/rotation"
 
 	log "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/vault/sdk/helper/pluginutil"
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/helper/pluginutil"
+	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 type testSystemViewEnt struct {

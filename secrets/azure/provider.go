@@ -17,9 +17,9 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault-plugin-secrets-azure/api"
-	"github.com/hashicorp/vault/sdk/helper/pluginutil"
-	"github.com/hashicorp/vault/sdk/helper/useragent"
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/helper/pluginutil"
+	"github.com/openbao/openbao/sdk/v2/helper/useragent"
+	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 // AzureProvider is an interface to access underlying Azure Client objects and supporting services.

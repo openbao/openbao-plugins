@@ -18,7 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/logical"
 
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 )

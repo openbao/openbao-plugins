@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/logical"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/iam/v1"
 )

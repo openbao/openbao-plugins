@@ -13,8 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/go-secure-stdlib/strutil"
 
-	"github.com/hashicorp/vault/sdk/framework"
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/framework"
+	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 func (b *backend) pathConfigClient() *framework.Path {

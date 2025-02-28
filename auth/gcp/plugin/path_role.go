@@ -11,10 +11,10 @@ import (
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-uuid"
-	"github.com/hashicorp/vault/sdk/framework"
-	vaultconsts "github.com/hashicorp/vault/sdk/helper/consts"
-	"github.com/hashicorp/vault/sdk/helper/tokenutil"
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/framework"
+	vaultconsts "github.com/openbao/openbao/sdk/v2/helper/consts"
+	"github.com/openbao/openbao/sdk/v2/helper/tokenutil"
+	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 const (

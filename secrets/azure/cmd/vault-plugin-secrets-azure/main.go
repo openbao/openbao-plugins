@@ -7,9 +7,9 @@ import (
 	"log"
 	"os"
 
-	azuresecrets "github.com/hashicorp/vault-plugin-secrets-azure"
-	"github.com/hashicorp/vault/api"
-	"github.com/hashicorp/vault/sdk/plugin"
+	azuresecrets "github.com/openbao/openbao-plugins/secrets/azure"
+	"github.com/openbao/openbao/api/v2"
+	"github.com/openbao/openbao/sdk/v2/plugin"
 )
 
 func main() {

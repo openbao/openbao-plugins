@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 func testRoleCreate(t *testing.T, b logical.Backend, s logical.Storage, d map[string]interface{}) {

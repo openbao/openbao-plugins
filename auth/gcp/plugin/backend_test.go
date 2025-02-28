@@ -14,8 +14,8 @@ import (
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/vault/sdk/helper/authmetadata"
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/helper/authmetadata"
+	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 const (

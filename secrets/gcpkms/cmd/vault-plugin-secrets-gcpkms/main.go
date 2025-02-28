@@ -8,8 +8,8 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	gcpkms "github.com/hashicorp/vault-plugin-secrets-gcpkms"
-	"github.com/hashicorp/vault/api"
-	"github.com/hashicorp/vault/sdk/plugin"
+	"github.com/openbao/openbao/api/v2"
+	"github.com/openbao/openbao/sdk/v2/plugin"
 )
 
 func main() {

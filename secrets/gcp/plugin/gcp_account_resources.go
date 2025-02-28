@@ -14,8 +14,8 @@ import (
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
-	"github.com/hashicorp/vault/sdk/helper/useragent"
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/helper/useragent"
+	"github.com/openbao/openbao/sdk/v2/logical"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iam/v1"
 )

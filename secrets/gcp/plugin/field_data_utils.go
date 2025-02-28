@@ -8,7 +8,7 @@ import (
 
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
-	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/openbao/openbao/sdk/v2/framework"
 )
 
 type inputParams struct {

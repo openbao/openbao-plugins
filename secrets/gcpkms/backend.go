@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/errwrap"
-	"github.com/hashicorp/vault/sdk/framework"
-	"github.com/hashicorp/vault/sdk/helper/useragent"
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/framework"
+	"github.com/openbao/openbao/sdk/v2/helper/useragent"
+	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/patrickmn/go-cache"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"

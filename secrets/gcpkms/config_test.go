@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/hashicorp/vault/sdk/framework"
+	"github.com/openbao/openbao/sdk/v2/framework"
 )
 
 func TestConfig_Update(t *testing.T) {
