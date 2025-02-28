@@ -67,7 +67,7 @@ fmt:
 
 .PHONY: mocks
 mocks:
-	mockgen -destination ${CURDIR}/plugin/mocks_test.go -package gcpauth github.com/openbao/openbao/sdk/v2/logical SystemView,Storage
+	mockgen -destination ${CURDIR}/plugin/mocks_test.go -package gcp github.com/openbao/openbao/sdk/v2/logical SystemView,Storage
 
 .PHONY: setup-env
 setup-env:
