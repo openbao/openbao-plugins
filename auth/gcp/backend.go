@@ -24,7 +24,7 @@ import (
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 
-	"github.com/hashicorp/vault-plugin-auth-gcp/plugin/cache"
+	"github.com/openbao/openbao-plugins/auth/gcp/cache"
 )
 
 const (

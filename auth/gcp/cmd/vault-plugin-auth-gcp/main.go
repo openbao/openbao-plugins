@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	gcpbackend "github.com/hashicorp/vault-plugin-auth-gcp/plugin"
+	gcpbackend "github.com/openbao/openbao-plugins/auth/gcp"
 	"github.com/openbao/openbao/api/v2"
 	"github.com/openbao/openbao/sdk/v2/plugin"
 )
