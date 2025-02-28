@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package azureauth
+package azure
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
 
-	"github.com/hashicorp/vault-plugin-auth-azure/client"
+	"github.com/openbao/openbao-plugins/auth/azure/client"
 )
 
 func pathRotateRoot(b *azureAuthBackend) *framework.Path {

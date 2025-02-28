@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	azureauth "github.com/hashicorp/vault-plugin-auth-azure"
+	azureauth "github.com/openbao/openbao-plugins/auth/azure"
 	"github.com/openbao/openbao/api/v2"
 	"github.com/openbao/openbao/sdk/v2/plugin"
 )

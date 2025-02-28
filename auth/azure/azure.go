@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package azureauth
+package azure
 
 import (
 	"context"
@@ -32,7 +32,7 @@ import (
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"golang.org/x/oauth2"
 
-	"github.com/hashicorp/vault-plugin-auth-azure/client"
+	"github.com/openbao/openbao-plugins/auth/azure/client"
 )
 
 // https://learn.microsoft.com/en-us/graph/sdks/national-clouds

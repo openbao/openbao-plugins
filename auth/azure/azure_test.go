@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package azureauth
+package azure
 
 import (
 	"context"
@@ -19,7 +19,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/coreos/go-oidc/v3/oidc"
 
-	"github.com/hashicorp/vault-plugin-auth-azure/client"
+	"github.com/openbao/openbao-plugins/auth/azure/client"
 )
 
 // mockKeySet is used in tests to bypass signature validation and return only
