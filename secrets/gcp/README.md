@@ -248,7 +248,7 @@ relative resource name and match it to a service config as seen in this
 To re-generate this file, run:
 
 ```
-go generate github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil
+go generate github.com/openbao/openbao-plugins/secrets/gcp/iamutil
 ```
 
 

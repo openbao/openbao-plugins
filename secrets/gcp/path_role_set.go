@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/errwrap"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
+	"github.com/openbao/openbao-plugins/secrets/gcp/util"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )

@@ -21,7 +21,7 @@ import (
 
 	"google.golang.org/api/discovery/v1"
 
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
+	"github.com/openbao/openbao-plugins/secrets/gcp/iamutil"
 )
 
 const (

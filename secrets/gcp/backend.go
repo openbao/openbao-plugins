@@ -25,8 +25,8 @@ import (
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/option"
 
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/cache"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
+	"github.com/openbao/openbao-plugins/secrets/gcp/cache"
+	"github.com/openbao/openbao-plugins/secrets/gcp/iamutil"
 )
 
 const userAgentPluginName = "secrets-gcp"

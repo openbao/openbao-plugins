@@ -6,7 +6,7 @@ package iamutil
 import (
 	"testing"
 
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
+	"github.com/openbao/openbao-plugins/secrets/gcp/util"
 )
 
 func TestConditionsAfterIamPolicyUpdate(t *testing.T) {

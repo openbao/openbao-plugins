@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
+	"github.com/openbao/openbao-plugins/secrets/gcp/util"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"

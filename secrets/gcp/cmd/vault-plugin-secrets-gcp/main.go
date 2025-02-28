@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	gcpsecrets "github.com/hashicorp/vault-plugin-secrets-gcp/plugin"
+	gcpsecrets "github.com/openbao/openbao-plugins/secrets/gcp"
 	"github.com/openbao/openbao/api/v2"
 	"github.com/openbao/openbao/sdk/v2/plugin"
 )

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
+	"github.com/openbao/openbao-plugins/secrets/gcp/util"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/iam/v1"
 )

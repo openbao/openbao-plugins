@@ -4,7 +4,7 @@
 package main
 
 import (
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
+	"github.com/openbao/openbao-plugins/secrets/gcp/iamutil"
 )
 
 var resourceOverrides = map[string]map[string]map[string]iamutil.RestResource{

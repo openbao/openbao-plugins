@@ -8,9 +8,9 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/iamutil"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
 	"github.com/mitchellh/mapstructure"
+	"github.com/openbao/openbao-plugins/secrets/gcp/iamutil"
+	"github.com/openbao/openbao-plugins/secrets/gcp/util"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/helper/useragent"
 	"github.com/openbao/openbao/sdk/v2/logical"

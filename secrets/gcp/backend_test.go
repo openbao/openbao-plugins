@@ -13,7 +13,7 @@ import (
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
+	"github.com/openbao/openbao-plugins/secrets/gcp/util"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/iam/v1"

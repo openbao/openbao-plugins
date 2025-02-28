@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
+	"github.com/openbao/openbao-plugins/secrets/gcp/util"
 	"google.golang.org/api/iam/v1"
 	"google.golang.org/api/oauth2/v2"
 	"google.golang.org/api/option"

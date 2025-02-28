@@ -6,7 +6,7 @@ package iamutil
 import (
 	"fmt"
 
-	"github.com/hashicorp/vault-plugin-secrets-gcp/plugin/util"
+	"github.com/openbao/openbao-plugins/secrets/gcp/util"
 )
 
 const (
