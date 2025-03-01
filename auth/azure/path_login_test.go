@@ -838,7 +838,7 @@ func testLoginWithJWT(t *testing.T, b *azureAuthBackend, s logical.Storage, jwt 
 		return fmt.Errorf("err: %v", err)
 	}
 	if resp.IsError() {
-		return fmt.Errorf(resp.Error().Error())
+		return resp.Error()
 	}
 	if resp.Auth == nil {
 		return fmt.Errorf("received nil auth data")

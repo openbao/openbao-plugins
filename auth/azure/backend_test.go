@@ -8,28 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/vault/sdk/helper/automatedrotationutil"
-	"github.com/hashicorp/vault/sdk/rotation"
-
 	log "github.com/hashicorp/go-hclog"
-	"github.com/openbao/openbao/sdk/v2/helper/pluginutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 type testSystemViewEnt struct {
 	logical.StaticSystemView
-}
-
-func (d testSystemViewEnt) RegisterRotationJob(_ context.Context, _ *rotation.RotationJobConfigureRequest) (string, error) {
-	return "", automatedrotationutil.ErrRotationManagerUnsupported
-}
-
-func (d testSystemViewEnt) DeregisterRotationJob(_ context.Context, _ *rotation.RotationJobDeregisterRequest) error {
-	return nil
-}
-
-func (d testSystemViewEnt) GenerateIdentityToken(_ context.Context, _ *pluginutil.IdentityTokenRequest) (*pluginutil.IdentityTokenResponse, error) {
-	return &pluginutil.IdentityTokenResponse{}, nil
 }
 
 func getTestBackend(t *testing.T) (*azureAuthBackend, logical.Storage) {

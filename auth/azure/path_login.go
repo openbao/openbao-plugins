@@ -219,7 +219,7 @@ func (b *azureAuthBackend) pathLogin(ctx context.Context, req *logical.Request, 
 		auth.Metadata["app_id"] = claims.AppID
 	}
 
-	role.PopulateTokenAuth(auth)
+	role.PopulateTokenAuth(auth, req)
 
 	resp := &logical.Response{
 		Auth: auth,

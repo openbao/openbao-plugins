@@ -26,8 +26,6 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
-	"github.com/openbao/openbao/sdk/v2/helper/pluginutil"
 	"github.com/openbao/openbao/sdk/v2/helper/useragent"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"golang.org/x/oauth2"
@@ -275,24 +273,6 @@ func (p *azureProvider) getTokenCredential() (azcore.TokenCredential, error) {
 		return cred, nil
 	}
 
-	if p.settings.IdentityTokenAudience != "" {
-		options := &azidentity.ClientAssertionCredentialOptions{
-			ClientOptions: clientCloudOpts,
-		}
-		getAssertion := getAssertionFunc(p.logger, p.systemView, p.settings)
-		cred, err := azidentity.NewClientAssertionCredential(
-			p.settings.TenantID,
-			p.settings.ClientID,
-			getAssertion,
-			options,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create client assertion credential: %w", err)
-		}
-
-		return cred, nil
-	}
-
 	// Fall back to using managed service identity
 	options := &azidentity.ManagedIdentityCredentialOptions{
 		ClientOptions: clientCloudOpts,
@@ -307,30 +287,7 @@ func (p *azureProvider) getTokenCredential() (azcore.TokenCredential, error) {
 
 type getAssertion func(context.Context) (string, error)
 
-func getAssertionFunc(logger hclog.Logger, sys logical.SystemView, s *azureSettings) getAssertion {
-	return func(ctx context.Context) (string, error) {
-		req := &pluginutil.IdentityTokenRequest{
-			Audience: s.IdentityTokenAudience,
-			TTL:      s.IdentityTokenTTL * time.Second,
-		}
-		resp, err := sys.GenerateIdentityToken(ctx, req)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate plugin identity token: %w", err)
-		}
-		logger.Info("fetched new plugin identity token")
-
-		if resp.TTL < req.TTL {
-			logger.Debug("generated plugin identity token has shorter TTL than requested",
-				"requested", req.TTL, "actual", resp.TTL)
-		}
-
-		return resp.Token.Token(), nil
-	}
-}
-
 type azureSettings struct {
-	pluginidentityutil.PluginIdentityTokenParams
-
 	TenantID      string
 	ClientID      string
 	ClientSecret  string
@@ -381,9 +338,6 @@ func (b *azureAuthBackend) getAzureSettings(ctx context.Context, config *azureCo
 		clientSecret = config.ClientSecret
 	}
 	settings.ClientSecret = clientSecret
-
-	settings.IdentityTokenAudience = config.IdentityTokenAudience
-	settings.IdentityTokenTTL = config.IdentityTokenTTL
 
 	environment := os.Getenv("AZURE_ENVIRONMENT")
 	if environment == "" {

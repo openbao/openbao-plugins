@@ -5,20 +5,11 @@ package azure
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"time"
 
-	"github.com/hashicorp/vault/sdk/helper/automatedrotationutil"
-	"github.com/hashicorp/vault/sdk/rotation"
-
-	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
 	"github.com/openbao/openbao/sdk/v2/framework"
-	"github.com/openbao/openbao/sdk/v2/helper/pluginutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
-
-const rootRotationJobName = "azure-auth-root-creds"
 
 func pathConfig(b *azureAuthBackend) *framework.Path {
 	p := &framework.Path{
@@ -114,16 +105,10 @@ func pathConfig(b *azureAuthBackend) *framework.Path {
 		HelpDescription: confHelpDesc,
 	}
 
-	pluginidentityutil.AddPluginIdentityTokenFields(p.Fields)
-	automatedrotationutil.AddAutomatedRotationFields(p.Fields)
-
 	return p
 }
 
 type azureConfig struct {
-	pluginidentityutil.PluginIdentityTokenParams
-	automatedrotationutil.AutomatedRotationParams
-
 	TenantID                      string        `json:"tenant_id"`
 	Resource                      string        `json:"resource"`
 	Environment                   string        `json:"environment"`
@@ -224,89 +209,18 @@ func (b *azureAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Req
 		config.RetryDelay = time.Second * time.Duration(retryDelayRaw.(int))
 	}
 
-	if err := config.ParsePluginIdentityTokenFields(data); err != nil {
-		return logical.ErrorResponse(err.Error()), nil
-	}
-
-	if err := config.ParseAutomatedRotationFields(data); err != nil {
-		return logical.ErrorResponse(err.Error()), nil
-	}
-
-	if config.IdentityTokenAudience != "" && config.ClientSecret != "" {
-		return logical.ErrorResponse("only one of 'client_secret' or 'identity_token_audience' can be set"), nil
-	}
-
-	// generate token to check if WIF is enabled on this edition of Vault
-	if config.IdentityTokenAudience != "" {
-		_, err := b.System().GenerateIdentityToken(ctx, &pluginutil.IdentityTokenRequest{
-			Audience: config.IdentityTokenAudience,
-		})
-		if err != nil {
-			if errors.Is(err, pluginidentityutil.ErrPluginWorkloadIdentityUnsupported) {
-				return logical.ErrorResponse(err.Error()), nil
-			}
-			return nil, err
-		}
-	}
-
 	// Create a settings object to validate all required settings
 	// are available
 	if _, err := b.getAzureSettings(ctx, config); err != nil {
 		return nil, err
 	}
 
-	var rotOp string
-	if config.ShouldDeregisterRotationJob() {
-		rotOp = rotation.PerformedDeregistration
-		dr := &rotation.RotationJobDeregisterRequest{
-			MountPoint: req.MountPoint,
-			ReqPath:    req.Path,
-		}
-
-		err := b.System().DeregisterRotationJob(ctx, dr)
-		if err != nil {
-			return logical.ErrorResponse("error deregistering rotation job: %s", err), nil
-		}
-	} else if config.ShouldRegisterRotationJob() {
-		rotOp = rotation.PerformedRegistration
-		r := &rotation.RotationJobConfigureRequest{
-			Name:             rootRotationJobName,
-			MountPoint:       req.MountPoint,
-			ReqPath:          req.Path,
-			RotationSchedule: config.RotationSchedule,
-			RotationWindow:   config.RotationWindow,
-			RotationPeriod:   config.RotationPeriod,
-		}
-
-		b.Logger().Debug("registering rotation job", "mount", r.MountPoint, "path", r.ReqPath)
-		_, err = b.System().RegisterRotationJob(ctx, r)
-		if err != nil {
-			return logical.ErrorResponse("error registering rotation job: %s", err), nil
-		}
-	}
-
-	wrapRotationError := func(innerError error) error {
-		b.Logger().Error("write to storage failed but the rotation manager still succeeded.",
-			"operation", rotOp, "mount", req.MountPoint, "path", req.Path)
-		wrappedError := fmt.Errorf("write to storage failed, but the rotation manager still succeeded: "+
-			"operation=%s, mount=%s, path=%s, storageError=%s", rotOp, req.MountPoint, req.Path, err)
-		return wrappedError
-	}
-
 	entry, err := logical.StorageEntryJSON("config", config)
 	if err != nil {
-		var wrappedError error
-		if rotOp != "" {
-			wrappedError = wrapRotationError(err)
-		}
-		return nil, wrappedError
+		return nil, err
 	}
 	if err := req.Storage.Put(ctx, entry); err != nil {
-		var wrappedError error
-		if rotOp != "" {
-			wrappedError = wrapRotationError(err)
-		}
-		return nil, wrappedError
+		return nil, err
 	}
 
 	// Reset backend
@@ -336,8 +250,6 @@ func (b *azureAuthBackend) pathConfigRead(ctx context.Context, req *logical.Requ
 			"max_retries":       config.MaxRetries,
 		},
 	}
-	config.PopulatePluginIdentityTokenData(resp.Data)
-	config.PopulateAutomatedRotationData(resp.Data)
 
 	if !config.RootPasswordExpirationDate.IsZero() {
 		resp.Data["root_password_expiration_date"] = config.RootPasswordExpirationDate
