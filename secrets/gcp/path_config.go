@@ -5,16 +5,11 @@ package gcp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
-	"github.com/hashicorp/vault/sdk/helper/automatedrotationutil"
-	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
-	"github.com/hashicorp/vault/sdk/rotation"
 	"github.com/openbao/openbao/sdk/v2/framework"
-	"github.com/openbao/openbao/sdk/v2/helper/pluginutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
@@ -65,9 +60,6 @@ func pathConfig(b *backend) *framework.Path {
 		HelpDescription: pathConfigHelpDesc,
 	}
 
-	pluginidentityutil.AddPluginIdentityTokenFields(p.Fields)
-	automatedrotationutil.AddAutomatedRotationFields(p.Fields)
-
 	return p
 }
 
@@ -85,9 +77,6 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data
 		"max_ttl":               int64(cfg.MaxTTL / time.Second),
 		"service_account_email": cfg.ServiceAccountEmail,
 	}
-
-	cfg.PopulatePluginIdentityTokenData(configData)
-	cfg.PopulateAutomatedRotationData(configData)
 
 	return &logical.Response{
 		Data: configData,
@@ -113,41 +102,10 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 		cfg.CredentialsRaw = credentialsRaw.(string)
 	}
 
-	// set plugin identity token fields
-	if err := cfg.ParsePluginIdentityTokenFields(data); err != nil {
-		return logical.ErrorResponse(err.Error()), nil
-	}
-
-	// set automated root rotation fields
-	if err := cfg.ParseAutomatedRotationFields(data); err != nil {
-		return logical.ErrorResponse(err.Error()), nil
-	}
-
 	// set Service Account email
 	saEmail, ok := data.GetOk("service_account_email")
 	if ok {
 		cfg.ServiceAccountEmail = saEmail.(string)
-	}
-
-	if cfg.IdentityTokenAudience != "" && cfg.CredentialsRaw != "" {
-		return logical.ErrorResponse("only one of 'credentials' or 'identity_token_audience' can be set"), nil
-	}
-
-	if cfg.IdentityTokenAudience != "" && cfg.ServiceAccountEmail == "" {
-		return logical.ErrorResponse("missing required 'service_account_email' when 'identity_token_audience' is set"), nil
-	}
-
-	// generate token to check if WIF is enabled on this edition of Vault
-	if cfg.IdentityTokenAudience != "" {
-		_, err := b.System().GenerateIdentityToken(ctx, &pluginutil.IdentityTokenRequest{
-			Audience: cfg.IdentityTokenAudience,
-		})
-		if err != nil {
-			if errors.Is(err, pluginidentityutil.ErrPluginWorkloadIdentityUnsupported) {
-				return logical.ErrorResponse(err.Error()), nil
-			}
-			return nil, err
-		}
 	}
 
 	// if token audience or TTL is being updated, ensure cached credentials are cleared
@@ -169,52 +127,13 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 		cfg.MaxTTL = time.Duration(maxTTLRaw.(int)) * time.Second
 	}
 
-	var performedRotationManagerOpern string
-	if cfg.ShouldDeregisterRotationJob() {
-		performedRotationManagerOpern = "deregistration"
-		// Disable Automated Rotation and Deregister credentials if required
-		deregisterReq := &rotation.RotationJobDeregisterRequest{
-			MountPoint: req.MountPoint,
-			ReqPath:    req.Path,
-		}
-
-		b.Logger().Debug("Deregistering rotation job", "mount", req.MountPoint+req.Path)
-		if err := b.System().DeregisterRotationJob(ctx, deregisterReq); err != nil {
-			return logical.ErrorResponse("error deregistering rotation job: %s", err), nil
-		}
-	} else if cfg.ShouldRegisterRotationJob() {
-		performedRotationManagerOpern = "registration"
-		// Register the rotation job if it's required.
-		cfgReq := &rotation.RotationJobConfigureRequest{
-			MountPoint:       req.MountPoint,
-			ReqPath:          req.Path,
-			RotationSchedule: cfg.RotationSchedule,
-			RotationWindow:   cfg.RotationWindow,
-			RotationPeriod:   cfg.RotationPeriod,
-		}
-
-		b.Logger().Debug("Registering rotation job", "mount", req.MountPoint+req.Path)
-		if _, err = b.System().RegisterRotationJob(ctx, cfgReq); err != nil {
-			return logical.ErrorResponse("error registering rotation job: %s", err), nil
-		}
-	}
-
 	entry, err := logical.StorageEntryJSON("config", cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	if err := req.Storage.Put(ctx, entry); err != nil {
-		wrappedError := err
-		if performedRotationManagerOpern != "" {
-			b.Logger().Error("write to storage failed but the rotation manager still succeeded.",
-				"operation", performedRotationManagerOpern, "mount", req.MountPoint, "path", req.Path)
-
-			wrappedError = fmt.Errorf("write to storage failed but the rotation manager still succeeded; "+
-				"operation=%s, mount=%s, path=%s, storageError=%s", performedRotationManagerOpern, req.MountPoint, req.Path, err)
-		}
-
-		return nil, wrappedError
+		return nil, err
 	}
 
 	if setNewCreds {
@@ -230,8 +149,6 @@ type config struct {
 	MaxTTL time.Duration
 
 	ServiceAccountEmail string
-	pluginidentityutil.PluginIdentityTokenParams
-	automatedrotationutil.AutomatedRotationParams
 }
 
 func getConfig(ctx context.Context, s logical.Storage) (*config, error) {

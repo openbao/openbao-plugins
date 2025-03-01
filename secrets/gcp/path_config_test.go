@@ -7,12 +7,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
-	"github.com/hashicorp/vault/sdk/rotation"
 	"github.com/openbao/openbao/sdk/v2/helper/jsonutil"
-	"github.com/openbao/openbao/sdk/v2/helper/pluginutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestConfig(t *testing.T) {
@@ -28,22 +24,14 @@ func TestConfig(t *testing.T) {
 	}
 
 	testConfigUpdate(t, b, reqStorage, map[string]interface{}{
-		"credentials":             credJson,
-		"service_account_email":   "",
-		"identity_token_audience": "",
-		"identity_token_ttl":      int64(0),
+		"credentials":           credJson,
+		"service_account_email": "",
 	})
 
 	expected := map[string]interface{}{
-		"ttl":                        int64(0),
-		"max_ttl":                    int64(0),
-		"service_account_email":      "",
-		"identity_token_audience":    "",
-		"identity_token_ttl":         int64(0),
-		"rotation_window":            float64(0),
-		"rotation_period":            float64(0),
-		"rotation_schedule":          "",
-		"disable_automated_rotation": false,
+		"ttl":                   int64(0),
+		"max_ttl":               int64(0),
+		"service_account_email": "",
 	}
 
 	testConfigRead(t, b, reqStorage, expected)
@@ -53,37 +41,6 @@ func TestConfig(t *testing.T) {
 
 	expected["ttl"] = int64(50)
 	testConfigRead(t, b, reqStorage, expected)
-}
-
-// TestBackend_PathConfigRoot_PluginIdentityToken tests that configuration
-// of plugin WIF returns an immediate error.
-func TestConfig_PluginIdentityToken(t *testing.T) {
-	config := logical.TestBackendConfig()
-	config.StorageView = &logical.InmemStorage{}
-	config.System = &testSystemView{}
-
-	b := Backend()
-	if err := b.Setup(context.Background(), config); err != nil {
-		t.Fatal(err)
-	}
-
-	configData := map[string]interface{}{
-		"identity_token_ttl":      int64(10),
-		"identity_token_audience": "test-aud",
-		"service_account_email":   "test-service-account",
-	}
-
-	configReq := &logical.Request{
-		Operation: logical.UpdateOperation,
-		Storage:   config.StorageView,
-		Path:      "config",
-		Data:      configData,
-	}
-
-	resp, err := b.HandleRequest(context.Background(), configReq)
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.ErrorContains(t, resp.Error(), pluginidentityutil.ErrPluginWorkloadIdentityUnsupported.Error())
 }
 
 func testConfigUpdate(t *testing.T, b logical.Backend, s logical.Storage, d map[string]interface{}) {
@@ -157,12 +114,4 @@ func getTestCredentials() ([]byte, error) {
 
 type testSystemView struct {
 	logical.StaticSystemView
-}
-
-func (d testSystemView) GenerateIdentityToken(_ context.Context, _ *pluginutil.IdentityTokenRequest) (*pluginutil.IdentityTokenResponse, error) {
-	return nil, pluginidentityutil.ErrPluginWorkloadIdentityUnsupported
-}
-
-func (d testSystemView) DeregisterRotationJob(_ context.Context, _ *rotation.RotationJobDeregisterRequest) error {
-	return nil
 }
