@@ -5,16 +5,11 @@ package gcp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/hashicorp/vault/sdk/helper/automatedrotationutil"
-	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
-	"github.com/hashicorp/vault/sdk/rotation"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/helper/authmetadata"
-	"github.com/openbao/openbao/sdk/v2/helper/pluginutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
@@ -133,9 +128,6 @@ iam AUTH:
 `,
 	}
 
-	pluginidentityutil.AddPluginIdentityTokenFields(p.Fields)
-	automatedrotationutil.AddAutomatedRotationFields(p.Fields)
-
 	return p
 }
 
@@ -153,49 +145,6 @@ func (b *GcpAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Reque
 		return nil, logical.CodedError(http.StatusBadRequest, err.Error())
 	}
 
-	// generate token to check if WIF is enabled on this edition of Vault
-	if cfg.IdentityTokenAudience != "" {
-		_, err := b.System().GenerateIdentityToken(ctx, &pluginutil.IdentityTokenRequest{
-			Audience: cfg.IdentityTokenAudience,
-		})
-		if err != nil {
-			if errors.Is(err, pluginidentityutil.ErrPluginWorkloadIdentityUnsupported) {
-				return logical.ErrorResponse(err.Error()), nil
-			}
-			return nil, err
-		}
-	}
-
-	var performedRotationManagerOpern string
-	if cfg.ShouldDeregisterRotationJob() {
-		performedRotationManagerOpern = "deregistration"
-		// Disable Automated Rotation and Deregister credentials if required
-		deregisterReq := &rotation.RotationJobDeregisterRequest{
-			MountPoint: req.MountPoint,
-			ReqPath:    req.Path,
-		}
-
-		b.Logger().Debug("Deregistering rotation job", "mount", req.MountPoint+req.Path)
-		if err := b.System().DeregisterRotationJob(ctx, deregisterReq); err != nil {
-			return logical.ErrorResponse("error deregistering rotation job: %s", err), nil
-		}
-	} else if cfg.ShouldRegisterRotationJob() {
-		performedRotationManagerOpern = "registration"
-		// Register the rotation job if it's required.
-		cfgReq := &rotation.RotationJobConfigureRequest{
-			MountPoint:       req.MountPoint,
-			ReqPath:          req.Path,
-			RotationSchedule: cfg.RotationSchedule,
-			RotationWindow:   cfg.RotationWindow,
-			RotationPeriod:   cfg.RotationPeriod,
-		}
-
-		b.Logger().Debug("Registering rotation job", "mount", req.MountPoint+req.Path)
-		if _, err = b.System().RegisterRotationJob(ctx, cfgReq); err != nil {
-			return logical.ErrorResponse("error registering rotation job: %s", err), nil
-		}
-	}
-
 	// Create/update the storage entry
 	entry, err := logical.StorageEntryJSON("config", cfg)
 	if err != nil {
@@ -204,16 +153,7 @@ func (b *GcpAuthBackend) pathConfigWrite(ctx context.Context, req *logical.Reque
 
 	// Save the storage entry
 	if err := req.Storage.Put(ctx, entry); err != nil {
-		wrappedError := err
-		if performedRotationManagerOpern != "" {
-			b.Logger().Error("write to storage failed but the rotation manager still succeeded.",
-				"operation", performedRotationManagerOpern, "mount", req.MountPoint, "path", req.Path)
-
-			wrappedError = fmt.Errorf("write to storage failed but the rotation manager still succeeded; "+
-				"operation=%s, mount=%s, path=%s, storageError=%s", performedRotationManagerOpern, req.MountPoint, req.Path, err)
-		}
-
-		return nil, wrappedError
+		return nil, err
 	}
 
 	// Invalidate existing client so it reads the new configuration
@@ -279,9 +219,6 @@ func (b *GcpAuthBackend) pathConfigRead(ctx context.Context, req *logical.Reques
 	if v := config.ServiceAccountEmail; v != "" {
 		resp["service_account_email"] = v
 	}
-
-	config.PopulatePluginIdentityTokenData(resp)
-	config.PopulateAutomatedRotationData(resp)
 
 	return &logical.Response{
 		Data: resp,

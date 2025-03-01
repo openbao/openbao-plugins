@@ -10,8 +10,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-gcp-common/gcputil"
-	"github.com/hashicorp/vault/sdk/helper/automatedrotationutil"
-	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/helper/authmetadata"
 	"google.golang.org/api/compute/v1"
@@ -36,8 +34,6 @@ type gcpConfig struct {
 	ComputeCustomEndpoint string `json:"compute_custom_endpoint"`
 
 	ServiceAccountEmail string `json:"service_account_email"`
-	pluginidentityutil.PluginIdentityTokenParams
-	automatedrotationutil.AutomatedRotationParams
 }
 
 // standardizedCreds wraps gcputil.GcpCredentials with a type to allow
@@ -126,28 +122,10 @@ func (c *gcpConfig) Update(d *framework.FieldData) error {
 		}
 	}
 
-	// set plugin identity token fields
-	if err := c.ParsePluginIdentityTokenFields(d); err != nil {
-		return err
-	}
-
-	// set automated rotation fields
-	if err := c.ParseAutomatedRotationFields(d); err != nil {
-		return err
-	}
-
 	// set Service Account email
 	saEmail, ok := d.GetOk("service_account_email")
 	if ok {
 		c.ServiceAccountEmail = saEmail.(string)
-	}
-
-	if c.IdentityTokenAudience != "" && c.Credentials != nil {
-		return fmt.Errorf("only one of 'credentials' or 'identity_token_audience' can be set")
-	}
-
-	if c.IdentityTokenAudience != "" && c.ServiceAccountEmail == "" {
-		return fmt.Errorf("missing required 'service_account_email' when 'identity_token_audience' is set")
 	}
 
 	return nil

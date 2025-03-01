@@ -43,10 +43,11 @@ var expectedDefaults = map[string]interface{}{
 	"max_jwt_exp":         int64(iamOnlyFieldSchema["max_jwt_exp"].Default.(int)),
 	"allow_gce_inference": iamOnlyFieldSchema["allow_gce_inference"].Default.(bool),
 	// GCE
-	"bound_zones":           []string{},
-	"bound_regions":         []string{},
-	"bound_instance_groups": []string{},
-	"bound_labels":          map[string]string{},
+	"bound_zones":            []string{},
+	"bound_regions":          []string{},
+	"bound_instance_groups":  []string{},
+	"bound_labels":           map[string]string{},
+	"token_strictly_bind_ip": false,
 }
 
 // -- IAM ROLE TESTS --

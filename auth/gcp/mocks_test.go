@@ -10,7 +10,6 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
-	rotation "github.com/hashicorp/vault/sdk/rotation"
 	consts "github.com/openbao/openbao/sdk/v2/helper/consts"
 	license "github.com/openbao/openbao/sdk/v2/helper/license"
 	pluginutil "github.com/openbao/openbao/sdk/v2/helper/pluginutil"
@@ -97,21 +96,6 @@ func (m *MockSystemView) EntityInfo(arg0 string) (*logical.Entity, error) {
 func (mr *MockSystemViewMockRecorder) EntityInfo(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EntityInfo", reflect.TypeOf((*MockSystemView)(nil).EntityInfo), arg0)
-}
-
-// GenerateIdentityToken mocks base method.
-func (m *MockSystemView) GenerateIdentityToken(arg0 context.Context, arg1 *pluginutil.IdentityTokenRequest) (*pluginutil.IdentityTokenResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GenerateIdentityToken", arg0, arg1)
-	ret0, _ := ret[0].(*pluginutil.IdentityTokenResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GenerateIdentityToken indicates an expected call of GenerateIdentityToken.
-func (mr *MockSystemViewMockRecorder) GenerateIdentityToken(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateIdentityToken", reflect.TypeOf((*MockSystemView)(nil).GenerateIdentityToken), arg0, arg1)
 }
 
 // GeneratePasswordFromPolicy mocks base method.
@@ -333,14 +317,6 @@ func (mr *MockSystemViewMockRecorder) VaultVersion(arg0 interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VaultVersion", reflect.TypeOf((*MockSystemView)(nil).VaultVersion), arg0)
 }
 
-func (m *MockSystemView) DeregisterRotationJob(_ context.Context, _ *rotation.RotationJobDeregisterRequest) error {
-	return nil
-}
-
-func (m *MockSystemView) RegisterRotationJob(_ context.Context, _ *rotation.RotationJobConfigureRequest) (string, error) {
-	return "", nil
-}
-
 // MockStorage is a mock of Storage interface.
 type MockStorage struct {
 	ctrl     *gomock.Controller
@@ -397,6 +373,14 @@ func (mr *MockStorageMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 func (m *MockStorage) List(arg0 context.Context, arg1 string) ([]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", arg0, arg1)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+func (m *MockStorage) ListPage(arg0 context.Context, arg1 string, arg2 string, arg3 int) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListPage", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1

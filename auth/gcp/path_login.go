@@ -395,7 +395,7 @@ func (b *GcpAuthBackend) pathIamLogin(ctx context.Context, req *logical.Request,
 		},
 		DisplayName: serviceAccount.Email,
 	}
-	role.PopulateTokenAuth(auth)
+	role.PopulateTokenAuth(auth, req)
 	if err := conf.IAMAuthMetadata.PopulateDesiredMetadata(auth, authMetadata(loginInfo, serviceAccount)); err != nil {
 		b.Logger().Warn("unable to populate iam metadata", "err", err.Error())
 	}
@@ -549,7 +549,7 @@ func (b *GcpAuthBackend) pathGceLogin(ctx context.Context, req *logical.Request,
 		},
 		DisplayName: instance.Name,
 	}
-	role.PopulateTokenAuth(auth)
+	role.PopulateTokenAuth(auth, req)
 	if err := conf.GCEAuthMetadata.PopulateDesiredMetadata(auth, authMetadata(loginInfo, serviceAccount)); err != nil {
 		b.Logger().Warn("unable to populate gce metadata", "err", err.Error())
 	}
