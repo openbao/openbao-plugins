@@ -6,15 +6,10 @@ package azure
 import (
 	"context"
 	"errors"
-	"fmt"
-	"github.com/hashicorp/vault/sdk/rotation"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/vault/sdk/helper/automatedrotationutil"
-	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
 	"github.com/openbao/openbao/sdk/v2/framework"
-	"github.com/openbao/openbao/sdk/v2/helper/pluginutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
@@ -30,9 +25,6 @@ const (
 // defaults for roles. The zero value is useful and results in
 // environments variable and system defaults being used.
 type azureConfig struct {
-	pluginidentityutil.PluginIdentityTokenParams
-	automatedrotationutil.AutomatedRotationParams
-
 	SubscriptionID                string        `json:"subscription_id"`
 	TenantID                      string        `json:"tenant_id"`
 	ClientID                      string        `json:"client_id"`
@@ -116,12 +108,6 @@ func pathConfig(b *azureSecretBackend) *framework.Path {
 		HelpSynopsis:    confHelpSyn,
 		HelpDescription: confHelpDesc,
 	}
-	pluginidentityutil.AddPluginIdentityTokenFields(p.Fields)
-
-	// this adds rotation_schedule, rotation_window, rotation_period, and disable_automated_rotation,
-	// which might be confusing when taken with the existing ttl and expiration date field.
-	// Be sure to make clear what each of these do.
-	automatedrotationutil.AddAutomatedRotationFields(p.Fields)
 
 	return p
 }
@@ -172,77 +158,13 @@ func (b *azureSecretBackend) pathConfigWrite(ctx context.Context, req *logical.R
 		config.RootPasswordTTL = defaultRootPasswordTTL
 	}
 
-	if err := config.ParsePluginIdentityTokenFields(data); err != nil {
-		return logical.ErrorResponse(err.Error()), nil
-	}
-
-	if err := config.ParseAutomatedRotationFields(data); err != nil {
-		return logical.ErrorResponse(err.Error()), nil
-	}
-
-	if config.IdentityTokenAudience != "" && config.ClientSecret != "" {
-		return logical.ErrorResponse("only one of 'client_secret' or 'identity_token_audience' can be set"), nil
-	}
-
-	// generate token to check if WIF is enabled on this edition of Vault
-	if config.IdentityTokenAudience != "" {
-		_, err := b.System().GenerateIdentityToken(ctx, &pluginutil.IdentityTokenRequest{
-			Audience: config.IdentityTokenAudience,
-		})
-		if err != nil {
-			if errors.Is(err, pluginidentityutil.ErrPluginWorkloadIdentityUnsupported) {
-				return logical.ErrorResponse(err.Error()), nil
-			}
-			return nil, err
-		}
-	}
-
 	if merr.ErrorOrNil() != nil {
 		return logical.ErrorResponse(merr.Error()), nil
 	}
 
-	// set up rotation after everything is fine
-	var rotOp string
-	if config.ShouldDeregisterRotationJob() {
-		rotOp = rotation.PerformedDeregistration
-		// Ensure de-registering only occurs on updates and if
-		// a credential has actually been registered (rotation_period or rotation_schedule is set)
-		deregisterReq := &rotation.RotationJobDeregisterRequest{
-			MountPoint: req.MountPoint,
-			ReqPath:    req.Path,
-		}
-
-		err := b.System().DeregisterRotationJob(ctx, deregisterReq)
-		if err != nil {
-			return logical.ErrorResponse("error de-registering rotation job: %s", err), nil
-		}
-
-	} else if config.ShouldRegisterRotationJob() {
-		rotOp = rotation.PerformedRegistration
-		req := &rotation.RotationJobConfigureRequest{
-			MountPoint:       req.MountPoint,
-			ReqPath:          req.Path,
-			RotationSchedule: config.RotationSchedule,
-			RotationWindow:   config.RotationWindow,
-			RotationPeriod:   config.RotationPeriod,
-		}
-
-		_, err := b.System().RegisterRotationJob(ctx, req)
-		if err != nil {
-			return logical.ErrorResponse("error registering rotation job: %s", err), nil
-		}
-	}
-
 	err = b.saveConfig(ctx, config, req.Storage)
 	if err != nil {
-		wrappedError := err
-		if rotOp != "" {
-			b.Logger().Error("write to storage failed but the rotation manager still succeeded.",
-				"operation", rotOp, "mount", req.MountPoint, "path", req.Path)
-			wrappedError = fmt.Errorf("write to storage failed but the rotation manager still succeeded; "+
-				"operation=%s, mount=%s, path=%s, storageError=%s", rotOp, req.MountPoint, req.Path, err)
-		}
-		return nil, wrappedError
+		return nil, err
 	}
 
 	return nil, err
@@ -267,8 +189,6 @@ func (b *azureSecretBackend) pathConfigRead(ctx context.Context, req *logical.Re
 			"root_password_ttl": int(config.RootPasswordTTL.Seconds()),
 		},
 	}
-	config.PopulatePluginIdentityTokenData(resp.Data)
-	config.PopulateAutomatedRotationData(resp.Data)
 
 	if !config.RootPasswordExpirationDate.IsZero() {
 		resp.Data["root_password_expiration_date"] = config.RootPasswordExpirationDate

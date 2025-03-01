@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
 	"github.com/openbao/openbao-plugins/secrets/azure/api"
-	"github.com/openbao/openbao/sdk/v2/helper/pluginutil"
 	"github.com/openbao/openbao/sdk/v2/helper/useragent"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
@@ -109,20 +108,6 @@ func getTokenCredential(ctx context.Context, logger hclog.Logger, sys logical.Sy
 		return cred, nil
 	}
 
-	if s.IdentityTokenAudience != "" {
-		options := &azidentity.ClientAssertionCredentialOptions{
-			ClientOptions: clientCloudOpts,
-		}
-		getAssertion := getAssertionFunc(ctx, logger, sys, s)
-		cred, err := azidentity.NewClientAssertionCredential(s.TenantID, s.ClientID,
-			getAssertion, options)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create client assertion credential: %w", err)
-		}
-
-		return cred, nil
-	}
-
 	// Fall back to using managed service identity
 	options := &azidentity.ManagedIdentityCredentialOptions{
 		ClientOptions: clientCloudOpts,
@@ -133,29 +118,6 @@ func getTokenCredential(ctx context.Context, logger hclog.Logger, sys logical.Sy
 	}
 
 	return cred, nil
-}
-
-type getAssertion func(context.Context) (string, error)
-
-func getAssertionFunc(ctx context.Context, logger hclog.Logger, sys logical.SystemView, s *clientSettings) getAssertion {
-	return func(ctx context.Context) (string, error) {
-		req := &pluginutil.IdentityTokenRequest{
-			Audience: s.IdentityTokenAudience,
-			TTL:      s.IdentityTokenTTL * time.Second,
-		}
-		resp, err := sys.GenerateIdentityToken(ctx, req)
-		if err != nil {
-			return "", fmt.Errorf("failed to generate plugin identity token: %w", err)
-		}
-		logger.Info("fetched new plugin identity token")
-
-		if resp.TTL < req.TTL {
-			logger.Debug("generated plugin identity token has shorter TTL than requested",
-				"requested", req.TTL, "actual", resp.TTL)
-		}
-
-		return resp.Token.Token(), nil
-	}
 }
 
 // transporter implements the azure exported.Transporter interface to send HTTP

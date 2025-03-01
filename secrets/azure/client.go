@@ -18,7 +18,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/authorization/armauthorization/v2"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/vault/sdk/helper/pluginidentityutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
 
 	"github.com/openbao/openbao-plugins/secrets/azure/api"
@@ -299,8 +298,6 @@ func (c *client) findGroups(ctx context.Context, groupName string) ([]api.Group,
 // clientSettings is used by a client to configure the connections to Azure.
 // It is created from a combination of Vault config settings and environment variables.
 type clientSettings struct {
-	pluginidentityutil.PluginIdentityTokenParams
-
 	SubscriptionID string
 	TenantID       string
 	ClientID       string
@@ -326,8 +323,6 @@ func (b *azureSecretBackend) getClientSettings(ctx context.Context, config *azur
 
 	settings.ClientID = firstAvailable(os.Getenv("AZURE_CLIENT_ID"), config.ClientID)
 	settings.ClientSecret = firstAvailable(os.Getenv("AZURE_CLIENT_SECRET"), config.ClientSecret)
-	settings.IdentityTokenAudience = config.IdentityTokenAudience
-	settings.IdentityTokenTTL = config.IdentityTokenTTL
 
 	settings.SubscriptionID = firstAvailable(os.Getenv("AZURE_SUBSCRIPTION_ID"), config.SubscriptionID)
 	if settings.SubscriptionID == "" {
