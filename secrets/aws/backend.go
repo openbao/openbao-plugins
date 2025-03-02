@@ -66,10 +66,7 @@ func Backend(_ *logical.BackendConfig) *backend {
 		WALRollback:       b.walRollback,
 		WALRollbackMinAge: minAwsUserRollbackAge,
 		PeriodicFunc: func(ctx context.Context, req *logical.Request) error {
-			if b.WriteSafeReplicationState() {
-				return b.rotateExpiredStaticCreds(ctx, req)
-			}
-			return nil
+			return b.rotateExpiredStaticCreds(ctx, req)
 		},
 		BackendType: logical.TypeLogical,
 	}
