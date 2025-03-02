@@ -1029,7 +1029,7 @@ func (b *backend) pathLoginUpdateEc2(ctx context.Context, req *logical.Request, 
 			"account_id":  identityDocParsed.AccountID,
 		},
 	}
-	roleEntry.PopulateTokenAuth(auth)
+	roleEntry.PopulateTokenAuth(auth, req)
 	if err := identityConfigEntry.EC2AuthMetadataHandler.PopulateDesiredMetadata(auth, map[string]string{
 		"instance_id": identityDocParsed.InstanceID,
 		"region":      identityDocParsed.Region,
@@ -1506,7 +1506,7 @@ func (b *backend) pathLoginUpdateIam(ctx context.Context, req *logical.Request, 
 		auth.DisplayName = strings.Join([]string{entity.FriendlyName, entity.SessionInfo}, "/")
 	}
 
-	roleEntry.PopulateTokenAuth(auth)
+	roleEntry.PopulateTokenAuth(auth, req)
 	if err := identityConfigEntry.IAMAuthMetadataHandler.PopulateDesiredMetadata(auth, map[string]string{
 		"client_arn":           callerID.Arn,
 		"canonical_arn":        entity.canonicalArn(),

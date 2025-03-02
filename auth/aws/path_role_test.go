@@ -633,6 +633,7 @@ func TestAwsEc2_RoleCrud(t *testing.T) {
 		"token_no_default_policy":        false,
 		"token_num_uses":                 0,
 		"token_type":                     "default",
+		"token_strictly_bind_ip":         false,
 	}
 
 	if resp.Data["role_id"] == nil {
