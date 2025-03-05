@@ -32,7 +32,6 @@ require (
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/hashicorp/hcl v1.0.1-vault-5
-	github.com/hashicorp/vault-testing-stepwise v0.3.2
 	github.com/jeffchao/backoff v0.0.0-20140404060208-9d7fd7aa17f2
 	github.com/microsoftgraph/msgraph-sdk-go v1.62.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.2.1
@@ -112,16 +111,12 @@ require (
 	github.com/cjlapao/common-go v0.0.39 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/containerd/continuity v0.4.3 // indirect
-	github.com/containerd/log v0.1.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/denverdino/aliyungo v0.0.0-20190125010748-a747050bb1ba // indirect
 	github.com/digitalocean/godo v1.7.5 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
-	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/cli v27.2.1+incompatible // indirect
-	github.com/docker/docker v27.4.1+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
-	github.com/docker/go-units v0.5.0 // indirect
 	github.com/duosecurity/duo_api_golang v0.0.0-20190308151101-6c680f768e74 // indirect
 	github.com/ebitengine/purego v0.8.1 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
@@ -161,7 +156,6 @@ require (
 	github.com/hashicorp/go-msgpack/v2 v2.1.2 // indirect
 	github.com/hashicorp/go-plugin v1.6.3 // indirect
 	github.com/hashicorp/go-raftchunking v0.7.1 // indirect
-	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
 	github.com/hashicorp/go-secure-stdlib/base62 v0.1.2 // indirect
 	github.com/hashicorp/go-secure-stdlib/mlock v0.1.3 // indirect
 	github.com/hashicorp/go-secure-stdlib/reloadutil v0.1.1 // indirect
@@ -175,12 +169,12 @@ require (
 	github.com/hashicorp/raft-autopilot v0.3.0 // indirect
 	github.com/hashicorp/raft-boltdb/v2 v2.3.0 // indirect
 	github.com/hashicorp/raft-snapshot v1.0.4 // indirect
-	github.com/hashicorp/vault/api v1.16.0 // indirect
-	github.com/hashicorp/vault/sdk v0.15.2 // indirect
 	github.com/hashicorp/vic v1.5.1-0.20190403131502-bbfe86ec9443 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgtype v1.14.3 // indirect
 	github.com/jefferai/isbadcipher v0.0.0-20190226160619-51d2077c035f // indirect
 	github.com/jefferai/jsonx v1.0.1 // indirect
 	github.com/jhump/protoreflect v1.16.0 // indirect
@@ -212,11 +206,6 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/patternmatcher v0.5.0 // indirect
-	github.com/moby/sys/sequential v0.5.0 // indirect
-	github.com/moby/sys/user v0.3.0 // indirect
-	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/moby/term v0.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -234,8 +223,6 @@ require (
 	github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.2.0 // indirect
 	github.com/openbao/go-kms-wrapping/wrappers/pkcs11/v2 v2.0.0-20250213200901-c6047d9096f6 // indirect
 	github.com/openbao/go-kms-wrapping/wrappers/transit/v2 v2.4.0 // indirect
-	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/opencontainers/runc v1.2.0-rc.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b // indirect
 	github.com/oracle/oci-go-sdk/v60 v60.0.0 // indirect
