@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/persistence"
 	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/upgrade/framework"
+	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 type v2ConfigEntry struct {

@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/backend"
 	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/persistence"
 	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/provider"
 	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/testutil"
+	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/stretchr/testify/require"
 )
 

@@ -10,10 +10,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/vault/sdk/helper/locksutil"
-	"github.com/hashicorp/vault/sdk/logical"
 	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/provider"
 	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/vaultext"
+	"github.com/openbao/openbao/sdk/v2/helper/locksutil"
+	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/puppetlabs/leg/timeutil/pkg/clockctx"
 	"golang.org/x/oauth2"
 )

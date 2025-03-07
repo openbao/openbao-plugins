@@ -1,7 +1,7 @@
 package backend
 
 import (
-	"github.com/hashicorp/vault/sdk/helper/consts"
+	"github.com/openbao/openbao/sdk/v2/helper/consts"
 )
 
 func (b *backend) ownsStorage() bool {

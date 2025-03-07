@@ -14,11 +14,15 @@ negotiated OAuth 2 access token.
 
 ## Usage
 
-Once you have the binary, you will need to register the plugin with Vault.
+Once you have the binary, you will need to register the plugin with Vault
+or OpenBao.
 Follow [the instructions in the Vault
 documentation](https://www.vaultproject.io/docs/internals/plugins.html#plugin-registration)
+or [OpenBao
+documentation](https://openbao.org/docs/plugins/plugin-architecture/#plugin-registration)
 to add the plugin to the catalog. We will assume it is registered under the name
 `oauthapp`.
+For the examples we use the `vault` command line name.
 
 Enable the plugin at the path of your choosing:
 

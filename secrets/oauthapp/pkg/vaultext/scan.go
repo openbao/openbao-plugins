@@ -3,7 +3,7 @@ package vaultext
 import (
 	"context"
 
-	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 func ScanView(ctx context.Context, view logical.ClearableView, fn func(path string) error) error {

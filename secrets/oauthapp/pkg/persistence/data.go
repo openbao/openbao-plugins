@@ -1,7 +1,7 @@
 package persistence
 
 import (
-	"github.com/hashicorp/vault/sdk/helper/locksutil"
+	"github.com/openbao/openbao/sdk/v2/helper/locksutil"
 )
 
 type Holder struct {
