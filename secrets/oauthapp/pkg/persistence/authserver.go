@@ -8,7 +8,7 @@ import (
 
 	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"github.com/hashicorp/vault/sdk/logical"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/vaultext"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/vaultext"
 )
 
 const (

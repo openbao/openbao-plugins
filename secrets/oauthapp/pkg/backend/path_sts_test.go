@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/hashicorp/vault/sdk/logical"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/backend"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/provider"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/testutil"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/backend"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/provider"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

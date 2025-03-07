@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/vault/sdk/logical"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/persistence"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/upgrade/framework"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/persistence"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/upgrade/framework"
 )
 
 type v2ConfigEntry struct {

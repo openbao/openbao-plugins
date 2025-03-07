@@ -12,9 +12,9 @@ import (
 
 	"github.com/hashicorp/vault/sdk/helper/locksutil"
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/provider"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/vaultext"
 	"github.com/puppetlabs/leg/timeutil/pkg/clockctx"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/provider"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/vaultext"
 	"golang.org/x/oauth2"
 )
 

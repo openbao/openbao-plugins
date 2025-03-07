@@ -23,7 +23,7 @@ PLUGIN_DIST_TARGETS ?= $(addprefix dist-bin-,darwin-amd64 darwin-arm64 windows-a
 #
 #
 
-PLUGIN_DIST_NAME := vault-plugin-secrets-oauthapp
+PLUGIN_DIST_NAME := openbao-plugin-secrets-oauthapp
 PLUGIN_DIST_VERSION ?= $(shell $(GIT) describe --tags --always --dirty)
 
 ARTIFACTS_DIR := artifacts
@@ -45,7 +45,7 @@ generate:
 
 .PHONY: build
 build: generate $(BIN_DIR)
-	$(GO) build $(GOFLAGS) -o $(BIN_DIR)/$(PLUGIN_DIST_NAME) ./cmd/vault-plugin-secrets-oauthapp
+	$(GO) build $(GOFLAGS) -o $(BIN_DIR)/$(PLUGIN_DIST_NAME) ./cmd/openbao-plugin-secrets-oauthapp
 
 .PHONY: check
 check: generate

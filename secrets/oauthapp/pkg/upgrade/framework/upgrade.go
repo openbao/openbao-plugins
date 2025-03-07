@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/persistence"
 	"github.com/puppetlabs/leg/timeutil/pkg/retry"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/persistence"
 )
 
 type Upgrader interface {

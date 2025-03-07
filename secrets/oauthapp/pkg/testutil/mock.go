@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/devicecode"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/interop"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/semerr"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/provider"
 	"github.com/puppetlabs/leg/errmap/pkg/errmark"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/oauth2ext/devicecode"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/oauth2ext/interop"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/oauth2ext/semerr"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/provider"
 	"golang.org/x/oauth2"
 )
 
@@ -40,11 +40,13 @@ func MockErrorResponse(statusCode int, obj interface{}) *oauth2.RetrieveError {
 	return re
 }
 
-type MockAuthCodeExchangeFunc func(code string, opts *provider.AuthCodeExchangeOptions) (*provider.Token, error)
-type MockClientCredentialsFunc func(opts *provider.ClientCredentialsOptions) (*provider.Token, error)
-type MockDeviceCodeAuthFunc func(opts *provider.DeviceCodeAuthOptions) (*devicecode.Auth, error)
-type MockDeviceCodeExchangeFunc func(deviceCode string, opts *provider.DeviceCodeExchangeOptions) (*provider.Token, error)
-type MockTokenExchangeFunc func(t *provider.Token, opts *provider.TokenExchangeOptions) (*provider.Token, error)
+type (
+	MockAuthCodeExchangeFunc   func(code string, opts *provider.AuthCodeExchangeOptions) (*provider.Token, error)
+	MockClientCredentialsFunc  func(opts *provider.ClientCredentialsOptions) (*provider.Token, error)
+	MockDeviceCodeAuthFunc     func(opts *provider.DeviceCodeAuthOptions) (*devicecode.Auth, error)
+	MockDeviceCodeExchangeFunc func(deviceCode string, opts *provider.DeviceCodeExchangeOptions) (*provider.Token, error)
+	MockTokenExchangeFunc      func(t *provider.Token, opts *provider.TokenExchangeOptions) (*provider.Token, error)
+)
 
 type mockOperations struct {
 	clientID             string

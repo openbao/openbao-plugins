@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/persistence"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/upgrade/framework"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/upgrade/v2v3"
 	"github.com/puppetlabs/leg/scheduler"
 	"github.com/puppetlabs/leg/timeutil/pkg/clockctx"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/persistence"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/upgrade/framework"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/upgrade/v2v3"
 )
 
 var upgrades = []framework.UpgraderFactoryFunc{

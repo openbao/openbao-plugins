@@ -1,8 +1,8 @@
 package cache
 
 import (
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/persistence"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/provider"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/persistence"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/provider"
 )
 
 const AuthServerCacheSize = 64

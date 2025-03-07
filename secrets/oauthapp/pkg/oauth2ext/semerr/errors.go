@@ -6,8 +6,8 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/interop"
 	"github.com/puppetlabs/leg/errmap/pkg/errmark"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/oauth2ext/interop"
 	"golang.org/x/oauth2"
 )
 

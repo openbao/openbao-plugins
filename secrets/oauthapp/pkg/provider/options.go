@@ -8,8 +8,10 @@ import (
 
 type WithRedirectURL string
 
-var _ AuthCodeURLOption = WithRedirectURL("")
-var _ AuthCodeExchangeOption = WithRedirectURL("")
+var (
+	_ AuthCodeURLOption      = WithRedirectURL("")
+	_ AuthCodeExchangeOption = WithRedirectURL("")
+)
 
 func (wru WithRedirectURL) ApplyToAuthCodeURLOptions(target *AuthCodeURLOptions) {
 	target.RedirectURL = string(wru)
@@ -21,10 +23,12 @@ func (wru WithRedirectURL) ApplyToAuthCodeExchangeOptions(target *AuthCodeExchan
 
 type WithScopes []string
 
-var _ AuthCodeURLOption = WithScopes(nil)
-var _ DeviceCodeAuthOption = WithScopes(nil)
-var _ ClientCredentialsOption = WithScopes(nil)
-var _ TokenExchangeOption = WithScopes(nil)
+var (
+	_ AuthCodeURLOption       = WithScopes(nil)
+	_ DeviceCodeAuthOption    = WithScopes(nil)
+	_ ClientCredentialsOption = WithScopes(nil)
+	_ TokenExchangeOption     = WithScopes(nil)
+)
 
 func (ws WithScopes) ApplyToAuthCodeURLOptions(target *AuthCodeURLOptions) {
 	target.Scopes = append(target.Scopes, ws...)
@@ -60,10 +64,12 @@ func (wr WithResources) ApplyToTokenExchangeOptions(target *TokenExchangeOptions
 
 type WithURLParams map[string]string
 
-var _ AuthCodeURLOption = WithURLParams(nil)
-var _ AuthCodeExchangeOption = WithURLParams(nil)
-var _ ClientCredentialsOption = WithURLParams(nil)
-var _ TokenExchangeOption = WithURLParams(nil)
+var (
+	_ AuthCodeURLOption       = WithURLParams(nil)
+	_ AuthCodeExchangeOption  = WithURLParams(nil)
+	_ ClientCredentialsOption = WithURLParams(nil)
+	_ TokenExchangeOption     = WithURLParams(nil)
+)
 
 func (wup WithURLParams) ApplyToAuthCodeURLOptions(target *AuthCodeURLOptions) {
 	for k, v := range wup {
@@ -95,13 +101,15 @@ func (wup WithURLParams) ApplyToTokenExchangeOptions(target *TokenExchangeOption
 
 type WithProviderOptions map[string]string
 
-var _ AuthCodeURLOption = WithProviderOptions(nil)
-var _ DeviceCodeAuthOption = WithProviderOptions(nil)
-var _ DeviceCodeExchangeOption = WithProviderOptions(nil)
-var _ AuthCodeExchangeOption = WithProviderOptions(nil)
-var _ RefreshTokenOption = WithProviderOptions(nil)
-var _ ClientCredentialsOption = WithProviderOptions(nil)
-var _ TokenExchangeOption = WithProviderOptions(nil)
+var (
+	_ AuthCodeURLOption        = WithProviderOptions(nil)
+	_ DeviceCodeAuthOption     = WithProviderOptions(nil)
+	_ DeviceCodeExchangeOption = WithProviderOptions(nil)
+	_ AuthCodeExchangeOption   = WithProviderOptions(nil)
+	_ RefreshTokenOption       = WithProviderOptions(nil)
+	_ ClientCredentialsOption  = WithProviderOptions(nil)
+	_ TokenExchangeOption      = WithProviderOptions(nil)
+)
 
 func (wpo WithProviderOptions) ApplyToAuthCodeURLOptions(target *AuthCodeURLOptions) {
 	if target.ProviderOptions == nil {

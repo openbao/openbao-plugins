@@ -5,8 +5,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/devicecode"
 	"github.com/puppetlabs/leg/timeutil/pkg/clockctx"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/oauth2ext/devicecode"
 )
 
 type TimeoutAlgorithm interface {

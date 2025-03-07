@@ -8,10 +8,10 @@ import (
 
 	"github.com/hashicorp/vault/sdk/framework"
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/persistence"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/provider"
 	"github.com/puppetlabs/leg/errmap/pkg/errmap"
 	"github.com/puppetlabs/leg/errmap/pkg/errmark"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/persistence"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/provider"
 	"golang.org/x/oauth2"
 )
 

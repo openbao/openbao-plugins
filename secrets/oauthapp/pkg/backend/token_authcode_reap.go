@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/persistence"
+	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/reap"
 	"github.com/puppetlabs/leg/scheduler"
 	"github.com/puppetlabs/leg/timeutil/pkg/backoff"
 	"github.com/puppetlabs/leg/timeutil/pkg/clockctx"
 	"github.com/puppetlabs/leg/timeutil/pkg/retry"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/persistence"
-	"github.com/puppetlabs/vault-plugin-secrets-oauthapp/v3/pkg/reap"
 )
 
 type reapProcess struct {
