@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 
-TOOL=vault-plugin-auth-azure
+TOOL=openbao-plugin-auth-azure
 #
 # This script builds the application from source for a platform.
 set -e
@@ -32,10 +32,10 @@ mkdir -p bin/
 # Build!
 echo "==> Building..."
 go build \
-    -ldflags "${LD_FLAGS} -X github.com/hashicorp/${TOOL}/version.GitCommit='${GIT_COMMIT}${GIT_DIRTY}'" \
+    -ldflags "${LD_FLAGS}" \
     -o "bin/${TOOL}" \
     -tags="${BUILD_TAGS}" \
-    ./cmd/$TOOL
+    ./cmd
 
 # Done!
 echo

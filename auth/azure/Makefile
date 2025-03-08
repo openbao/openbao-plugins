@@ -1,6 +1,6 @@
 REPO_DIR := $(shell basename $(CURDIR))
-PLUGIN_NAME := $(shell command ls cmd/)
-PLUGIN_DIR ?= $$GOPATH/vault-plugins
+PLUGIN_NAME := openbao-plugin-auth-azure
+PLUGIN_DIR ?= $$GOPATH/openbao-plugins
 PLUGIN_PATH ?= local-auth-azure
 
 # bin generates the releasable binaries for this plugin
@@ -19,12 +19,6 @@ dev:
 bootstrap:
 	@echo "Downloading tools ..."
 	@go generate -tags tools tools/tools.go
-	@if [ "$(PLUGIN_NAME)" != "$(REPO_DIR)" ]; then \
-		echo "Renaming cmd/$(PLUGIN_NAME) to cmd/$(REPO_DIR) ..."; \
-		mv cmd/$(PLUGIN_NAME) to cmd/$(REPO_DIR); \
-		echo "Renaming Go module to github.com/hashicorp/$(REPO_DIR) ..."; \
-        go mod edit -module github.com/hashicorp/$(REPO_DIR); \
-	fi
 
 .PHONY: test
 test: fmtcheck
