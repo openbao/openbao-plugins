@@ -1,54 +1,34 @@
-# Vault Plugin: Google Cloud Platform Auth Backend
+# OpenBao Plugin: Google Cloud Platform Auth Backend
 
-This is a standalone backend plugin for use with [HashiCorp Vault](https://www.github.com/hashicorp/vault).
-This plugin allows for various GCP entities to authenticate with Vault.
-This is currently included in Vault distributions.
+This is a standalone backend plugin for use with [OpenBao](https://www.github.com/openbao/openbao).
+This plugin allows for various GCP entities to authenticate with OpenBao.
+This is currently included in OpenBao distributions.
 
 Currently, this plugin supports login for:
 
 - IAM service accounts
 - GCE Instances
 
-**Please note**: We take Vault's security and our users' trust very seriously. If you believe you have found a security issue in Vault, _please responsibly disclose_ by contacting us at [security@hashicorp.com](mailto:security@hashicorp.com).
-
-## Quick Links
-
-- [Vault Website](https://www.vaultproject.io)
-- [GCP Auth BE Docs](https://developer.hashicorp.com/vault/docs/auth/gcp)
-- [Vault Github](https://www.github.com/hashicorp/vault)
-- [General Announcement List](https://groups.google.com/forum/#!forum/hashicorp-announce)
-- [Discussion List](https://groups.google.com/forum/#!forum/vault-tool)
-
 
 ## Getting Started
 
-This is a [Vault plugin](https://developer.hashicorp.com/vault/docs/plugins)
-and is meant to work with Vault. This guide assumes you have already installed Vault
-and have a basic understanding of how Vault works.
+This is an [OpenBao plugin](https://openbao.org/docs/plugins/)
+and is meant to work with OpenBao. This guide assumes you have already installed Openbao
+and have a basic understanding of how OpenBao works.
 
-Otherwise, first read this guide on how to [get started with Vault](https://developer.hashicorp.com/vault/tutorials/getting-started/getting-started-install).
+Otherwise, first read this guide on how to [get started with
+OpenBao](https://openbao.org/docs/get-started/developer-qs/).
 
-To learn specifically about how plugins work, see documentation on [Vault plugins](https://developer.hashicorp.com/vault/docs/plugins).
+To learn specifically about how plugins work, see documentation on [OpenBao plugins](https://openbao.org/docs/plugins/).
 
 ### Usage
 
-Please see [documentation for the plugin](https://developer.hashicorp.com/vault/docs/auth/gcp)
-on the Vault website.
-
-This plugin is currently built into Vault and by default is accessed
-at `auth/gcp`. To enable this in a running Vault server:
-
-```sh
-$ vault auth enable gcp
-Success! Enabled gcp auth method at: gcp/
-```
-
-To see all the supported paths, see the [GCP auth API docs](https://developer.hashicorp.com/vault/api-docs/auth/gcp).
+Please see [documentation for the plugin](./docs/index.md) in this repository.
 
 ## Developing
 
 Please note that local development is only required if you plan to contribute or
-compile this plugin yourself. This plugin is automatically bundled in Vault
+compile this plugin yourself. This plugin is automatically bundled in OpenBao
 installations and is available by default. You do not need to compile it
 yourself unless you intend to modify it.
 
@@ -62,22 +42,15 @@ Next, clone this repository into your `GOPATH`:
 
 ### Build Plugin
 
-1. Clone this repository:
-
-   ```sh
-   $ mkdir -p $GOPATH/src/github.com/hashicorp
-   $ git clone https://github.com/hashicorp/vault-plugin-auth-gcp $GOPATH/src/github.com/hashicorp/
-   $ cd vault-plugin-auth-gcp
-   ```
-
-1. You can then download any required build tools by bootstrapping your
-environment:
+If you're developing for the first time, run `make bootstrap` to install the
+necessary tools. Bootstrap will also update repository name references if that
+has not been performed ever before.
 
    ```sh
    $ make bootstrap
    ```
 
-1. To compile a development version of this plugin, run `make` or `make dev`.
+To compile a development version of this plugin, run `make` or `make dev`.
 This will put the plugin binary in the `bin` and `$GOPATH/bin` folders. `dev`
 mode will only generate the binary for your platform and is faster:
 
@@ -86,17 +59,17 @@ mode will only generate the binary for your platform and is faster:
    $ make dev
    ```
 
-### Start Vault
+### Start OpenBao
 
-1. For local development, use Vault's "dev" mode for fast setup:
+1. For local development, use OpenBao's "dev" mode for fast setup:
 
    ```sh
-   $ vault server -dev -dev-root-token-id=root -dev-plugin-dir="$GOPATH/vault-plugins"
+   $ bao server -dev -dev-root-token-id=root -dev-plugin-dir="$GOPATH/openbao-plugins"
    ```
 
-### Set Up Plugin in Vault
+### Set Up Plugin in OpenBao
 
-Next you want Vault to use the newly built binary instead of the version bundled with Vault.
+Next you want OpenBao to use the newly built binary instead of the version bundled with Openbao.
 You can use the scripted or manual methods depending on your preference.
 
 Scripted method.
@@ -115,12 +88,12 @@ Scripted method.
     $ source ./bootstrap/terraform/local_environment_setup.sh
     ```
 
-3. Enable the dev version of the plugin on your local Vault instance. You can specify the plugin name,
-   development [plugin directory](https://developer.hashicorp.com/vault/docs/configuration#plugin_directory)
+3. Enable the dev version of the plugin on your local OpenBao instance. You can specify the plugin name,
+   development [`plugin_directory`](https://openbao.org/docs/configuration/#parameters)
    and mount path or leave empty to use the default values.
 
     ```sh
-    $ make configure PLUGIN_NAME=vault-plugin-auth-gcp PLUGIN_DIR=$GOPATH/vault-plugins PLUGIN_PATH=gcp
+    $ make configure PLUGIN_NAME=openbao-plugin-auth-gcp PLUGIN_DIR=$GOPATH/openbao-plugins PLUGIN_PATH=gcp
     ```
 
 Manual method.
@@ -143,8 +116,8 @@ The remaining steps may also be executed by running `. scripts/cred_setup.sh`.
 1. Create the service account:
 
     ```sh
-    $ gcloud iam service-accounts create vault-tester \
-        --display-name vault-tester \
+    $ gcloud iam service-accounts create openbao-tester \
+        --display-name openbao-tester \
         --project "${GOOGLE_CLOUD_PROJECT}"
     ```
 
@@ -152,29 +125,29 @@ The remaining steps may also be executed by running `. scripts/cred_setup.sh`.
 
     ```sh
     $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT}" \
-        --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com" \
+        --member "serviceAccount:openbao-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com" \
         --role "roles/viewer"
 
     $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT}" \
-        --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com" \
+        --member "serviceAccount:openbao-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com" \
         --role "roles/iam.serviceAccountKeyAdmin"
 
     $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT}" \
-        --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com" \
+        --member "serviceAccount:openbao-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com" \
         --role "roles/iam.serviceAccountTokenCreator"
     ```
 
 1. Download the service account key file to local disk:
 
     ```sh
-    $ gcloud iam service-accounts keys create vault-tester.json \
-        --iam-account "vault-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
+    $ gcloud iam service-accounts keys create openbao-tester.json \
+        --iam-account "openbao-tester@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
     ```
 
 1. Export the credentials to an environment variable:
 
     ```sh
-    $ export GOOGLE_TEST_CREDENTIALS="$(cat vault-tester.json)"
+    $ export GOOGLE_TEST_CREDENTIALS="$(cat openbao-tester.json)"
     ```
 
 #### Tests
@@ -198,7 +171,7 @@ At the very least, we recommend running them in their own private
 account for whatever backend you're testing.
 
 To run the acceptance tests, you will need a GCP IAM service account with the
-appropriate permissions. You can use the steps explained in the [setup section](#set-up-plugin-in-vault) to configure one for you.
+appropriate permissions. You can use the steps explained in the [setup section](#set-up-plugin-in-openbao) to configure one for you.
 
 1. Save the name of your test project as an environment variable for reference:
 
