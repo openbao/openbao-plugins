@@ -311,7 +311,7 @@ func TestOIDCDeviceCodeFlow(t *testing.T) {
 			resp, err := json.Marshal(payload)
 			require.NoError(t, err)
 
-			_, _ = io.WriteString(w, string(resp))
+			_, _ = w.Write(resp)
 		case "/device/activate":
 			code := r.URL.Query().Get("user_code")
 			if code == "abcd-1234" {
@@ -339,7 +339,7 @@ func TestOIDCDeviceCodeFlow(t *testing.T) {
 					resp, err := json.Marshal(payload)
 					require.NoError(t, err)
 					w.WriteHeader(http.StatusUnauthorized)
-					_, _ = io.WriteString(w, string(resp))
+					_, _ = w.Write(resp)
 				} else {
 					idClaims := jwt.Claims{
 						Issuer:   "http://localhost",
@@ -364,7 +364,7 @@ func TestOIDCDeviceCodeFlow(t *testing.T) {
 
 					resp, err := json.Marshal(payload)
 					require.NoError(t, err)
-					_, _ = io.WriteString(w, string(resp))
+					_, _ = w.Write(resp)
 				}
 			default:
 				assert.Fail(t, "unexpected grant type", data.Get("grant_type"))
