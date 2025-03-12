@@ -8,6 +8,19 @@ Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [3.2.0] - 2025-02-12
+
+### Changed
+
+* Change github host organization from puppetlabs to openbao.
+* Change name of plugin to openbao-plugin-secrets-oauthapp.
+
+### Added
+
+* Add caching of STS-exchanged access.
+* Add dependabot configuration and update dependencies to the latest
+  versions.
+
 ## [3.1.1] - 2023-02-02
 
 ### Fixed
