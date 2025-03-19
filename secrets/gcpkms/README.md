@@ -1,71 +1,34 @@
-# Vault Secrets Engine for Google Cloud KMS
+# OpenBao Secrets Engine for Google Cloud KMS
 
-[![Build Status](https://travis-ci.com/hashicorp/vault-plugin-secrets-gcpkms.svg?token=xjv5yxmcgdD1zvpeR4me&branch=master)](https://travis-ci.com/hashicorp/vault-plugin-secrets-gcpkms)
 
-This is a plugin backend for [HashiCorp Vault][vault] that manages [Google Cloud
+
+This is a standalone backend plugin for use with [OpenBao](https://www.github.com/openbao/openbao) that manages [Google Cloud
 KMS][kms] keys and provides pass-through encryption/decryption of data through
 KMS.
 
-**Please note:** Security is taken seriously. If you believe you have found a
-security issue, **do not open an issue**. Responsibly disclose by contacting
-security@hashicorp.com.
+## Getting Started
 
+This is an [OpenBao plugin](https://openbao.org/docs/plugins/)
+and is meant to work with OpenBao. This guide assumes you have already installed Openbao
+and have a basic understanding of how OpenBao works.
 
-## Usage
+Otherwise, first read this guide on how to [get started with
+OpenBao](https://openbao.org/docs/get-started/developer-qs/).
 
-The Google Cloud KMS Vault secrets engine is automatically bundled and included
-in [Vault][vault] distributions. To activate the plugin, run:
+To learn specifically about how plugins work, see documentation on [OpenBao plugins](https://openbao.org/docs/plugins/).
 
-```text
-$ vault secrets enable gcpkms
-```
+### Usage
 
-Optionally configure the backend with GCP credentials:
+Please see [documentation for the plugin](./docs/index.md) in this repository.
 
-```text
-$ vault write gcpkms/config credentials="..."
-```
+## Developing
 
-Ask Vault to generate a new Google Cloud KMS key:
+If you wish to work on this plugin, you'll first need [Go](https://www.golang.org)
+installed on your machine (whichever version is required by OpenBao).
 
-```text
-$ vault write gcpkms/keys/my-key \
-    key_ring=projects/my-project/locations/global/keyRings/my-keyring \
-    crypto_key=my-crypto-key
-```
+Make sure Go is properly installed, including setting up a [GOPATH](https://golang.org/doc/code.html#GOPATH).
 
-This will create a KMS key in Google Cloud and requests to Vault will be
-encrypted/decrypted with that key.
-
-Encrypt some data:
-
-```text
-$ vault write gcpkms/encrypt/my-key plaintext="hello world"
-```
-
-Decrypt the data:
-
-```text
-$ vault write gcpkms/decrypt/my-key ciphertext="..."
-```
-
-
-## Development
-
-This plugin is automatically distributed and included with Vault. **These
-instructions are only useful if you want to develop against the plugin.**
-
-- Modern [Go](https://golang.org) (1.11+)
-- Git
-
-1. Clone the repo:
-
-    ```text
-    $ git clone https://github.com/hashicorp/vault-plugin-secrets-gcpkms
-    $ cd vault-plugin-secrets-gcpkms
-    ```
-
-1. Build the binary:
+To build the binary run:
 
     ```text
     $ make dev
@@ -73,18 +36,12 @@ instructions are only useful if you want to develop against the plugin.**
 
     The plugin binary will be written to the `./bin` directory.
 
-1. Run Vault plugins from that directory:
+Run OpenBao plugins from that directory:
 
     ```text
-    $ vault server -dev -dev-plugin-dir=./bin
-    $ vault secrets enable -path=gcpkms -plugin=vault-plugin-secrets-gcpkms plugin
+    $ bao server -dev -dev-plugin-dir=./bin
+    $ bao secrets enable -path=gcpkms -plugin=openbao-plugin-secrets-gcpkms plugin
     ```
-
-### Documentation
-
-The documentation for the plugin lives in the [main Vault
-repository](//github.com/hashicorp/vault) in the `website/` folder. Please make any
-documentation updates as separate Pull Requests against that repo.
 
 ### Tests
 
@@ -131,4 +88,3 @@ $ go run test/cleanup/main.go
 against a production project!
 
 [kms]: https://cloud.google.com/kms
-[vault]: https://www.vaultproject.io
