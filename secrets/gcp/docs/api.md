@@ -736,5 +736,5 @@ $ curl \
 
 ## Revoking/Renewing secrets
 
-  * [ ] See docs on how to [renew](https://openbao.org/api-docs/system/leases#renew-lease) and [revoke](https://openbao.org/api-docs/system/leases#revoke-lease) leases.
+See docs on how to [renew](https://openbao.org/api-docs/system/leases#renew-lease) and [revoke](https://openbao.org/api-docs/system/leases#revoke-lease) leases.
 Note this only applies to service account keys.
