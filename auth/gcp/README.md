@@ -27,11 +27,6 @@ Please see [documentation for the plugin](./docs/index.md) in this repository.
 
 ## Developing
 
-Please note that local development is only required if you plan to contribute or
-compile this plugin yourself. This plugin is automatically bundled in OpenBao
-installations and is available by default. You do not need to compile it
-yourself unless you intend to modify it.
-
 If you wish to work on this plugin, you'll first need
 [Go](https://www.golang.org) installed on your machine (version 1.10+ is
 *required*).

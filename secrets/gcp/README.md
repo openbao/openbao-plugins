@@ -1,68 +1,43 @@
-# Vault Plugin: Google Cloud Platform Secrets Backend [![CircleCI](https://circleci.com/gh/hashicorp/vault-plugin-secrets-gcp.svg?style=svg)](https://circleci.com/gh/hashicorp/vault-plugin-secrets-gcp)
+# OpenBao Plugin: Google Cloud Platform Secrets Backend 
 
-This is a backend plugin to be used with [Hashicorp Vault](https://www.github.com/hashicorp/vault).
+This is a standalone backend plugin for use with [OpenBao](https://www.github.com/openbao/openbao).
 This plugin generates either one-time (non-renewable) OAuth2 access tokens or
 service account keys with a given set of [IAM roles](https://cloud.google.com/iam/docs/understanding-roles)
-bound to GCP resources for various GCP entities to authenticate with Vault.
+bound to GCP resources for various GCP entities to authenticate with OpenBao.
 
-**Please note**: We take Vault's security and our users' trust very seriously.
-If you believe you have found a security issue in Vault or with this plugin,
-_please responsibly disclose_ by
-contacting us at [security@hashicorp.com](mailto:security@hashicorp.com).
+## Getting Started
 
-## Quick Links
-- [Vault Website](https://www.vaultproject.io)
-- [GCP Secrets Docs](https://www.vaultproject.io/docs/secrets/gcp/index.html)
-- [Vault Github](https://www.github.com/hashicorp/vault)
-- [General Announcement List](https://groups.google.com/forum/#!forum/hashicorp-announce)
-- [Discussion List](https://groups.google.com/forum/#!forum/vault-tool)
+This is an [OpenBao plugin](https://openbao.org/docs/plugins/)
+and is meant to work with OpenBao. This guide assumes you have already installed Openbao
+and have a basic understanding of how OpenBao works.
 
+Otherwise, first read this guide on how to [get started with
+OpenBao](https://openbao.org/docs/get-started/developer-qs/).
 
-## Usage
+To learn specifically about how plugins work, see documentation on [OpenBao plugins](https://openbao.org/docs/plugins/).
 
-This is a [Vault plugin](https://www.vaultproject.io/docs/internals/plugins.html)
-and is meant to work with Vault. This guide assumes you have already installed Vault
-and have a basic understanding of how Vault works. Otherwise, first read this guide on
-how to [get started with Vault](https://www.vaultproject.io/intro/getting-started/install.html).
+### Usage
 
-If you are just interested in using this plugin with Vault, it is packaged with Vault and
-by default can be enabled by running:
-
-```sh
-$ vault secrets enable gcp
-Success! Enabled the gcp secrets engine at: gcp/
-```
-
-If you are testing this plugin in an earlier version of Vault or want to
-test or use a custom build of the plugin, see the next section.
+Please see [documentation for the plugin](./docs/index.md) in this repository.
 
 ## Developing
 
 If you wish to work on this plugin, you'll first need [Go](https://www.golang.org)
-installed on your machine (whichever version is required by Vault).
+installed on your machine (whichever version is required by OpenBao).
 
 Make sure Go is properly installed, including setting up a [GOPATH](https://golang.org/doc/code.html#GOPATH).
 
 ### Build Plugin
 
-1. Clone this repository:
-
-    ```sh
-    $ mkdir $GOPATH/src/github.com/hashicorp/vault-plugin-secrets-gcp`
-    $ cd $GOPATH/src/github.com/hashicorp/
-    $ git clone https://github.com/hashicorp/vault-plugin-secrets-gcp.git
-    ```
-
-    or use `go get github.com/hashicorp/vault-plugin-secrets-gcp`
-
-1. You can then download any required build tools by bootstrapping your
-environment:
+If you're developing for the first time, run `make bootstrap` to install the
+necessary tools. Bootstrap will also update repository name references if that
+has not been performed ever before.
 
     ```sh
     $ make bootstrap
     ```
 
-1. To compile a development version of this plugin, run `make` or `make dev`.
+To compile a development version of this plugin, run `make` or `make dev`.
 This will put the plugin binary in the `bin` and `$GOPATH/bin` folders. `dev`
 mode will only generate the binary for your platform and is faster:
 
@@ -71,19 +46,19 @@ mode will only generate the binary for your platform and is faster:
     $ make dev
     ```
 
-### Start Vault
+### Start OpenBao
 
-You will need a Vault instance running locally with a development plugin directory set up.
+You will need a OpenBao instance running locally with a development plugin directory set up.
 
-1. Start a local Vault server:
+1. Start a local OpenBao server:
 
     ```sh
-    $ vault server -dev -dev-root-token-id=root -dev-plugin-dir="$GOPATH/vault-plugins"
+    $ bao server -dev -dev-root-token-id=root -dev-plugin-dir="$GOPATH/openbao-plugins"
     ```
    
-### Set Up Plugin in Vault
+### Set Up Plugin in OpenBao
 
-Next you want Vault to use the newly built binary instead of the version bundled with Vault.
+Next you want OpenBao to use the newly built binary instead of the version bundled with OpenBao.
 You can use the scripted or manual methods depending on your preference.
 
 Scripted method.
@@ -102,11 +77,11 @@ Scripted method.
     $ source ./bootstrap/terraform/local_environment_setup.sh
     ```
 
-3. Enable the dev version of the plugin on your local Vault instance. You can specify the plugin name,
+3. Enable the dev version of the plugin on your local OpenBao instance. You can specify the plugin name,
    development plugin directory and mount path or leave empty to use the default values.
 
     ```sh
-    $ make configure PLUGIN_NAME=vault-plugin-secrets-gcp PLUGIN_DIR=$GOPATH/vault-plugins PLUGIN_PATH=local-gcp
+    $ make configure PLUGIN_NAME=openbao-plugin-secrets-gcp PLUGIN_DIR=$GOPATH/openbao-plugins PLUGIN_PATH=local-gcp
     ```
 
 Manual method.
@@ -130,8 +105,8 @@ Manual method.
 1. Create a testing service account:
 
     ```sh
-    $ gcloud iam service-accounts create vault-tester \
-        --display-name vault-tester \
+    $ gcloud iam service-accounts create openbao-tester \
+        --display-name openbao-tester \
         --project "${GOOGLE_CLOUD_PROJECT_ID}"
     ```
 
@@ -139,15 +114,15 @@ Manual method.
 
     ```sh
     $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT_ID}" \
-        --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com" \
+        --member "serviceAccount:openbao-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com" \
         --role "roles/owner"
 
     $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT_ID}" \
-        --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com" \
+        --member "serviceAccount:openbao-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com" \
         --role "roles/iam.serviceAccountTokenCreator"
 
     $ gcloud projects add-iam-policy-binding "${GOOGLE_CLOUD_PROJECT_ID}" \
-        --member "serviceAccount:vault-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com" \
+        --member "serviceAccount:openbao-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com" \
         --role "roles/iam.serviceAccountKeyAdmin"
     ```
 
@@ -159,35 +134,35 @@ Manual method.
 1. Download the service account key file to local disk:
 
     ```sh
-    $ gcloud iam service-accounts keys create vault-tester.json \
-        --iam-account "vault-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com"
+    $ gcloud iam service-accounts keys create openbao-tester.json \
+        --iam-account "openbao-tester@${GOOGLE_CLOUD_PROJECT_ID}.iam.gserviceaccount.com"
     ```
 
 1. Export the credentials to an environment variable. You can set the env variable to either
    the path or the JSON itself, i.e.
 
     ```sh
-    $ export GOOGLE_TEST_CREDENTIALS="path/to/vault-tester.json"
+    $ export GOOGLE_TEST_CREDENTIALS="path/to/openbao-tester.json"
     ```
 
 1. Register the local plugin version
 
     ```sh
-    $ vault plugin register \
-      -sha256="$(shasum -a 256 "/path/to/plugin/dir/vault-plugin-secrets-gcp" | awk '{print $1}')" \
-      secret "vault-plugin-secrets-gcp"
+    $ bao plugin register \
+      -sha256="$(shasum -a 256 "/path/to/plugin/dir/openbao-plugin-secrets-gcp" | awk '{print $1}')" \
+      secret "openbao-plugin-secrets-gcp"
     ```
 
 1. Enable the GCP secrets engine
 
     ```sh
-    vault secrets enable --plugin-name="vault-plugin-secrets-gcp" --path="local-gcp" plugin
+    openbao secrets enable --plugin-name="openbao-plugin-secrets-gcp" --path="local-gcp" plugin
     ```
 
 1. Write the configuration to allow connection to your google cloud project
 
     ```sh
-    vault write local-gcp/config credentials=@"$GOOGLE_TEST_CREDENTIALS"
+    openbao write local-gcp/config credentials=@"$GOOGLE_TEST_CREDENTIALS"
     ```
 
 ## Tests
@@ -213,7 +188,7 @@ At the very least, we recommend running them in their own private
 account for whatever backend you're testing.
 
 To run the acceptance tests, you will need a GCP IAM service account with the
-appropriate permissions. You can use the steps explained in the [setup section](#set-up-plugin-in-vault) to configure one for you.
+appropriate permissions. You can use the steps explained in the [setup section](#set-up-plugin-in-openbao) to configure one for you.
 
 1. Save the name of your test project as an environment variable for reference:
 
@@ -243,7 +218,7 @@ to find IAM-enabled resources and configure HTTP calls on arbitrary services/res
 
 For each binding config resource block (with a resource name), we attempt to find the resource type based on the
 relative resource name and match it to a service config as seen in this
-[autogenerated config file](https://github.com/hashicorp/vault-plugin-secrets-gcp/blob/master/plugin/iamutil/iam_resources_generated.go)
+[autogenerated config file](./iamutil/iam_resources_generated.go)
 
 To re-generate this file, run:
 
@@ -259,11 +234,11 @@ In general, we try to make it so you can specify the resource as given in the HT
  `b/bucket/o/object` or `buckets/bucket/objects/object` as valid relative resource names.
 
 If you are having trouble during role set creation with errors suggesting the resource format is invalid or API calls
-are failing for a resource you know exists, please [report any issues](https://github.com/hashicorp/vault-plugin-secrets-gcp/issues)
+are failing for a resource you know exists, please [report any issues](https://github.com/openbao/openbao-plugins/issues)
 you run into. It could be that the API is a non-standard form or we need to re-generate our config file.
 
 ## Other Docs
 
-See up-to-date [engine docs](https://www.vaultproject.io/docs/secrets/gcp/index.html)
-and general [API docs](https://www.vaultproject.io/api/secret/gcp/index.html).
+See up-to-date [engine docs](./docs/index.md)
+and general [API docs](./docs/api.md).
 
