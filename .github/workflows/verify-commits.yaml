@@ -1,0 +1,9 @@
+name: Ensure Verified Commits
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  verify_commits:
+    uses: openbao/openbao/.github/workflows/verify-commits.yml@main
