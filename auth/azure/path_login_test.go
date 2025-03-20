@@ -20,6 +20,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/openbao/openbao/sdk/v2/helper/policyutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/openbao/openbao-plugins/auth/azure/client"
 )
@@ -181,6 +182,7 @@ func TestLogin(t *testing.T) {
 func TestLogin_ManagedIdentity(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
 	subscriptionID := "eb936495-7356-4a35-af3e-ea68af201f0c"
+	resourceGroupName := "azure-func-rg"
 	resourceID := "/subscriptions/eb936495-7356-4a35-af3e-ea68af201f0c/resourceGroups/azure-func-rg/providers/Microsoft.Web/sites/my-azure-func"
 	roleName := "test-role"
 
@@ -213,7 +215,7 @@ func TestLogin_ManagedIdentity(t *testing.T) {
 			},
 			loginData: map[string]interface{}{
 				"role":                roleName,
-				"resource_group_name": "rg",
+				"resource_group_name": resourceGroupName,
 				"subscription_id":     subscriptionID,
 				"resource_id":         resourceID,
 			},
@@ -234,7 +236,7 @@ func TestLogin_ManagedIdentity(t *testing.T) {
 			},
 			loginData: map[string]interface{}{
 				"role":                roleName,
-				"resource_group_name": "rg",
+				"resource_group_name": resourceGroupName,
 				"subscription_id":     subscriptionID,
 				"resource_id":         resourceID,
 			},
@@ -480,12 +482,16 @@ func TestLogin_BoundGroupID(t *testing.T) {
 
 func TestLogin_BoundSubscriptionID(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
+	subscriptionID := "1234abcd-1234-abcd-1234-abcd1234ef90"
 	c, v, m := getTestBackendFunctions(false)
 
 	g := getTestMSGraphClient()
 
 	b, s := getTestBackendWithComputeClient(t, c, v, m, nil, g)
 
+	vmName := "vm"
+	vmssName := "vmss"
+	rgName := "rg"
 	roleName := "testrole"
 	subID := "1234abcd-1234-abcd-1234-abcd1234ef90"
 	roleData := map[string]interface{}{
@@ -495,140 +501,331 @@ func TestLogin_BoundSubscriptionID(t *testing.T) {
 	}
 	testRoleCreate(t, b, s, roleData)
 
-	claims := map[string]interface{}{
-		"exp": time.Now().Add(60 * time.Second).Unix(),
-		"nbf": time.Now().Add(-60 * time.Second).Unix(),
-		"oid": principalID,
+	testCases := []struct {
+		name            string
+		claims          map[string]interface{}
+		loginData       map[string]interface{}
+		expectedSuccess bool
+	}{
+		{
+			name: "error with only role provided",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+			},
+			loginData: map[string]interface{}{
+				"role": roleName,
+			},
+		},
+		{
+			name: "error with only role and subscription_id provided",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+			},
+			loginData: map[string]interface{}{
+				"role":            roleName,
+				"subscription_id": subscriptionID,
+			},
+		},
+		{
+			name: "error with only role resource_group_name subscription_id provided",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+			},
+		},
+		{
+			name: "error with missing xms_az_rid and xms_mirid in token claims",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           vmssName,
+			},
+		},
+		{
+			name: "success with vmss_name with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_az_rid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, fmt.Sprintf("%s_randomInstanceID", vmssName)),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           vmssName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The VM in this case has no user-assigned managed identities
+			// so xms_az_rid is not present
+			name: "success with vm_name with no user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_mirid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, vmName),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vm_name":             vmName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The VM in this case has no user-assigned managed identities
+			// so xms_az_rid is not present
+			name: "error with vm_name with no user-assigned managed identities and bad subscription_id",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_mirid": fmt.Sprintf(fmtRID,
+					"bad-subscription-id", "bad-rg-name", vmName),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     "bad-subscription-id",
+				"resource_group_name": "bad-rg-name",
+				"vm_name":             vmName,
+			},
+		},
 	}
 
-	loginData := map[string]interface{}{
-		"role": roleName,
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.expectedSuccess {
+				testLoginSuccess(t, b, s, tc.loginData, tc.claims, roleData)
+			} else {
+				testLoginFailure(t, b, s, tc.loginData, tc.claims, roleData)
+			}
+		})
 	}
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	loginData["subscription_id"] = subID
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	loginData["resource_group_name"] = "rg"
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	loginData["vmss_name"] = "vmss"
-	testLoginSuccess(t, b, s, loginData, claims, roleData)
-
-	loginData["vm_name"] = "vm"
-	delete(loginData, "vmss_name")
-	testLoginSuccess(t, b, s, loginData, claims, roleData)
-
-	loginData["subscription_id"] = "bad sub"
-	testLoginFailure(t, b, s, loginData, claims, roleData)
 }
 
 func TestLogin_BoundResourceGroup(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
-	c, v, m := getTestBackendFunctions(false)
-
-	g := getTestMSGraphClient()
-
-	b, s := getTestBackendWithComputeClient(t, c, v, m, nil, g)
-
-	roleName := "testrole"
-	rg := "rg"
-	roleData := map[string]interface{}{
-		"name":                  roleName,
-		"policies":              []string{"dev", "prod"},
-		"bound_resource_groups": []string{rg},
-	}
-	testRoleCreate(t, b, s, roleData)
-
-	claims := map[string]interface{}{
-		"exp": time.Now().Add(60 * time.Second).Unix(),
-		"nbf": time.Now().Add(-60 * time.Second).Unix(),
-		"oid": principalID,
-	}
-
-	loginData := map[string]interface{}{
-		"role": roleName,
-	}
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	loginData["subscription_id"] = "1234abcd-1234-abcd-1234-abcd1234ef90"
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	loginData["resource_group_name"] = rg
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	loginData["vmss_name"] = "vmss"
-	testLoginSuccess(t, b, s, loginData, claims, roleData)
-	delete(loginData, "vmss_name")
-
-	loginData["vm_name"] = "vm"
-	testLoginSuccess(t, b, s, loginData, claims, roleData)
-
-	loginData["resource_group_name"] = "bad rg"
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-}
-
-func TestLogin_BoundResourceGroupWithUserAssignedID(t *testing.T) {
-	principalID := "123e4567-e89b-12d3-a456-426655440000"
 	badPrincipalID := "badID"
+	subscriptionID := "1234abcd-1234-abcd-1234-abcd1234ef90"
+
 	c, v, m := getTestBackendFunctions(false)
 
 	g := getTestMSGraphClient()
 
 	b, s := getTestBackendWithComputeClient(t, c, v, m, nil, g)
 
+	vmssName := "vmss"
+	vmName := "vm"
 	roleName := "testrole"
-	rg := "rg"
+	rgName := "rg"
 	roleData := map[string]interface{}{
 		"name":                  roleName,
 		"policies":              []string{"dev", "prod"},
-		"bound_resource_groups": []string{rg},
+		"bound_resource_groups": []string{rgName},
 	}
 	testRoleCreate(t, b, s, roleData)
 
-	claims := map[string]interface{}{
-		"exp": time.Now().Add(60 * time.Second).Unix(),
-		"nbf": time.Now().Add(-60 * time.Second).Unix(),
-		"oid": principalID,
+	testCases := []struct {
+		name            string
+		claims          map[string]interface{}
+		loginData       map[string]interface{}
+		expectedSuccess bool
+	}{
+		{
+			name: "error with only role provided",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+			},
+			loginData: map[string]interface{}{
+				"role": roleName,
+			},
+		},
+		{
+			name: "error with only role and subscription_id provided",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+			},
+			loginData: map[string]interface{}{
+				"role":            roleName,
+				"subscription_id": subscriptionID,
+			},
+		},
+		{
+			name: "error with only role resource_group_name subscription_id provided",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+			},
+		},
+		{
+			name: "error with missing xms_az_rid and xms_mirid in token claims",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           vmssName,
+			},
+		},
+		{
+			// The VM in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "success with vmss_name with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_az_rid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, fmt.Sprintf("%s_randomInstanceID", vmssName)),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           vmssName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The VM in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "success with vm_name with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp":        time.Now().Add(60 * time.Second).Unix(),
+				"nbf":        time.Now().Add(-60 * time.Second).Unix(),
+				"oid":        principalID,
+				"xms_az_rid": fmt.Sprintf(fmtRID, subscriptionID, rgName, vmName),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vm_name":             vmName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The VM in this case has no user-assigned managed identities
+			// so xms_az_rid is no present
+			name: "success with vm_name with no user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_mirid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, vmName),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vm_name":             vmName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The VM in this case has no user-assigned managed identities
+			// so xms_az_rid is not present
+			name: "error with vm_name with no user-assigned managed identities and bad resource group name",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_mirid": fmt.Sprintf(fmtRID,
+					subscriptionID, "bad-rg-name", vmName),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": "bad-rg-name",
+				"vm_name":             vmName,
+			},
+		},
+		{
+			// The VM in this case has no user-assigned managed identities
+			// so xms_az_rid is not present
+			name: "error with vm_name and xms_mirid and bad oid in token claims provided",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": badPrincipalID,
+				"xms_mirid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, vmName),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vm_name":             vmName,
+			},
+		},
 	}
-	badClaims := map[string]interface{}{
-		"exp": time.Now().Add(60 * time.Second).Unix(),
-		"nbf": time.Now().Add(-60 * time.Second).Unix(),
-		"oid": badPrincipalID,
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.expectedSuccess {
+				testLoginSuccess(t, b, s, tc.loginData, tc.claims, roleData)
+			} else {
+				testLoginFailure(t, b, s, tc.loginData, tc.claims, roleData)
+			}
+		})
 	}
-
-	loginData := map[string]interface{}{
-		"role": roleName,
-	}
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	loginData["subscription_id"] = "1234abcd-1234-abcd-1234-abcd1234ef90"
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	loginData["resource_group_name"] = rg
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	loginData["vmss_name"] = "vmss"
-	testLoginSuccess(t, b, s, loginData, claims, roleData)
-	delete(loginData, "vmss_name")
-
-	loginData["vm_name"] = "vm"
-	testLoginSuccess(t, b, s, loginData, claims, roleData)
-	testLoginFailure(t, b, s, loginData, badClaims, roleData)
-
-	loginData["resource_group_name"] = "bad rg"
-	testLoginFailure(t, b, s, loginData, claims, roleData)
 }
 
 func TestLogin_BoundLocation(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
+	subscriptionID := "1234abcd-1234-abcd-1234-abcd1234abcd"
 	location := "loc"
+
 	c, v, m := getTestBackendFunctions(true)
 
 	g := getTestMSGraphClient()
 
 	b, s := getTestBackendWithComputeClient(t, c, v, m, nil, g)
 
+	vmName := "good"
+	vmssName := "good"
+	rgName := "rg"
 	roleName := "testrole"
 	roleData := map[string]interface{}{
 		"name":            roleName,
@@ -637,82 +834,359 @@ func TestLogin_BoundLocation(t *testing.T) {
 	}
 	testRoleCreate(t, b, s, roleData)
 
-	claims := map[string]interface{}{
-		"exp": time.Now().Add(60 * time.Second).Unix(),
-		"nbf": time.Now().Add(-60 * time.Second).Unix(),
-		"oid": principalID,
+	testCases := []struct {
+		name            string
+		claims          map[string]interface{}
+		loginData       map[string]interface{}
+		expectedSuccess bool
+	}{
+		{
+			name: "error with only role provided",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+			},
+			loginData: map[string]interface{}{
+				"role": roleName,
+			},
+		},
+		{
+			name: "error with missing xms_az_rid and xms_mirid in token claims",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           vmssName,
+			},
+		},
+		{
+			// The VMSS in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "success with vmss_name with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_az_rid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, fmt.Sprintf("%s_randomInstanceID", vmssName)),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           vmssName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The VMSS in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "error with good vmss_name and token of a different VMSS with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_az_rid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, fmt.Sprintf("%s_randomInstanceID", "anothervmss")),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           vmssName,
+			},
+		},
+		{
+			// The VMSS in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "error with bad vmss_name",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_az_rid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, fmt.Sprintf("%s_randomInstanceID", "bad")),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           "bad",
+			},
+		},
+		{
+			// The VM in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "success with vm_name with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp":        time.Now().Add(60 * time.Second).Unix(),
+				"nbf":        time.Now().Add(-60 * time.Second).Unix(),
+				"oid":        principalID,
+				"xms_az_rid": fmt.Sprintf(fmtRID, subscriptionID, rgName, vmName),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vm_name":             vmName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The VM in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "error with good vm_name and token of a different VM with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp":        time.Now().Add(60 * time.Second).Unix(),
+				"nbf":        time.Now().Add(-60 * time.Second).Unix(),
+				"oid":        principalID,
+				"xms_az_rid": fmt.Sprintf(fmtRID, subscriptionID, rgName, "anotherVM"),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vm_name":             vmName,
+			},
+		},
+		{
+			// The VM in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "error with bad vm_name with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp":        time.Now().Add(60 * time.Second).Unix(),
+				"nbf":        time.Now().Add(-60 * time.Second).Unix(),
+				"oid":        principalID,
+				"xms_az_rid": fmt.Sprintf(fmtRID, subscriptionID, rgName, "bad"),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vm_name":             "bad",
+			},
+		},
+		{
+			// The VM in this case has no user-assigned managed identities
+			// so xms_az_rid is no present
+			name: "success with vm_name with no user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_mirid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, vmName),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vm_name":             vmName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The VM in this case has no user-assigned managed identities
+			// so xms_az_rid is no present
+			name: "error with good vm_name and token of a different VM with no user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_mirid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, "anotherVM"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vm_name":             vmName,
+			},
+		},
+		{
+			// The VM in this case has no user-assigned managed identities
+			// so xms_az_rid is no present
+			name: "error with good vm_name and token of a different VM with no user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_mirid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, "bad"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vm_name":             "bad",
+			},
+		},
 	}
-
-	loginData := map[string]interface{}{
-		"role": roleName,
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.expectedSuccess {
+				testLoginSuccess(t, b, s, tc.loginData, tc.claims, roleData)
+			} else {
+				testLoginFailure(t, b, s, tc.loginData, tc.claims, roleData)
+			}
+		})
 	}
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	loginData["subscription_id"] = "1234abcd-1234-abcd-1234-abcd1234abcd"
-	loginData["resource_group_name"] = "rg"
-
-	loginData["vmss_name"] = "good"
-	testLoginSuccess(t, b, s, loginData, claims, roleData)
-
-	loginData["vmss_name"] = "bad"
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	delete(loginData, "vmss_name")
-
-	loginData["vm_name"] = "good"
-	testLoginSuccess(t, b, s, loginData, claims, roleData)
-
-	loginData["vm_name"] = "bad"
-	testLoginFailure(t, b, s, loginData, claims, roleData)
 }
 
 func TestLogin_BoundScaleSet(t *testing.T) {
 	principalID := "123e4567-e89b-12d3-a456-426655440000"
+	subscriptionID := "1234abcd-1234-abcd-1234-abcd1234ef90"
+
 	c, v, m := getTestBackendFunctions(false)
 
 	g := getTestMSGraphClient()
 
 	b, s := getTestBackendWithComputeClient(t, c, v, m, nil, g)
 
+	vmssName := "goodvmss"
+	rgName := "rg"
 	roleName := "testrole"
 	roleData := map[string]interface{}{
 		"name":             roleName,
 		"policies":         []string{"dev", "prod"},
-		"bound_scale_sets": []string{"goodvmss"},
+		"bound_scale_sets": []string{vmssName},
 	}
 	testRoleCreate(t, b, s, roleData)
 
-	claims := map[string]interface{}{
-		"exp": time.Now().Add(60 * time.Second).Unix(),
-		"nbf": time.Now().Add(-60 * time.Second).Unix(),
-		"oid": principalID,
+	testCases := []struct {
+		name            string
+		claims          map[string]interface{}
+		loginData       map[string]interface{}
+		expectedSuccess bool
+	}{
+		{
+			name: "error with only role provided",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+			},
+			loginData: map[string]interface{}{
+				"role": roleName,
+			},
+		},
+		{
+			name: "error with missing xms_az_rid and xms_mirid in token claims",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           vmssName,
+			},
+		},
+		{
+			// The VMSS in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "success with vmss_name with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_az_rid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, fmt.Sprintf("%s_randomInstanceID", vmssName)),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           vmssName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The VMSS in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "error with good vmss_name and token of a different VMSS with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_az_rid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, fmt.Sprintf("%s_randomInstanceID", "anothervmss")),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           vmssName,
+			},
+		},
+		{
+			// The VMSS in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "error with bad vmss_name",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_az_rid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName, fmt.Sprintf("%s_randomInstanceID", "badvmss")),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           "badvmss",
+			},
+		},
 	}
 
-	loginData := map[string]interface{}{
-		"role": roleName,
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.expectedSuccess {
+				testLoginSuccess(t, b, s, tc.loginData, tc.claims, roleData)
+			} else {
+				testLoginFailure(t, b, s, tc.loginData, tc.claims, roleData)
+			}
+		})
 	}
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	loginData["subscription_id"] = "1234abcd-1234-abcd-1234-abcd1234ef90"
-	loginData["resource_group_name"] = "rg"
-
-	loginData["vmss_name"] = "goodvmss"
-	testLoginSuccess(t, b, s, loginData, claims, roleData)
-
-	loginData["vmss_name"] = "badvmss"
-	testLoginFailure(t, b, s, loginData, claims, roleData)
 }
 
 func TestLogin_AppID(t *testing.T) {
+	subscriptionID := "1234abcd-1234-abcd-1234-abcd1234ef90"
 	appID := "123e4567-e89b-12d3-a456-426655440000"
-	badID := "aeoifkj"
-	resourceGroup := "rg"
-	boundResourceGroup := "brg"
-	c, v, m := getTestBackendFunctions(false)
+	badAppID := "aeoifkj"
+	rgName1 := "rg-1"
+	rgName2 := "rg-2"
+
 	cl := func(rg string) armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse {
-		if rg == "rg" {
+		if rg == rgName1 {
 			return armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse{}
-		} else if rg == "brg" {
+		} else if rg == rgName2 {
 			return armmsi.UserAssignedIdentitiesClientListByResourceGroupResponse{
 				UserAssignedIdentitiesListResult: armmsi.UserAssignedIdentitiesListResult{
 					Value: []*armmsi.Identity{
@@ -729,36 +1203,182 @@ func TestLogin_AppID(t *testing.T) {
 		}
 	}
 
+	c, v, m := getTestBackendFunctions(false)
+
 	g := getTestMSGraphClient()
 
 	b, s := getTestBackendWithComputeClient(t, c, v, m, cl, g)
 
+	vmName := "vm"
+	vmssName := "vmss"
 	roleName := "testrole"
 	roleData := map[string]interface{}{
 		"name":                  roleName,
 		"policies":              []string{"dev", "prod"},
-		"bound_resource_groups": []string{resourceGroup, boundResourceGroup},
+		"bound_resource_groups": []string{rgName1, rgName2},
 	}
 	testRoleCreate(t, b, s, roleData)
 
-	claims := map[string]interface{}{
-		"exp":   time.Now().Add(60 * time.Second).Unix(),
-		"nbf":   time.Now().Add(-60 * time.Second).Unix(),
-		"appid": appID,
+	testCases := []struct {
+		name            string
+		claims          map[string]interface{}
+		loginData       map[string]interface{}
+		expectedSuccess bool
+	}{
+		{
+			name: "error with only role provided",
+			claims: map[string]interface{}{
+				"exp":   time.Now().Add(60 * time.Second).Unix(),
+				"nbf":   time.Now().Add(-60 * time.Second).Unix(),
+				"appid": appID,
+			},
+			loginData: map[string]interface{}{
+				"role": roleName,
+			},
+		},
+		{
+			name: "error with missing xms_az_rid and xms_mirid in token claims",
+			claims: map[string]interface{}{
+				"exp":   time.Now().Add(60 * time.Second).Unix(),
+				"nbf":   time.Now().Add(-60 * time.Second).Unix(),
+				"appid": appID,
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName1,
+				"vmss_name":           vmssName,
+			},
+		},
+		{
+			// The VMSS in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "success with vmss_name with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp":   time.Now().Add(60 * time.Second).Unix(),
+				"nbf":   time.Now().Add(-60 * time.Second).Unix(),
+				"appid": appID,
+				"xms_az_rid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName1, fmt.Sprintf("%s_randomInstanceID", vmssName)),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName1, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName1,
+				"vmss_name":           vmssName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The VMSS in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "error with token of a non-matching VMSS with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp":   time.Now().Add(60 * time.Second).Unix(),
+				"nbf":   time.Now().Add(-60 * time.Second).Unix(),
+				"appid": appID,
+				"xms_az_rid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName1, fmt.Sprintf("%s_randomInstanceID", "anothervmss")),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName1, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName1,
+				"vmss_name":           vmssName,
+			},
+		},
+		{
+			// The VMSS in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "error with bad appid and vmss_name with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp":   time.Now().Add(60 * time.Second).Unix(),
+				"nbf":   time.Now().Add(-60 * time.Second).Unix(),
+				"appid": badAppID,
+				"xms_az_rid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName1, fmt.Sprintf("%s_randomInstanceID", vmssName)),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName1, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName1,
+				"vmss_name":           vmssName,
+			},
+		},
+		{
+			// The VM in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "success with vm_name with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp":        time.Now().Add(60 * time.Second).Unix(),
+				"nbf":        time.Now().Add(-60 * time.Second).Unix(),
+				"appid":      appID,
+				"xms_az_rid": fmt.Sprintf(fmtRID, subscriptionID, rgName1, vmName),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName1, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName1,
+				"vm_name":             vmName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The VM in this case has no user-assigned managed identities
+			// so xms_az_rid is not present
+			name: "success with vm_name with no user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp":   time.Now().Add(60 * time.Second).Unix(),
+				"nbf":   time.Now().Add(-60 * time.Second).Unix(),
+				"appid": appID,
+				"xms_mirid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName1, vmName),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName1,
+				"vm_name":             vmName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The VM in this case has no user-assigned managed identities
+			// so xms_az_rid is not present
+			name: "error with bad appid vm_name with no user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp":   time.Now().Add(60 * time.Second).Unix(),
+				"nbf":   time.Now().Add(-60 * time.Second).Unix(),
+				"appid": badAppID,
+				"xms_mirid": fmt.Sprintf(fmtRID,
+					subscriptionID, rgName1, vmName),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName1,
+				"vm_name":             vmName,
+			},
+		},
 	}
 
-	loginData := map[string]interface{}{
-		"role": roleName,
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.expectedSuccess {
+				testLoginSuccess(t, b, s, tc.loginData, tc.claims, roleData)
+			} else {
+				testLoginFailure(t, b, s, tc.loginData, tc.claims, roleData)
+			}
+		})
 	}
-	testLoginFailure(t, b, s, loginData, claims, roleData)
-
-	loginData["resource_group_name"] = resourceGroup
-	loginData["subscription_id"] = "1234abcd-1234-abcd-1234-abcd1234ef90"
-	loginData["vmss_name"] = "vmss"
-	testLoginSuccess(t, b, s, loginData, claims, roleData)
-
-	claims["appid"] = badID
-	testLoginFailure(t, b, s, loginData, claims, roleData)
 }
 
 func TestLogin_InvalidCharacters(t *testing.T) {
@@ -867,13 +1487,13 @@ func TestVerifyClaims(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	role := new(azureRole)
-	err = b.verifyClaims(claims, role)
+	err = claims.verifyRole(role)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	claims.NotBefore = jsonTime(time.Now().Add(10 * time.Second))
-	err = b.verifyClaims(claims, role)
+	err = claims.verifyRole(role)
 	if err == nil {
 		t.Fatal("expected claim verification error")
 	}
@@ -899,10 +1519,10 @@ func TestVerifyClaims(t *testing.T) {
 			bgIds:  []string{"test-group-1"},
 			bspIds: []string{"*"},
 			claims: additionalClaims{
-				claims.NotBefore,
-				claims.ObjectID,
-				claims.AppID,
-				[]string{"test-group-2"},
+				NotBefore: claims.NotBefore,
+				ObjectID:  claims.ObjectID,
+				AppID:     claims.AppID,
+				GroupIDs:  []string{"test-group-2"},
 			},
 			error: "groups not authorized",
 		},
@@ -910,10 +1530,10 @@ func TestVerifyClaims(t *testing.T) {
 			bgIds:  []string{"test-group-1", "test-group2"},
 			bspIds: []string{"*"},
 			claims: additionalClaims{
-				claims.NotBefore,
-				claims.ObjectID,
-				claims.AppID,
-				[]string{"test-group-2"},
+				NotBefore: claims.NotBefore,
+				ObjectID:  claims.ObjectID,
+				AppID:     claims.AppID,
+				GroupIDs:  []string{"test-group-2"},
 			},
 			error: "",
 		},
@@ -921,10 +1541,10 @@ func TestVerifyClaims(t *testing.T) {
 			bgIds:  []string{"*"},
 			bspIds: []string{"spId1"},
 			claims: additionalClaims{
-				claims.NotBefore,
-				"test-oid",
-				claims.AppID,
-				claims.GroupIDs,
+				NotBefore: claims.NotBefore,
+				ObjectID:  "test-oid",
+				AppID:     claims.AppID,
+				GroupIDs:  claims.GroupIDs,
 			},
 			error: "service principal not authorized",
 		},
@@ -932,10 +1552,10 @@ func TestVerifyClaims(t *testing.T) {
 			bgIds:  []string{"*"},
 			bspIds: []string{"spId1", "test-oid"},
 			claims: additionalClaims{
-				claims.NotBefore,
-				"test-oid",
-				claims.AppID,
-				claims.GroupIDs,
+				NotBefore: claims.NotBefore,
+				ObjectID:  "test-oid",
+				AppID:     claims.AppID,
+				GroupIDs:  claims.GroupIDs,
 			},
 			error: "",
 		},
@@ -947,7 +1567,7 @@ func TestVerifyClaims(t *testing.T) {
 			role.BoundServicePrincipalIDs = testCase.bspIds
 			claims = &testCase.claims
 
-			err = b.verifyClaims(claims, role)
+			err = claims.verifyRole(role)
 
 			if err != nil && testCase.error != "" && !strings.Contains(err.Error(), testCase.error) {
 				t.Fatalf("expected an error %s, got %v", testCase.error, err)
@@ -1172,5 +1792,433 @@ func getTestBackendFunctions(withLocation bool) (
 func getTestMSGraphClient() func() (client.MSGraphClient, error) {
 	return func() (client.MSGraphClient, error) {
 		return nil, nil
+	}
+}
+
+func Test_additionalClaims_verifyVM(t *testing.T) {
+	type fields struct {
+		NotBefore                    jsonTime
+		ObjectID                     string
+		AppID                        string
+		GroupIDs                     []string
+		XMSAzureResourceID           string
+		XMSManagedIdentityResourceID string
+	}
+	type args struct {
+		vmName string
+	}
+
+	appID := "123e4567-e89b-12d3-a456-426655440000"
+	principalID := "123e4567-e89b-12d3-a456-426655440000"
+	subscriptionID := "eb936495-7356-4a35-af3e-ea68af201f0c"
+	rgName := "rg"
+	vmName := "vm"
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "error if xms_mirid and xms_az_rid are empty",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+			},
+			args: args{
+				vmName: vmName,
+			},
+			wantErr: assert.Error,
+		},
+		{
+			name: "error if vm_name does not match when only xms_mirid exists",
+			fields: fields{
+				NotBefore:                    jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:                     principalID,
+				AppID:                        appID,
+				GroupIDs:                     []string{"test-group-1"},
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName, vmName),
+			},
+			args: args{
+				vmName: "wrong-vm",
+			},
+			wantErr: assert.Error,
+		},
+		{
+			name: "error if vm_name does not match when xms_az_rid and xms_mirid exist",
+			fields: fields{
+				NotBefore:          jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:           principalID,
+				AppID:              appID,
+				GroupIDs:           []string{"test-group-1"},
+				XMSAzureResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName, vmName),
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedIdentity"),
+			},
+			args: args{
+				vmName: "wrong-vm",
+			},
+			wantErr: assert.Error,
+		},
+		{
+			name: "happy if vm_name matches xms_mirid",
+			fields: fields{
+				NotBefore:                    jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:                     principalID,
+				AppID:                        appID,
+				GroupIDs:                     []string{"test-group-1"},
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName, vmName),
+			},
+			args: args{
+				vmName: vmName,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "happy if vm_name matches xms_az_rid",
+			fields: fields{
+				NotBefore:          jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:           principalID,
+				AppID:              appID,
+				GroupIDs:           []string{"test-group-1"},
+				XMSAzureResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName, vmName),
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedIdentity"),
+			},
+			args: args{
+				vmName: vmName,
+			},
+			wantErr: assert.NoError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &additionalClaims{
+				NotBefore:                    tt.fields.NotBefore,
+				ObjectID:                     tt.fields.ObjectID,
+				AppID:                        tt.fields.AppID,
+				GroupIDs:                     tt.fields.GroupIDs,
+				XMSAzureResourceID:           tt.fields.XMSAzureResourceID,
+				XMSManagedIdentityResourceID: tt.fields.XMSManagedIdentityResourceID,
+			}
+			tt.wantErr(t, c.verifyVM(tt.args.vmName), fmt.Sprintf("verifyVM(%v)", tt.args.vmName))
+		})
+	}
+}
+
+func Test_additionalClaims_verifyVMSS(t *testing.T) {
+	type fields struct {
+		NotBefore                    jsonTime
+		ObjectID                     string
+		AppID                        string
+		GroupIDs                     []string
+		XMSAzureResourceID           string
+		XMSManagedIdentityResourceID string
+	}
+	type args struct {
+		vmssName string
+	}
+
+	appID := "123e4567-e89b-12d3-a456-426655440000"
+	principalID := "123e4567-e89b-12d3-a456-426655440000"
+	subscriptionID := "eb936495-7356-4a35-af3e-ea68af201f0c"
+	rgName := "rg"
+	vmssName := "vmss"
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "error if xms_mirid and xms_az_rid are empty",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+			},
+			args: args{
+				vmssName: vmssName,
+			},
+			wantErr: assert.Error,
+		},
+		{
+			name: "error if vmss_name does not match when only xms_mirid exists",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName,
+					fmt.Sprintf("%s_instanceID", vmssName)),
+			},
+			args: args{
+				vmssName: "wrong-vmss",
+			},
+			wantErr: assert.Error,
+		},
+		{
+			name: "error if vmss_name does not match when xms_az_rid and xms_mirid exist",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+				XMSAzureResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName,
+					fmt.Sprintf("%s_instanceID", vmssName)),
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedIdentity"),
+			},
+			args: args{
+				vmssName: "wrong-vm",
+			},
+			wantErr: assert.Error,
+		},
+		{
+			name: "happy if vmss_name matches xms_mirid",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName,
+					fmt.Sprintf("%s_instanceID", vmssName)),
+			},
+			args: args{
+				vmssName: vmssName,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "happy if vmss_name matches xms_az_rid",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+				XMSAzureResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName,
+					fmt.Sprintf("%s_instanceID", vmssName)),
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedIdentity"),
+			},
+			args: args{
+				vmssName: vmssName,
+			},
+			wantErr: assert.NoError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &additionalClaims{
+				NotBefore:                    tt.fields.NotBefore,
+				ObjectID:                     tt.fields.ObjectID,
+				AppID:                        tt.fields.AppID,
+				GroupIDs:                     tt.fields.GroupIDs,
+				XMSAzureResourceID:           tt.fields.XMSAzureResourceID,
+				XMSManagedIdentityResourceID: tt.fields.XMSManagedIdentityResourceID,
+			}
+			tt.wantErr(t, c.verifyVMSS(tt.args.vmssName), fmt.Sprintf("verifyVMSS(%v)", tt.args.vmssName))
+		})
+	}
+}
+
+func Test_additionalClaims_verifyResourceGroup(t *testing.T) {
+	type fields struct {
+		NotBefore                    jsonTime
+		ObjectID                     string
+		AppID                        string
+		GroupIDs                     []string
+		XMSAzureResourceID           string
+		XMSManagedIdentityResourceID string
+	}
+	type args struct {
+		resourceGroupName string
+		vmName            string
+		vmssName          string
+		resourceID        string
+	}
+	appID := "123e4567-e89b-12d3-a456-426655440000"
+	principalID := "123e4567-e89b-12d3-a456-426655440000"
+	subscriptionID := "eb936495-7356-4a35-af3e-ea68af201f0c"
+	rgName := "rg"
+	vmssName := "vmss"
+	vmName := "vm"
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "error if vm vmss_name and resource_id are empty",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName,
+					fmt.Sprintf("%s_instanceID", vmssName)),
+			},
+			args: args{
+				resourceGroupName: rgName,
+			},
+			wantErr: assert.Error,
+		},
+		{
+			name: "happy with matching resource_id",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+			},
+			args: args{
+				resourceGroupName: rgName,
+				resourceID: fmt.Sprintf(fmtResourceGroupID, subscriptionID, rgName,
+					"providers/Microsoft.Web",
+					"sites",
+					"my-azure-func"),
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "error with missing xms_az_rid xms_mirid when vmss is provided",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+			},
+			args: args{
+				resourceGroupName: rgName,
+				vmssName:          vmssName,
+			},
+			wantErr: assert.Error,
+		},
+		{
+			name: "happy with matching xms_mirid when vmss is provided",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName,
+					fmt.Sprintf("%s_instanceID", vmssName)),
+			},
+			args: args{
+				resourceGroupName: rgName,
+				vmssName:          vmssName,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "happy with matching xms_az_rid when vmss is provided",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+				XMSAzureResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName,
+					fmt.Sprintf("%s_instanceID", vmssName)),
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedIdentity"),
+			},
+			args: args{
+				resourceGroupName: rgName,
+				vmssName:          vmssName,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "error with non-matching xms_az_rid xms_mirid when vmss_name is provided",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+				XMSAzureResourceID: fmt.Sprintf(fmtRID, subscriptionID, "wrong-rg-name",
+					fmt.Sprintf("%s_instanceID", vmssName)),
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, "wrong-rg-name", "userAssignedIdentity"),
+			},
+			args: args{
+				resourceGroupName: rgName,
+				vmssName:          vmssName,
+			},
+			wantErr: assert.Error,
+		},
+		{
+			name: "happy with matching xms_mirid when vm_name is provided",
+			fields: fields{
+				NotBefore:                    jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:                     principalID,
+				AppID:                        appID,
+				GroupIDs:                     []string{"test-group-1"},
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName, vmName),
+			},
+			args: args{
+				resourceGroupName: rgName,
+				vmName:            vmName,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "happy with matching xms_az_rid when vm_name is provided",
+			fields: fields{
+				NotBefore:          jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:           principalID,
+				AppID:              appID,
+				GroupIDs:           []string{"test-group-1"},
+				XMSAzureResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName, vmName),
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedIdentity"),
+			},
+			args: args{
+				resourceGroupName: rgName,
+				vmName:            vmName,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "error with non-matching xms_az_rid xms_mirid when vm_name is provided",
+			fields: fields{
+				NotBefore:          jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:           principalID,
+				AppID:              appID,
+				GroupIDs:           []string{"test-group-1"},
+				XMSAzureResourceID: fmt.Sprintf(fmtRID, subscriptionID, "wrong-rg-name", vmName),
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, "wrong-rg-name", "userAssignedIdentity"),
+			},
+			args: args{
+				resourceGroupName: rgName,
+				vmName:            vmName,
+			},
+			wantErr: assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &additionalClaims{
+				NotBefore:                    tt.fields.NotBefore,
+				ObjectID:                     tt.fields.ObjectID,
+				AppID:                        tt.fields.AppID,
+				GroupIDs:                     tt.fields.GroupIDs,
+				XMSAzureResourceID:           tt.fields.XMSAzureResourceID,
+				XMSManagedIdentityResourceID: tt.fields.XMSManagedIdentityResourceID,
+			}
+			tt.wantErr(t, c.verifyResourceGroup(tt.args.resourceGroupName,
+				tt.args.vmName,
+				tt.args.vmssName,
+				tt.args.resourceID),
+				fmt.Sprintf("verifyResourceGroup(%v, %v, %v, %v)",
+					tt.args.resourceGroupName,
+					tt.args.vmName,
+					tt.args.vmssName,
+					tt.args.resourceID))
+		})
 	}
 }
