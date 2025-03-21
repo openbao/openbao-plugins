@@ -85,6 +85,10 @@ func testKMSClient(tb testing.TB) *kmsapi.KeyManagementClient {
 func testKMSKeyRingName(tb testing.TB, name string) string {
 	tb.Helper()
 
+	if testing.Short() {
+		tb.Skip("skipping integration test (short)")
+	}
+
 	project := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	if project == "" {
 		tb.Fatal("missing GOOGLE_CLOUD_PROJECT")
@@ -160,6 +164,10 @@ func testCreateKMSCryptoKeyAsymmetricSign(tb testing.TB, algo kmspb.CryptoKeyVer
 func testCreateKMSCryptoKeyPurpose(tb testing.TB, purpose kmspb.CryptoKey_CryptoKeyPurpose, algo kmspb.CryptoKeyVersion_CryptoKeyVersionAlgorithm) (string, func()) {
 	tb.Helper()
 
+	if testing.Short() {
+		tb.Skip("skipping integration test (short)")
+	}
+
 	kmsClient := testKMSClient(tb)
 
 	keyRing, cleanup := testCreateKMSKeyRing(tb, "")
@@ -203,6 +211,10 @@ func testCreateKMSCryptoKeyPurpose(tb testing.TB, purpose kmspb.CryptoKey_Crypto
 // testCleanupKeyRing deletes all key versions in the ring.
 func testCleanupKeyRing(tb testing.TB, keyRing string) {
 	tb.Helper()
+
+	if testing.Short() {
+		tb.Skip("skipping integration test (short)")
+	}
 
 	kmsClient := testKMSClient(tb)
 
@@ -262,6 +274,10 @@ func testCleanupKeyRing(tb testing.TB, keyRing string) {
 }
 
 func TestBackend_KMSClient(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("skipping integration test (short)")
+	}
 
 	t.Run("allows_concurrent_reads", func(t *testing.T) {
 
@@ -338,6 +354,10 @@ func TestBackend_KMSClient(t *testing.T) {
 }
 
 func TestBackend_ResetClient(t *testing.T) {
+
+	if testing.Short() {
+		t.Skip("skipping integration test (short)")
+	}
 
 	t.Run("closes_client", func(t *testing.T) {
 
