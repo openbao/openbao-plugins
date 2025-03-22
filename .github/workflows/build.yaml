@@ -1,4 +1,4 @@
-name: test
+name: build
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
       - id: matrix
         run: |
           make ci-matrix >> "$GITHUB_OUTPUT"
-  test:
+  build:
     runs-on: ubuntu-latest
     needs: matrix
     strategy:
@@ -33,5 +33,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Run tests
-        run: make ${{ matrix.plugin }}-test
+      - name: Install GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          install-only: true
+      - name: Build plugin
+        run: make ${{ matrix.plugin }}
