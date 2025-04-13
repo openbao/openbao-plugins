@@ -1,0 +1,40 @@
+name: release
+
+on:
+  release:
+    types:
+      - prereleased
+
+permissions:
+  contents: write
+  id-token: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@v0
+      - name: GPG Import
+        id: gpg-import
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSWORD }}
+      - name: Release plugin
+        run: |
+          make release PLUGIN=$(echo ${{github.ref_name}} | cut -d- -f 1-2)
+        env:
+          GPG_PASSWORD: ${{ secrets.GPG_PASSWORD }}
+      - name: upload assets
+        run: |
+          gh release upload ${{github.ref_name}} dist/*
+        env:
+          GH_TOKEN: ${{ github.token }}
