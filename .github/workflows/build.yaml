@@ -33,9 +33,5 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Install GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          install-only: true
       - name: Build plugin
         run: make ${{ matrix.plugin }}

@@ -150,10 +150,6 @@ $(PLUGINS): %:
 $(PLUGINS:=-test): %-test:
 	@$(MAKE) --no-print-directory test PLUGIN=$*
 
-bin/$(PLUGIN_PREFIX)-$(PLUGIN): | bin
-	@goreleaser build --single-target -o $@ --id $(PLUGIN) --snapshot --clean
-	@rm -rf dist
-
 bin/$(PLUGIN_PREFIX)-$(PLUGIN).test: $(subst -,/,$(PLUGIN))/*.go $(subst -,/,$(PLUGIN))/**/*.go | bin
 	@go test -c ./$(subst -,/,$(PLUGIN)) -o $@
 	./$@ -test.v -test.short
