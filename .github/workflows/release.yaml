@@ -4,6 +4,7 @@ on:
   release:
     types:
       - prereleased
+      - released
 
 permissions:
   contents: write
