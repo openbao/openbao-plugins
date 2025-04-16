@@ -111,10 +111,13 @@ ARCHIVES := $(subst bin/,dist/,$(addsuffix .tar.gz,$(filter-out bin/$(PLUGIN_PRE
 SIGNATURES := $(ARCHIVES:=.sig)
 SBOMS := $(ARCHIVES:=.spdx.sbom.json)
 
-.PHONY: ci-matrix
+.PHONY: ci-matrix ci-targets
 
 ci-matrix:
 	@echo -n "$(PLUGINS)"  | jq -Rscr 'split(" ") | "plugins=\(.)"'
+
+ci-targets:
+	@echo -n "$(TARGETS)" | jq -Rscr 'split(" ") | "targets=\(.)"'
 
 bin dist:
 	@mkdir -p $@
