@@ -1,3 +1,11 @@
+## v0.22.0
+### April 16, 2025
+
+CHANGES:
+
+* Use OpenBao SDK and API dependencies
+* Migrate plugin into openbao-plugins repository
+
 ## v0.21.1
 ### February 26, 2025
 
