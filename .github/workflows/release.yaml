@@ -31,7 +31,7 @@ jobs:
           passphrase: ${{ secrets.GPG_PASSWORD }}
       - name: Release plugin
         run: |
-          make release PLUGIN=$(echo ${{github.ref_name}} | cut -d- -f 1-2)
+          make -j $(nproc) release PLUGIN=$(echo ${{github.ref_name}} | cut -d- -f 1-2)
         env:
           GPG_PASSWORD: ${{ secrets.GPG_PASSWORD }}
       - name: upload assets
