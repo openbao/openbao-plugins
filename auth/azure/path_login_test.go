@@ -558,7 +558,7 @@ func TestLogin_BoundSubscriptionID(t *testing.T) {
 			},
 		},
 		{
-			name: "success with vmss_name with user-assigned managed identities",
+			name: "success with flexible vmss_name with user-assigned managed identities",
 			claims: map[string]interface{}{
 				"exp": time.Now().Add(60 * time.Second).Unix(),
 				"nbf": time.Now().Add(-60 * time.Second).Unix(),
@@ -707,7 +707,7 @@ func TestLogin_BoundResourceGroup(t *testing.T) {
 		{
 			// The VM in this case has user-assigned managed identities
 			// so xms_az_rid is present
-			name: "success with vmss_name with user-assigned managed identities",
+			name: "success with flexible vmss_name with user-assigned managed identities",
 			claims: map[string]interface{}{
 				"exp": time.Now().Add(60 * time.Second).Unix(),
 				"nbf": time.Now().Add(-60 * time.Second).Unix(),
@@ -868,7 +868,7 @@ func TestLogin_BoundLocation(t *testing.T) {
 		{
 			// The VMSS in this case has user-assigned managed identities
 			// so xms_az_rid is present
-			name: "success with vmss_name with user-assigned managed identities",
+			name: "success with flexible vmss_name with user-assigned managed identities",
 			claims: map[string]interface{}{
 				"exp": time.Now().Add(60 * time.Second).Unix(),
 				"nbf": time.Now().Add(-60 * time.Second).Unix(),
@@ -1103,15 +1103,36 @@ func TestLogin_BoundScaleSet(t *testing.T) {
 			},
 		},
 		{
-			// The VMSS in this case has user-assigned managed identities
+			// The Flexible VMSS in this case has user-assigned managed identities
 			// so xms_az_rid is present
-			name: "success with vmss_name with user-assigned managed identities",
+			name: "success with flexible vmss_name with user-assigned managed identities",
 			claims: map[string]interface{}{
 				"exp": time.Now().Add(60 * time.Second).Unix(),
 				"nbf": time.Now().Add(-60 * time.Second).Unix(),
 				"oid": principalID,
 				"xms_az_rid": fmt.Sprintf(fmtRID,
 					subscriptionID, rgName, fmt.Sprintf("%s_randomInstanceID", vmssName)),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName,
+				"vmss_name":           vmssName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The Uniform VMSS in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "success with uniform vmss_name with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp": time.Now().Add(60 * time.Second).Unix(),
+				"nbf": time.Now().Add(-60 * time.Second).Unix(),
+				"oid": principalID,
+				"xms_az_rid": fmt.Sprintf(fmtVMSSRID,
+					subscriptionID, rgName, vmssName),
 				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
 					subscriptionID, rgName, "userAssignedMI"),
 			},
@@ -1251,15 +1272,36 @@ func TestLogin_AppID(t *testing.T) {
 			},
 		},
 		{
-			// The VMSS in this case has user-assigned managed identities
+			// The Flexible VMSS in this case has user-assigned managed identities
 			// so xms_az_rid is present
-			name: "success with vmss_name with user-assigned managed identities",
+			name: "success with flexible vmss_name with user-assigned managed identities",
 			claims: map[string]interface{}{
 				"exp":   time.Now().Add(60 * time.Second).Unix(),
 				"nbf":   time.Now().Add(-60 * time.Second).Unix(),
 				"appid": appID,
 				"xms_az_rid": fmt.Sprintf(fmtRID,
 					subscriptionID, rgName1, fmt.Sprintf("%s_randomInstanceID", vmssName)),
+				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName1, "userAssignedMI"),
+			},
+			loginData: map[string]interface{}{
+				"role":                roleName,
+				"subscription_id":     subscriptionID,
+				"resource_group_name": rgName1,
+				"vmss_name":           vmssName,
+			},
+			expectedSuccess: true,
+		},
+		{
+			// The Uniform VMSS in this case has user-assigned managed identities
+			// so xms_az_rid is present
+			name: "success with vmss_name with user-assigned managed identities",
+			claims: map[string]interface{}{
+				"exp":   time.Now().Add(60 * time.Second).Unix(),
+				"nbf":   time.Now().Add(-60 * time.Second).Unix(),
+				"appid": appID,
+				"xms_az_rid": fmt.Sprintf(fmtVMSSRID,
+					subscriptionID, rgName1, vmssName),
 				"xms_mirid": fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
 					subscriptionID, rgName1, "userAssignedMI"),
 			},
@@ -1946,7 +1988,7 @@ func Test_additionalClaims_verifyVMSS(t *testing.T) {
 			wantErr: assert.Error,
 		},
 		{
-			name: "error if vmss_name does not match when only xms_mirid exists",
+			name: "error if flexible vmss_name does not match when only xms_mirid exists",
 			fields: fields{
 				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
 				ObjectID:  principalID,
@@ -1961,7 +2003,7 @@ func Test_additionalClaims_verifyVMSS(t *testing.T) {
 			wantErr: assert.Error,
 		},
 		{
-			name: "error if vmss_name does not match when xms_az_rid and xms_mirid exist",
+			name: "error if flexible vmss_name does not match when xms_az_rid and xms_mirid exist",
 			fields: fields{
 				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
 				ObjectID:  principalID,
@@ -1978,7 +2020,7 @@ func Test_additionalClaims_verifyVMSS(t *testing.T) {
 			wantErr: assert.Error,
 		},
 		{
-			name: "happy if vmss_name matches xms_mirid",
+			name: "happy if flexible vmss_name matches xms_mirid",
 			fields: fields{
 				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
 				ObjectID:  principalID,
@@ -1993,7 +2035,22 @@ func Test_additionalClaims_verifyVMSS(t *testing.T) {
 			wantErr: assert.NoError,
 		},
 		{
-			name: "happy if vmss_name matches xms_az_rid",
+			name: "happy if uniform vmss_name matches xms_mirid",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtVMSSRID, subscriptionID, rgName,
+					vmssName),
+			},
+			args: args{
+				vmssName: vmssName,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "happy if flexible vmss_name matches xms_az_rid",
 			fields: fields{
 				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
 				ObjectID:  principalID,
@@ -2001,6 +2058,23 @@ func Test_additionalClaims_verifyVMSS(t *testing.T) {
 				GroupIDs:  []string{"test-group-1"},
 				XMSAzureResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName,
 					fmt.Sprintf("%s_instanceID", vmssName)),
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedIdentity"),
+			},
+			args: args{
+				vmssName: vmssName,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "happy if uniform vmss_name matches xms_az_rid",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+				XMSAzureResourceID: fmt.Sprintf(fmtVMSSRID, subscriptionID, rgName,
+					vmssName),
 				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
 					subscriptionID, rgName, "userAssignedIdentity"),
 			},
@@ -2099,7 +2173,7 @@ func Test_additionalClaims_verifyResourceGroup(t *testing.T) {
 			wantErr: assert.Error,
 		},
 		{
-			name: "happy with matching xms_mirid when vmss is provided",
+			name: "happy with matching xms_mirid when flexible vmss is provided",
 			fields: fields{
 				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
 				ObjectID:  principalID,
@@ -2115,7 +2189,23 @@ func Test_additionalClaims_verifyResourceGroup(t *testing.T) {
 			wantErr: assert.NoError,
 		},
 		{
-			name: "happy with matching xms_az_rid when vmss is provided",
+			name: "happy with matching xms_mirid when uniform vmss is provided",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtVMSSRID, subscriptionID, rgName,
+					fmt.Sprintf("%s_instanceID", vmssName)),
+			},
+			args: args{
+				resourceGroupName: rgName,
+				vmssName:          vmssName,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "happy with matching xms_az_rid when flexible vmss is provided",
 			fields: fields{
 				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
 				ObjectID:  principalID,
@@ -2123,6 +2213,24 @@ func Test_additionalClaims_verifyResourceGroup(t *testing.T) {
 				GroupIDs:  []string{"test-group-1"},
 				XMSAzureResourceID: fmt.Sprintf(fmtRID, subscriptionID, rgName,
 					fmt.Sprintf("%s_instanceID", vmssName)),
+				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
+					subscriptionID, rgName, "userAssignedIdentity"),
+			},
+			args: args{
+				resourceGroupName: rgName,
+				vmssName:          vmssName,
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "happy with matching xms_az_rid when uniform vmss is provided",
+			fields: fields{
+				NotBefore: jsonTime(time.Now().Add(60 * time.Second)),
+				ObjectID:  principalID,
+				AppID:     appID,
+				GroupIDs:  []string{"test-group-1"},
+				XMSAzureResourceID: fmt.Sprintf(fmtVMSSRID, subscriptionID, rgName,
+					vmssName),
 				XMSManagedIdentityResourceID: fmt.Sprintf(fmtRIDWithUserAssignedIdentities,
 					subscriptionID, rgName, "userAssignedIdentity"),
 			},
