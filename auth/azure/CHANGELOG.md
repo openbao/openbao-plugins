@@ -2,6 +2,8 @@
 
 IMPROVEMENTS:
 * Require `resource_group_name`, `vm_name`, and `vmss_name` to match token claims on login (https://github.com/hashicorp/vault-plugin-auth-azure/pull/186)
+BUG FIXES:
+* Fix validation of token claims for Uniform VMSS (https://github.com/hashicorp/vault-plugin-auth-azure/pull/203).
 
 ## v0.21.0
 ### April 15, 2025
