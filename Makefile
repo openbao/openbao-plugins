@@ -1,6 +1,7 @@
 PLUGIN_PREFIX := openbao-plugin
 PLUGINS := $(subst /,-,$(wildcard auth/* secrets/* databases/*))
 PLUGIN := $(firstword $(PLUGINS))
+VERSION := v0.0.0
 
 TARGETS := \
     linux_amd64_v1 \
@@ -111,7 +112,7 @@ ARCHIVES := $(subst bin/,dist/,$(addsuffix .tar.gz,$(filter-out bin/$(PLUGIN_PRE
 SIGNATURES := $(ARCHIVES:=.sig)
 SBOMS := $(ARCHIVES:=.spdx.sbom.json)
 
-.PHONY: ci-matrix ci-targets
+.PHONY: ci-matrix ci-targets image push
 
 ci-matrix:
 	@echo -n "$(PLUGINS)"  | jq -Rscr 'split(" ") | "plugins=\(.)"'
@@ -121,6 +122,15 @@ ci-targets:
 
 bin dist:
 	@mkdir -p $@
+
+image: Containerfile $(BINARIES)
+	@buildah manifest rm ghcr.io/janma/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION) || true
+	@buildah manifest create ghcr.io/janma/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)
+	@$(foreach target,$(TARGETS),cat $< | PLUGIN=$(PLUGIN) envsubst '$$PLUGIN' | buildah build -f - --platform $(subst _,/,$(target)) --build-arg PLUGIN=$(PLUGIN) -t $(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)_$(target);)
+	@$(foreach target,$(TARGETS),buildah manifest add ghcr.io/janma/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION) $(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)_$(target);)
+
+push: image
+	@buildah manifest push ghcr.io/janma/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)
 
 dist/%.tar.gz: bin/% | dist
 	@echo "archiving $@"
@@ -145,7 +155,7 @@ dist/%.spdx.sbom.json: dist/% | dist
 $(BINARIES): bin/$(PLUGIN_PREFIX)-$(PLUGIN)_%: | bin
 	$(eval $(call set_vars,$*))
 	@echo "building $@"
-	@GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) go build  -o $@ -ldflags '-s -w' ./$(subst -,/,$(PLUGIN))/cmd
+	@GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) CGO_ENABLED=0 go build  -o $@ -ldflags '-s -w' ./$(subst -,/,$(PLUGIN))/cmd
 
 $(PLUGINS): %:
 	@$(MAKE) --no-print-directory build PLUGIN=$*
