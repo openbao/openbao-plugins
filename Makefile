@@ -124,13 +124,13 @@ bin dist:
 	@mkdir -p $@
 
 image: Containerfile $(BINARIES)
-	@buildah manifest rm ghcr.io/janma/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION) || true
-	@buildah manifest create ghcr.io/janma/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)
+	@buildah manifest rm ghcr.io/openbao/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION) || true
+	@buildah manifest create ghcr.io/openbao/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)
 	@$(foreach target,$(TARGETS),cat $< | PLUGIN=$(PLUGIN) envsubst '$$PLUGIN' | buildah build -f - --platform $(subst _,/,$(target)) --build-arg PLUGIN=$(PLUGIN) -t $(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)_$(target);)
-	@$(foreach target,$(TARGETS),buildah manifest add ghcr.io/janma/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION) $(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)_$(target);)
+	@$(foreach target,$(TARGETS),buildah manifest add ghcr.io/openbao/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION) $(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)_$(target);)
 
 push: image
-	@buildah manifest push ghcr.io/janma/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)
+	@buildah manifest push ghcr.io/openbao/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)
 
 dist/%.tar.gz: bin/% | dist
 	@echo "archiving $@"
