@@ -6,26 +6,26 @@ VERSION := v0.0.0
 TARGETS := \
     linux_amd64_v1 \
     linux_arm_6 \
-    linux_arm64_v8.0 \
+    linux_arm64_v8 \
     linux_ppc64le \
     linux_riscv64_rva20u64 \
     linux_s390x \
     darwin_amd64_v1 \
-    darwin_arm64_v8.0 \
+    darwin_arm64_v8 \
     dragonfly_amd64_v1 \
     freebsd_amd64_v1 \
     freebsd_arm_6 \
-    freebsd_arm64_v8.0 \
+    freebsd_arm64_v8 \
     illumos_amd64_v1 \
     netbsd_amd64_v1 \
     netbsd_arm_6 \
-    netbsd_arm64_v8.0 \
+    netbsd_arm64_v8 \
     openbsd_amd64_v1 \
     openbsd_arm_6 \
-    openbsd_arm64_v8.0 \
+    openbsd_arm64_v8 \
     windows_amd64_v1 \
     windows_arm_6 \
-    windows_arm64_v8.0
+    windows_arm64_v8
 
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
@@ -40,7 +40,7 @@ define set_vars
     GOOS := linux
     GOARCH := arm
     GOARM := 6
-  else ifeq ($1, linux_arm64_v8.0)
+  else ifeq ($1, linux_arm64_v8)
     GOOS := linux
     GOARCH := arm64
   else ifeq ($1, linux_ppc64le)
@@ -55,7 +55,7 @@ define set_vars
   else ifeq ($1, darwin_amd64_v1)
     GOOS := darwin
     GOARCH := amd64
-  else ifeq ($1, darwin_arm64_v8.0)
+  else ifeq ($1, darwin_arm64_v8)
     GOOS := darwin
     GOARCH := arm64
   else ifeq ($1, dragonfly_amd64_v1)
@@ -68,7 +68,7 @@ define set_vars
     GOOS := freebsd
     GOARCH := arm
     GOARM := 6
-  else ifeq ($1, freebsd_arm64_v8.0)
+  else ifeq ($1, freebsd_arm64_v8)
     GOOS := freebsd
     GOARCH := arm64
   else ifeq ($1, illumos_amd64_v1)
@@ -81,7 +81,7 @@ define set_vars
     GOOS := netbsd
     GOARCH := arm
     GOARM := 6
-  else ifeq ($1, netbsd_arm64_v8.0)
+  else ifeq ($1, netbsd_arm64_v8)
     GOOS := netbsd
     GOARCH := arm64
   else ifeq ($1, openbsd_amd64_v1)
@@ -91,7 +91,7 @@ define set_vars
     GOOS := openbsd
     GOARCH := arm
     GOARM := 6
-  else ifeq ($1, openbsd_arm64_v8.0)
+  else ifeq ($1, openbsd_arm64_v8)
     GOOS := openbsd
     GOARCH := arm64
   else ifeq ($1, windows_amd64_v1)
@@ -101,7 +101,7 @@ define set_vars
     GOOS := windows
     GOARCH := arm
     GOARM := 6
-  else ifeq ($1, windows_arm64_v8.0)
+  else ifeq ($1, windows_arm64_v8)
     GOOS := windows
     GOARCH := arm64
   endif
