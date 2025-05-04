@@ -73,3 +73,30 @@ jobs:
           gh release upload ${{github.ref_name}} dist/*
         env:
           GH_TOKEN: ${{ github.token }}
+  push-image:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: install buildah
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install buildah
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: bin
+          pattern: plugin-*
+          merge-multiple: true
+      - name: Push image
+        run: |
+          make -j $(nproc) push PLUGIN=$(echo ${{github.ref_name}} | cut -d- -f 1-2) VERSION=$(echo ${{github.ref_name}} | cut -d- -f 3)
+        env:
+          GH_TOKEN: ${{ github.token }}
