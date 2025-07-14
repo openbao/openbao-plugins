@@ -1160,11 +1160,9 @@ github.com/openbao/openbao/helper/random
 github.com/openbao/openbao/helper/storagepacker
 github.com/openbao/openbao/helper/testhelpers
 github.com/openbao/openbao/helper/testhelpers/corehelpers
-github.com/openbao/openbao/helper/testhelpers/logical
 github.com/openbao/openbao/helper/testhelpers/pluginhelpers
 github.com/openbao/openbao/helper/timeutil
 github.com/openbao/openbao/helper/versions
-github.com/openbao/openbao/http
 github.com/openbao/openbao/internalshared/configutil
 github.com/openbao/openbao/internalshared/listenerutil
 github.com/openbao/openbao/physical/raft

@@ -17,7 +17,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
-	logicaltest "github.com/openbao/openbao/helper/testhelpers/logical"
+	logicaltest "github.com/openbao/openbao-plugins/internal/logical"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/helper/policyutil"
 	"github.com/openbao/openbao/sdk/v2/logical"

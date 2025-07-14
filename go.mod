@@ -28,12 +28,16 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/hashicorp/go-secure-stdlib/awsutil v0.3.0
+	github.com/hashicorp/go-secure-stdlib/base62 v0.1.2
 	github.com/hashicorp/go-secure-stdlib/parseutil v0.1.9
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
+	github.com/hashicorp/go-secure-stdlib/tlsutil v0.1.3
+	github.com/hashicorp/go-sockaddr v1.0.6
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/hashicorp/hcl v1.0.1-vault-5
 	github.com/hashicorp/nomad/api v0.0.0-20250620221633-cdde082362bb
 	github.com/jeffchao/backoff v0.0.0-20140404060208-9d7fd7aa17f2
+	github.com/klauspost/compress v1.17.11
 	github.com/microsoftgraph/msgraph-sdk-go v1.62.0
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.2.1
 	github.com/mitchellh/copystructure v1.2.0
@@ -44,6 +48,7 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/satori/go.uuid v1.2.0
 	github.com/stretchr/testify v1.10.0
+	go.uber.org/atomic v1.11.0
 	golang.org/x/oauth2 v0.27.0
 	google.golang.org/api v0.223.0
 	google.golang.org/genproto v0.0.0-20250227231956-55c901821b1e
@@ -164,11 +169,8 @@ require (
 	github.com/hashicorp/go-plugin v1.6.3 // indirect
 	github.com/hashicorp/go-raftchunking v0.7.1 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
-	github.com/hashicorp/go-secure-stdlib/base62 v0.1.2 // indirect
 	github.com/hashicorp/go-secure-stdlib/mlock v0.1.3 // indirect
 	github.com/hashicorp/go-secure-stdlib/reloadutil v0.1.1 // indirect
-	github.com/hashicorp/go-secure-stdlib/tlsutil v0.1.3 // indirect
-	github.com/hashicorp/go-sockaddr v1.0.6 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
 	github.com/hashicorp/golang-lru v1.0.2 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
@@ -191,7 +193,6 @@ require (
 	github.com/joyent/triton-go v1.7.1-0.20200416154420-6801d15b779f // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0 // indirect
-	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/libdns/libdns v0.2.2 // indirect
@@ -285,7 +286,6 @@ require (
 	go.opentelemetry.io/otel v1.34.0 // indirect
 	go.opentelemetry.io/otel/metric v1.34.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
