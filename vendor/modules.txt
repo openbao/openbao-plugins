@@ -434,8 +434,8 @@ github.com/circonus-labs/circonusllhist
 # github.com/cjlapao/common-go v0.0.39
 ## explicit; go 1.19
 github.com/cjlapao/common-go/duration
-# github.com/cloudflare/circl v1.3.7
-## explicit; go 1.19
+# github.com/cloudflare/circl v1.6.1
+## explicit; go 1.22.0
 github.com/cloudflare/circl/dh/x25519
 github.com/cloudflare/circl/dh/x448
 github.com/cloudflare/circl/ecc/goldilocks
