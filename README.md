@@ -10,19 +10,22 @@ Prebuilt binaries for these plugins are available in the [Releases](https://gith
 ## Plugins
 
 ### Authentication Plugins
-- **AWS** – Authenticate using AWS IAM credentials.
-- **Azure** – Authenticate using Microsoft Azure credentials.
-- **GCP** – Authenticate using Google Cloud Platform credentials.
+
+- **AWS** - Authenticate using AWS IAM credentials.
+- **Azure** - Authenticate using Microsoft Azure credentials.
+- **GCP** - Authenticate using Google Cloud Platform credentials.
 
 ### Database Plugins
+
 _None available at this time._
 
 ### Secrets Plugins
-- **AWS** – Generate AWS access credentials based on IAM policies.
-- **Azure** – Generate Azure service principals with role and group assignments.
-- **GCP** – Generate GCP service account keys and Oauth tokens based on IAM policies.
-- **GCPKMS** – Encrypt data and manage keys via GCP KMS.
-- **NOMAD** - Generate Nomad ACL tokens.
+
+- **AWS** - Generate AWS access credentials based on IAM policies.
+- **Azure** - Generate Azure service principals with role and group assignments.
+- **GCP** - Generate GCP service account keys and OAuth tokens based on IAM policies.
+- **GCPKMS** - Encrypt data and manage keys via GCP KMS.
+- **Nomad** - Generate Nomad ACL tokens.
 
 ## Development
 
@@ -44,7 +47,6 @@ To contribute or build plugins from source, follow these steps:
    ```
 
 Replace `auth-aws` with the appropriate plugin name as needed.
-
 
 ## Contributing
 
