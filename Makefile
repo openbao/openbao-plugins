@@ -131,7 +131,7 @@ image: Containerfile $(BINARIES)
 	@$(foreach target,$(TARGETS),buildah manifest add $(REGISTRY)/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION) $(REGISTRY)/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)_$(target);)
 
 push: image
-	@buildah manifest push $(REGISTRY)/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)
+	@buildah manifest push --all $(REGISTRY)/$(PLUGIN_PREFIX)-$(PLUGIN):$(VERSION)
 
 dist/%.tar.gz: bin/% | dist
 	@echo "archiving $@"
