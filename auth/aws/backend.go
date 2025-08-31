@@ -20,6 +20,8 @@ import (
 	cache "github.com/patrickmn/go-cache"
 )
 
+var pluginVersion string
+
 const (
 	amzHeaderPrefix    = "X-Amz-"
 	operationPrefixAWS = "aws"
@@ -196,6 +198,7 @@ func Backend(_ *logical.BackendConfig) (*backend, error) {
 		Invalidate:     b.invalidate,
 		InitializeFunc: b.initialize,
 		BackendType:    logical.TypeCredential,
+		RunningVersion: pluginVersion,
 		Clean:          b.cleanup,
 	}
 

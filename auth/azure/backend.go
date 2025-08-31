@@ -14,6 +14,8 @@ import (
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
+var pluginVersion string
+
 const (
 	userAgentPluginName = "auth-azure"
 
@@ -79,7 +81,8 @@ func backend() *azureAuthBackend {
 		WALRollbackMinAge: 3 * time.Minute,
 		WALRollback:       b.walRollback,
 		// periodicFunc to clean up old credentials
-		PeriodicFunc: b.periodicFunc,
+		PeriodicFunc:   b.periodicFunc,
+		RunningVersion: pluginVersion,
 	}
 
 	b.resourceAPIVersionCache = make(map[string]string)

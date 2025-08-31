@@ -16,6 +16,8 @@ import (
 	"github.com/openbao/openbao/sdk/v2/queue"
 )
 
+var pluginVersion string
+
 const (
 	rootConfigPath        = "config/root"
 	minAwsUserRollbackAge = 5 * time.Minute
@@ -68,7 +70,8 @@ func Backend(_ *logical.BackendConfig) *backend {
 		PeriodicFunc: func(ctx context.Context, req *logical.Request) error {
 			return b.rotateExpiredStaticCreds(ctx, req)
 		},
-		BackendType: logical.TypeLogical,
+		BackendType:    logical.TypeLogical,
+		RunningVersion: pluginVersion,
 	}
 
 	return &b

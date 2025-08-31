@@ -17,6 +17,8 @@ import (
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
+var pluginVersion string
+
 const (
 	userAgentPluginName = "secrets-azure"
 
@@ -80,8 +82,9 @@ func backend() *azureSecretBackend {
 		// to roll back during creation.
 		WALRollbackMinAge: 10 * time.Minute,
 
-		WALRollback:  b.walRollback,
-		PeriodicFunc: b.periodicFunc,
+		WALRollback:    b.walRollback,
+		PeriodicFunc:   b.periodicFunc,
+		RunningVersion: pluginVersion,
 	}
 	b.getProvider = newAzureProvider
 	b.appLocks = locksutil.CreateLocks()

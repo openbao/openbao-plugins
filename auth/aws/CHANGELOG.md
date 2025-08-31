@@ -1,3 +1,9 @@
+## Unreleased
+
+IMPROVEMENTS:
+
+* Enable proper plugin version reporting when registered in OpenBao
+
 ## v0.0.1
 ### April 15, 2025
 

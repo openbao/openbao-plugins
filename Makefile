@@ -156,7 +156,7 @@ dist/%.spdx.sbom.json: dist/% | dist
 $(BINARIES): bin/$(PLUGIN_PREFIX)-$(PLUGIN)_%: | bin
 	$(eval $(call set_vars,$*))
 	@echo "building $@"
-	@GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) CGO_ENABLED=0 go build  -o $@ -ldflags '-s -w' ./$(subst -,/,$(PLUGIN))/cmd
+	@GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) CGO_ENABLED=0 go build  -o $@ -ldflags '-s -w -X github.com/openbao/openbao-plugins/$(subst -,/,$(PLUGIN)).pluginVersion=$(VERSION)' ./$(subst -,/,$(PLUGIN))/cmd
 
 $(PLUGINS): %:
 	@$(MAKE) --no-print-directory build PLUGIN=$*

@@ -20,6 +20,8 @@ import (
 	kmsapi "cloud.google.com/go/kms/apiv1"
 )
 
+var pluginVersion string
+
 const (
 	userAgentPluginName = "secrets-gcpkms"
 
@@ -104,6 +106,7 @@ func Backend() *backend {
 		InitializeFunc: b.initialize,
 		Invalidate:     b.invalidate,
 		Clean:          b.clean,
+		RunningVersion: pluginVersion,
 	}
 
 	return &b

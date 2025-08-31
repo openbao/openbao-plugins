@@ -25,6 +25,8 @@ import (
 	"github.com/openbao/openbao-plugins/secrets/gcp/iamutil"
 )
 
+var pluginVersion string
+
 const userAgentPluginName = "secrets-gcp"
 
 const (
@@ -115,6 +117,7 @@ func Backend() *backend {
 
 		WALRollback:       b.walRollback,
 		WALRollbackMinAge: 5 * time.Minute,
+		RunningVersion:    pluginVersion,
 	}
 
 	return b

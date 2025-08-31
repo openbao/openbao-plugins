@@ -23,6 +23,8 @@ import (
 	"github.com/openbao/openbao-plugins/auth/gcp/cache"
 )
 
+var pluginVersion string
+
 const (
 	userAgentPluginName = "auth-gcp"
 
@@ -81,6 +83,7 @@ func Backend() *GcpAuthBackend {
 		),
 		InitializeFunc: b.initialize,
 		Invalidate:     b.invalidate,
+		RunningVersion: pluginVersion,
 	}
 	return b
 }
