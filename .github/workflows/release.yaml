@@ -37,7 +37,7 @@ jobs:
           go-version-file: go.mod
       - name: Build plugin
         run: |
-          make build PLUGIN=$(echo ${{github.ref_name}} | cut -d- -f 1-2) TARGET=${{ matrix.target }}
+          make build PLUGIN=$(echo ${{github.ref_name}} | cut -d- -f 1-2) TARGET=${{ matrix.target }} VERSION=$(echo ${{github.ref_name}} | cut -d- -f 3)
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -65,7 +65,7 @@ jobs:
           merge-multiple: true
       - name: Release plugin
         run: |
-          make -j $(nproc) release PLUGIN=$(echo ${{github.ref_name}} | cut -d- -f 1-2)
+          make -j $(nproc) release PLUGIN=$(echo ${{github.ref_name}} | cut -d- -f 1-2) VERSION=$(echo ${{github.ref_name}} | cut -d- -f 3)
         env:
           GPG_PASSWORD: ${{ secrets.GPG_PASSWORD }}
       - name: upload assets
