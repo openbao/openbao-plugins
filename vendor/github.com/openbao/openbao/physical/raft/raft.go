@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/golang/protobuf/proto"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-raftchunking"
 	"github.com/hashicorp/go-secure-stdlib/parseutil"
@@ -42,6 +41,7 @@ import (
 	"github.com/openbao/openbao/vault/seal"
 	"github.com/openbao/openbao/version"
 	bolt "go.etcd.io/bbolt"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -661,7 +661,7 @@ func (b *RaftBackend) CollectMetrics(sink *metricsutil.ClusterMetricSink) {
 
 func (b *RaftBackend) collectMetricsWithStats(stats bolt.Stats, sink *metricsutil.ClusterMetricSink, database string) {
 	txstats := stats.TxStats
-	labels := []metricsutil.Label{{"database", database}}
+	labels := []metricsutil.Label{{Name: "database", Value: database}}
 	sink.SetGaugeWithLabels([]string{"raft_storage", "bolt", "freelist", "free_pages"}, float32(stats.FreePageN), labels)
 	sink.SetGaugeWithLabels([]string{"raft_storage", "bolt", "freelist", "pending_pages"}, float32(stats.PendingPageN), labels)
 	sink.SetGaugeWithLabels([]string{"raft_storage", "bolt", "freelist", "allocated_bytes"}, float32(stats.FreeAlloc), labels)
@@ -916,9 +916,9 @@ func (b *RaftBackend) SetupCluster(ctx context.Context, opts SetupOpts) error {
 			return true
 		default:
 			// Concrete type checks
-			switch cl.(type) {
+			switch listener := cl.(type) {
 			case *cluster.Listener:
-				return cl.(*cluster.Listener) == nil
+				return listener == nil
 			}
 		}
 		return false

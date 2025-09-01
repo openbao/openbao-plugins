@@ -12,11 +12,12 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v4"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-secure-stdlib/base62"
 	"github.com/hashicorp/go-secure-stdlib/strutil"
@@ -783,9 +784,13 @@ func (i *IdentityStore) pathOIDCCreateUpdateAssignment(ctx context.Context, req 
 		assignment.GroupIDs = d.Get("group_ids").([]string)
 	}
 
-	// remove duplicates and lowercase entities and groups
-	assignment.EntityIDs = strutil.RemoveDuplicates(assignment.EntityIDs, true)
-	assignment.GroupIDs = strutil.RemoveDuplicates(assignment.GroupIDs, true)
+	// lowercase UUID segments
+	assignment.EntityIDs = lowercaseIdentityIDs(assignment.EntityIDs)
+	assignment.GroupIDs = lowercaseIdentityIDs(assignment.GroupIDs)
+
+	// remove duplicates
+	assignment.EntityIDs = strutil.RemoveDuplicates(assignment.EntityIDs, false)
+	assignment.GroupIDs = strutil.RemoveDuplicates(assignment.GroupIDs, false)
 
 	// store assignment
 	entry, err := logical.StorageEntryJSON(assignmentPath+name, assignment)
@@ -945,7 +950,7 @@ func (i *IdentityStore) pathOIDCCreateUpdateScope(ctx context.Context, req *logi
 		}
 
 		for key := range tmp {
-			if strutil.StrListContains(reservedClaims, key) {
+			if slices.Contains(reservedClaims, key) {
 				return logical.ErrorResponse(`top level key %q not allowed. Restricted keys: %s`,
 					key, strings.Join(reservedClaims, ", ")), nil
 			}
@@ -1640,7 +1645,7 @@ func (i *IdentityStore) keyIDsReferencedByTargetClientIDs(ctx context.Context, s
 	keyNames := make(map[string]bool)
 
 	// Get all key names referenced by clients if wildcard "*" in target client IDs
-	if strutil.StrListContains(targetIDs, "*") {
+	if slices.Contains(targetIDs, "*") {
 		clients, err := i.listClients(ctx, s)
 		if err != nil {
 			return nil, err
@@ -1739,7 +1744,7 @@ func (i *IdentityStore) pathOIDCAuthorize(ctx context.Context, req *logical.Requ
 
 	// Validate that a scope parameter is present and contains the openid scope value
 	requestedScopes := strutil.ParseDedupAndSortStrings(d.Get("scope").(string), scopesDelimiter)
-	if len(requestedScopes) == 0 || !strutil.StrListContains(requestedScopes, openIDScope) {
+	if len(requestedScopes) == 0 || !slices.Contains(requestedScopes, openIDScope) {
 		return authResponse("", state, ErrAuthInvalidRequest,
 			fmt.Sprintf("scope parameter must contain the %q value", openIDScope))
 	}
@@ -1747,7 +1752,7 @@ func (i *IdentityStore) pathOIDCAuthorize(ctx context.Context, req *logical.Requ
 	// Scope values that are not supported by the provider should be ignored
 	scopes := make([]string, 0)
 	for _, scope := range requestedScopes {
-		if strutil.StrListContains(provider.ScopesSupported, scope) && scope != openIDScope {
+		if slices.Contains(provider.ScopesSupported, scope) && scope != openIDScope {
 			scopes = append(scopes, scope)
 		}
 	}
@@ -1765,7 +1770,7 @@ func (i *IdentityStore) pathOIDCAuthorize(ctx context.Context, req *logical.Requ
 	if req.EntityID == "" {
 		return authResponse("", state, ErrAuthAccessDenied, "identity entity must be associated with the request")
 	}
-	entity, err := i.MemDBEntityByID(req.EntityID, false)
+	entity, err := i.MemDBEntityByID(ctx, req.EntityID, false)
 	if err != nil {
 		return authResponse("", state, ErrAuthServerError, err.Error())
 	}
@@ -1976,8 +1981,8 @@ func (i *IdentityStore) pathOIDCToken(ctx context.Context, req *logical.Request,
 	}
 
 	// Validate that the client is authorized to use the key
-	if !strutil.StrListContains(key.AllowedClientIDs, "*") &&
-		!strutil.StrListContains(key.AllowedClientIDs, clientID) {
+	if !slices.Contains(key.AllowedClientIDs, "*") &&
+		!slices.Contains(key.AllowedClientIDs, clientID) {
 		return tokenResponse(nil, ErrTokenInvalidClient, "client is not authorized to use the key")
 	}
 
@@ -2031,7 +2036,7 @@ func (i *IdentityStore) pathOIDCToken(ctx context.Context, req *logical.Request,
 	}
 
 	// Get the entity associated with the initial authorization request
-	entity, err := i.MemDBEntityByID(authCodeEntry.entityID, true)
+	entity, err := i.MemDBEntityByID(ctx, authCodeEntry.entityID, true)
 	if err != nil {
 		return tokenResponse(nil, ErrTokenServerError, err.Error())
 	}
@@ -2095,7 +2100,7 @@ func (i *IdentityStore) pathOIDCToken(ctx context.Context, req *logical.Request,
 			}
 		`, name),
 	}
-	err = i.tokenStorer.CreateToken(ctx, accessToken)
+	err = i.tokenStorer.CreateToken(ctx, accessToken, true)
 	if err != nil {
 		return tokenResponse(nil, ErrTokenServerError, err.Error())
 	}
@@ -2264,7 +2269,7 @@ func (i *IdentityStore) pathOIDCUserInfo(ctx context.Context, req *logical.Reque
 	if req.EntityID == "" {
 		return userInfoResponse(nil, ErrUserInfoAccessDenied, "identity entity must be associated with the request")
 	}
-	entity, err := i.MemDBEntityByID(req.EntityID, false)
+	entity, err := i.MemDBEntityByID(ctx, req.EntityID, false)
 	if err != nil {
 		return userInfoResponse(nil, ErrUserInfoServerError, err.Error())
 	}
@@ -2301,7 +2306,7 @@ func (i *IdentityStore) pathOIDCUserInfo(ctx context.Context, req *logical.Reque
 	// Scope values that are not supported by the provider should be ignored
 	scopes := make([]string, 0)
 	for _, scope := range parsedScopes {
-		if strutil.StrListContains(provider.ScopesSupported, scope) {
+		if slices.Contains(provider.ScopesSupported, scope) {
 			scopes = append(scopes, scope)
 		}
 	}
@@ -2409,7 +2414,7 @@ func (i *IdentityStore) populateScopeTemplates(ctx context.Context, s logical.St
 	}
 
 	// Get the groups for the entity
-	groups, inheritedGroups, err := i.groupsByEntityID(entity.ID)
+	groups, inheritedGroups, err := i.groupsByEntityID(ctx, entity.ID)
 	if err != nil {
 		return nil, false, err
 	}
@@ -2461,12 +2466,12 @@ func (i *IdentityStore) entityHasAssignment(ctx context.Context, s logical.Stora
 		return false, nil
 	}
 
-	if strutil.StrListContains(assignments, allowAllAssignmentName) {
+	if slices.Contains(assignments, allowAllAssignmentName) {
 		return true, nil
 	}
 
 	// Get the group IDs that the entity is a member of
-	groups, inheritedGroups, err := i.groupsByEntityID(entity.GetID())
+	groups, inheritedGroups, err := i.groupsByEntityID(ctx, entity.GetID())
 	if err != nil {
 		return false, err
 	}
@@ -2492,7 +2497,7 @@ func (i *IdentityStore) entityHasAssignment(ctx context.Context, s logical.Stora
 		}
 
 		// Check if the entity is a member of the assignment's entities
-		if strutil.StrListContains(assignment.EntityIDs, entity.GetID()) {
+		if slices.Contains(assignment.EntityIDs, entity.GetID()) {
 			return true, nil
 		}
 	}
@@ -2632,17 +2637,26 @@ func (i *IdentityStore) lazyGenerateDefaultKey(ctx context.Context, storage logi
 }
 
 func (i *IdentityStore) loadOIDCClients(ctx context.Context) error {
-	i.logger.Debug("identity loading OIDC clients")
-
-	clients, err := i.view.List(ctx, clientPath)
+	ns, err := namespace.FromContext(ctx)
 	if err != nil {
 		return err
 	}
 
-	txn := i.db.Txn(true)
+	i.logger.Debug("identity loading OIDC clients", "namespace", ns.Path)
+
+	if err := i.validateCtx(ctx); err != nil {
+		return err
+	}
+
+	clients, err := i.view(ctx).List(ctx, clientPath)
+	if err != nil {
+		return err
+	}
+
+	txn := i.db(ctx).Txn(true)
 	defer txn.Abort()
 	for _, name := range clients {
-		entry, err := i.view.Get(ctx, clientPath+name)
+		entry, err := i.view(ctx).Get(ctx, clientPath+name)
 		if err != nil {
 			return err
 		}
@@ -2667,7 +2681,7 @@ func (i *IdentityStore) loadOIDCClients(ctx context.Context) error {
 // clientByID returns the client with the given ID.
 func (i *IdentityStore) clientByID(ctx context.Context, s logical.Storage, id string) (*client, error) {
 	// Read the client from memdb
-	client, err := i.memDBClientByID(id)
+	client, err := i.memDBClientByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -2685,7 +2699,7 @@ func (i *IdentityStore) clientByID(ctx context.Context, s logical.Storage, id st
 	}
 
 	// Upsert the client in memdb
-	txn := i.db.Txn(true)
+	txn := i.db(ctx).Txn(true)
 	defer txn.Abort()
 	if err := i.memDBUpsertClientInTxn(txn, client); err != nil {
 		i.logger.Debug("failed to upsert client in memdb", "error", err)
@@ -2717,7 +2731,7 @@ func (i *IdentityStore) clientByName(ctx context.Context, s logical.Storage, nam
 	}
 
 	// Upsert the client in memdb
-	txn := i.db.Txn(true)
+	txn := i.db(ctx).Txn(true)
 	defer txn.Abort()
 	if err := i.memDBUpsertClientInTxn(txn, client); err != nil {
 		i.logger.Debug("failed to upsert client in memdb", "error", err)
@@ -2729,12 +2743,16 @@ func (i *IdentityStore) clientByName(ctx context.Context, s logical.Storage, nam
 }
 
 // memDBClientByID returns the client with the given ID from memdb.
-func (i *IdentityStore) memDBClientByID(id string) (*client, error) {
+func (i *IdentityStore) memDBClientByID(ctx context.Context, id string) (*client, error) {
 	if id == "" {
 		return nil, errors.New("missing client ID")
 	}
 
-	txn := i.db.Txn(false)
+	if err := i.validateCtx(ctx); err != nil {
+		return nil, err
+	}
+
+	txn := i.db(ctx).Txn(false)
 
 	return i.memDBClientByIDInTxn(txn, id)
 }
@@ -2771,7 +2789,7 @@ func (i *IdentityStore) memDBClientByName(ctx context.Context, name string) (*cl
 		return nil, errors.New("missing client name")
 	}
 
-	txn := i.db.Txn(false)
+	txn := i.db(ctx).Txn(false)
 
 	return i.memDBClientByNameInTxn(ctx, txn, name)
 }
@@ -2813,7 +2831,11 @@ func (i *IdentityStore) memDBDeleteClientByName(ctx context.Context, name string
 		return errors.New("missing client name")
 	}
 
-	txn := i.db.Txn(true)
+	if err := i.validateCtx(ctx); err != nil {
+		return err
+	}
+
+	txn := i.db(ctx).Txn(true)
 	defer txn.Abort()
 
 	if err := i.memDBDeleteClientByNameInTxn(ctx, txn, name); err != nil {

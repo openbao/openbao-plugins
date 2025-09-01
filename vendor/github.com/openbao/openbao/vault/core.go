@@ -68,6 +68,10 @@ const (
 	// for a highly-available deploy.
 	CoreLockPath = "core/lock"
 
+	// CoreInitLockPath is the path used to acquire a coordinating lock
+	// for a highly-available deployment which is undergoing initialization.
+	CoreInitLockPath = "core/initialize-lock"
+
 	// The poison pill is used as a check during certain scenarios to indicate
 	// to standby nodes that they should seal
 	poisonPillPath = "core/poison-pill"
@@ -77,8 +81,8 @@ const (
 	coreLeaderPrefix = "core/leader/"
 
 	// coreKeyringCanaryPath is used as a canary to indicate to replicated
-	// clusters that they need to perform a rekey operation synchronously; this
-	// isn't keyring-canary to avoid ignoring it when ignoring core/keyring
+	// clusters that they need to perform a rotation synchronously;
+	// this isn't keyring-canary to avoid ignoring it when ignoring core/keyring
 	coreKeyringCanaryPath = "core/canary-keyring"
 
 	// coreGroupPolicyApplicationPath is used to store the behaviour for
@@ -118,6 +122,10 @@ var (
 	// initialized. This prevents a re-initialization.
 	ErrAlreadyInit = errors.New("Vault is already initialized")
 
+	// ErrParallelInit is returned if the core is undergoing
+	// initialization on another node. This prevents a re-initialization.
+	ErrParallelInit = errors.New("Vault is being initialized on another node")
+
 	// ErrNotInit is returned if a non-initialized barrier
 	// is attempted to be unsealed.
 	ErrNotInit = errors.New("Vault is not initialized")
@@ -133,6 +141,9 @@ var (
 	// ErrIntrospectionNotEnabled is returned if "introspection_endpoint" is not
 	// enabled in the configuration file
 	ErrIntrospectionNotEnabled = errors.New("The Vault configuration must set \"introspection_endpoint\" to true to enable this endpoint")
+
+	// errNoMatchingMount is returned if the mount is not found
+	errNoMatchingMount = errors.New("no matching mount")
 
 	// manualStepDownSleepPeriod is how long to sleep after a user-initiated
 	// step down of the active node, to prevent instantly regrabbing the lock.
@@ -313,9 +324,9 @@ type Core struct {
 	// These variables holds the config and shares we have until we reach
 	// enough to verify the appropriate root key. Note that the same lock is
 	// used; this isn't time-critical so this shouldn't be a problem.
-	barrierRekeyConfig  *SealConfig
-	recoveryRekeyConfig *SealConfig
-	rekeyLock           sync.RWMutex
+	rootRotationConfig     *SealConfig
+	recoveryRotationConfig *SealConfig
+	rotationLock           sync.RWMutex
 
 	// mounts is loaded after unseal since it is a protected
 	// configuration
@@ -375,6 +386,9 @@ type Core struct {
 
 	// token store is used to manage authentication tokens
 	tokenStore *TokenStore
+
+	// namespace Store is used to manage namespaces
+	namespaceStore *NamespaceStore
 
 	// identityStore is used to manage client entities
 	identityStore *IdentityStore
@@ -635,6 +649,10 @@ type Core struct {
 
 	// Config value for "detect_deadlocks".
 	detectDeadlocks []string
+
+	// Whether we use a single global memdb instance for identity; see
+	// commentary below.
+	unsafeCrossNamespaceIdentity bool
 }
 
 // c.stateLock needs to be held in read mode before calling this function.
@@ -781,6 +799,13 @@ type CoreConfig struct {
 	AdministrativeNamespacePath string
 
 	NumRollbackWorkers int
+
+	// UnsafeCrossNamespaceIdentity is used to comply with Vault Enterprise's
+	// loose tenancy separation afforded by their namespace implementation.
+	// They allow cross-namespace group association.
+	//
+	// See also: https://github.com/openbao/openbao/issues/1110
+	UnsafeCrossNamespaceIdentity bool
 }
 
 // GetServiceRegistration returns the config's ServiceRegistration, or nil if it does
@@ -958,6 +983,7 @@ func CreateCore(conf *CoreConfig) (*Core, error) {
 		numRollbackWorkers:             conf.NumRollbackWorkers,
 		impreciseLeaseRoleTracking:     conf.ImpreciseLeaseRoleTracking,
 		detectDeadlocks:                detectDeadlocks,
+		unsafeCrossNamespaceIdentity:   conf.UnsafeCrossNamespaceIdentity,
 	}
 
 	c.standbyStopCh.Store(make(chan struct{}))
@@ -1216,6 +1242,12 @@ func (c *Core) configureCredentialsBackends(backends map[string]logical.Factory,
 
 		return NewTokenStore(ctx, tsLogger, c, config)
 	}
+	credentialBackends[mountTypeNSToken] = func(ctx context.Context, config *logical.BackendConfig) (logical.Backend, error) {
+		if c.tokenStore != nil {
+			return c.tokenStore, nil
+		}
+		return nil, errors.New("token store does not exist")
+	}
 
 	c.credentialBackends = credentialBackends
 }
@@ -1237,6 +1269,12 @@ func (c *Core) configureLogicalBackends(backends map[string]logical.Factory, log
 
 	// Cubbyhole
 	logicalBackends[mountTypeCubbyhole] = CubbyholeBackendFactory
+	logicalBackends[mountTypeNSCubbyhole] = func(ctx context.Context, config *logical.BackendConfig) (logical.Backend, error) {
+		if c.cubbyholeBackend != nil {
+			return c.cubbyholeBackend, nil
+		}
+		return nil, errors.New("cubbyhole backend does not exist")
+	}
 
 	// System
 	logicalBackends[mountTypeSystem] = func(ctx context.Context, config *logical.BackendConfig) (logical.Backend, error) {
@@ -1248,12 +1286,27 @@ func (c *Core) configureLogicalBackends(backends map[string]logical.Factory, log
 		}
 		return b, nil
 	}
+	logicalBackends[mountTypeNSSystem] = logicalBackends[mountTypeSystem]
 
 	// Identity
 	logicalBackends[mountTypeIdentity] = func(ctx context.Context, config *logical.BackendConfig) (logical.Backend, error) {
 		identityLogger := logger.Named("identity")
 		c.AddLogger(identityLogger)
 		return NewIdentityStore(ctx, c, config, identityLogger)
+	}
+	logicalBackends[mountTypeNSIdentity] = func(ctx context.Context, config *logical.BackendConfig) (logical.Backend, error) {
+		if c.identityStore != nil {
+			ns, err := namespace.FromContext(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			if err := c.identityStore.AddNamespaceView(c, ns, config.StorageView); err != nil {
+				return nil, fmt.Errorf("failed to register namespace to identity store: %w", err)
+			}
+			return c.identityStore, nil
+		}
+		return nil, errors.New("identity store does not exist")
 	}
 
 	c.logicalBackends = logicalBackends
@@ -1790,9 +1843,9 @@ func (c *Core) migrateSeal(ctx context.Context) error {
 			return fmt.Errorf("error generating new root key: %w", err)
 		}
 
-		// Rekey the barrier.
-		if err := c.barrier.Rekey(ctx, newRootKey); err != nil {
-			return fmt.Errorf("error rekeying barrier during migration: %w", err)
+		// Rotate the root key
+		if err := c.barrier.RotateRootKey(ctx, newRootKey); err != nil {
+			return fmt.Errorf("error rotating root key during migration: %w", err)
 		}
 
 		// Store the new root key
@@ -2244,6 +2297,9 @@ func (s standardUnsealStrategy) unseal(ctx context.Context, logger log.Logger, c
 	if err := c.setupPluginCatalog(ctx); err != nil {
 		return err
 	}
+	if err := c.setupNamespaceStore(ctx); err != nil {
+		return err
+	}
 	if err := c.loadMounts(ctx); err != nil {
 		return err
 	}
@@ -2281,6 +2337,9 @@ func (s standardUnsealStrategy) unseal(ctx context.Context, logger log.Logger, c
 		return err
 	}
 	if err := c.setupAudits(ctx); err != nil {
+		return err
+	}
+	if err := c.handleAuditLogSetup(ctx); err != nil {
 		return err
 	}
 	if err := c.loadIdentityStoreArtifacts(ctx); err != nil {
@@ -2349,7 +2408,7 @@ func (c *Core) postUnseal(ctx context.Context, ctxCancelFunc context.CancelFunc,
 		c.physicalCache.SetEnabled(true)
 	}
 
-	// Purge these for safety in case of a rekey
+	// Purge these for safety in case of a rotation
 	_ = c.seal.SetBarrierConfig(ctx, nil)
 	if c.seal.RecoveryKeySupported() {
 		_ = c.seal.SetRecoveryConfig(ctx, nil)
@@ -2440,9 +2499,9 @@ func (c *Core) preSeal() error {
 	c.postUnsealFuncs = nil
 	c.activeTime = time.Time{}
 
-	// Clear any rekey progress
-	c.barrierRekeyConfig = nil
-	c.recoveryRekeyConfig = nil
+	// Clear any rotation progress
+	c.rootRotationConfig = nil
+	c.recoveryRotationConfig = nil
 
 	if c.metricsCh != nil {
 		close(c.metricsCh)
@@ -2451,8 +2510,8 @@ func (c *Core) preSeal() error {
 	var result error
 
 	c.stopForwarding()
-
 	c.stopRaftActiveNode()
+	c.cancelNamespaceDeletion()
 
 	if err := c.teardownAudits(); err != nil {
 		result = multierror.Append(result, fmt.Errorf("error tearing down audits: %w", err))
@@ -2472,6 +2531,12 @@ func (c *Core) preSeal() error {
 	if err := c.unloadMounts(context.Background()); err != nil {
 		result = multierror.Append(result, fmt.Errorf("error unloading mounts: %w", err))
 	}
+	if err := c.teardownLoginMFA(); err != nil {
+		result = multierror.Append(result, fmt.Errorf("error tearing down login MFA: %w", err))
+	}
+	if err := c.teardownNamespaceStore(); err != nil {
+		result = multierror.Append(result, fmt.Errorf("error tearing down namespace store: %w", err))
+	}
 
 	if c.autoRotateCancel != nil {
 		c.autoRotateCancel()
@@ -2485,10 +2550,6 @@ func (c *Core) preSeal() error {
 
 	if seal, ok := c.seal.(*autoSeal); ok {
 		seal.StopHealthCheck()
-	}
-
-	if err := c.teardownLoginMFA(); err != nil {
-		result = multierror.Append(result, fmt.Errorf("error tearing down login MFA, error: %w", err))
 	}
 
 	preSealPhysical(c)
@@ -2553,7 +2614,7 @@ func (c *Core) PhysicalSealConfigs(ctx context.Context) (*SealConfig, *SealConfi
 	}
 
 	var recoveryConf *SealConfig
-	pe, err = c.physical.Get(ctx, recoverySealConfigPlaintextPath)
+	pe, err = c.physical.Get(ctx, recoverySealConfigPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch seal configuration at migration check time: %w", err)
 	}
@@ -2562,7 +2623,7 @@ func (c *Core) PhysicalSealConfigs(ctx context.Context) (*SealConfig, *SealConfi
 		if err := jsonutil.DecodeJSON(pe.Value, recoveryConf); err != nil {
 			return nil, nil, fmt.Errorf("failed to decode seal configuration at migration check time: %w", err)
 		}
-		err = recoveryConf.Validate()
+		err = recoveryConf.ValidateRecovery()
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to validate seal configuration at migration check time: %w", err)
 		}
@@ -2705,7 +2766,7 @@ func (c *Core) migrateSealConfig(ctx context.Context) error {
 		if err := c.seal.SetRecoveryConfig(ctx, rc); err != nil {
 			return fmt.Errorf("error storing recovery config after migration: %w", err)
 		}
-	} else if err := c.physical.Delete(ctx, recoverySealConfigPlaintextPath); err != nil {
+	} else if err := c.physical.Delete(ctx, recoverySealConfigPath); err != nil {
 		return fmt.Errorf("failed to delete old recovery seal configuration during migration: %w", err)
 	}
 
@@ -3084,6 +3145,20 @@ func (c *Core) MatchingMount(ctx context.Context, reqPath string) string {
 	return c.router.MatchingMount(ctx, reqPath)
 }
 
+// ResolveNamespaceFromRequest resolves a namespace from the 'X-Vault-Namespace'
+// header combined with the request path, returning the namespace and the
+// "trimmed" request path devoid of any namespace components.
+func (c *Core) ResolveNamespaceFromRequest(nsHeader, reqPath string) (*namespace.Namespace, string) {
+	c.stateLock.RLock()
+	defer c.stateLock.RUnlock()
+
+	if c.Sealed() || c.standby || c.namespaceStore == nil {
+		return nil, ""
+	}
+
+	return c.namespaceStore.ResolveNamespaceFromRequest(nsHeader, reqPath)
+}
+
 func (c *Core) setupQuotas(ctx context.Context) error {
 	if c.quotaManager == nil {
 		return nil
@@ -3159,27 +3234,30 @@ func (c *Core) autoRotateBarrierLoop(ctx context.Context) {
 func (c *Core) checkBarrierAutoRotate(ctx context.Context) {
 	c.stateLock.RLock()
 	defer c.stateLock.RUnlock()
-	if c.isPrimary() {
-		reason, err := c.barrier.CheckBarrierAutoRotate(ctx)
-		if err != nil {
-			lf := c.logger.Error
-			if strings.HasSuffix(err.Error(), "context canceled") {
-				lf = c.logger.Debug
-			}
-			lf("error in barrier auto rotation", "error", err)
-			return
-		}
-		if reason != "" {
-			// Time to rotate.  Invoke the rotation handler in order to both rotate and create
-			// the replication canary
-			c.logger.Info("automatic barrier key rotation triggered", "reason", reason)
 
-			_, err := c.systemBackend.handleRotate(ctx, nil, nil)
-			if err != nil {
-				c.logger.Error("error automatically rotating barrier key", "error", err)
-			} else {
-				metrics.IncrCounter(barrierRotationsMetric, 1)
-			}
+	if !c.isPrimary() {
+		return
+	}
+
+	reason, err := c.barrier.CheckBarrierAutoRotate(ctx)
+	if err != nil {
+		lf := c.logger.Error
+		if strings.HasSuffix(err.Error(), "context canceled") {
+			lf = c.logger.Debug
+		}
+		lf("error in barrier auto rotation", "error", err)
+		return
+	}
+
+	if reason != "" {
+		// Time to rotate. Invoke the rotation handler in order to both rotate and create
+		// the replication canary
+		c.logger.Info("automatic barrier key rotation triggered", "reason", reason)
+
+		if err := c.systemBackend.rotateBarrierKey(ctx); err != nil {
+			c.logger.Error("error automatically rotating barrier key", "error", err)
+		} else {
+			metrics.IncrCounter(barrierRotationsMetric, 1)
 		}
 	}
 }
@@ -3190,16 +3268,20 @@ func (c *Core) isPrimary() bool {
 
 func (c *Core) loadLoginMFAConfigs(ctx context.Context) error {
 	eConfigs := make([]*mfa.MFAEnforcementConfig, 0)
-	allNamespaces := c.collectNamespaces()
+	allNamespaces, err := c.namespaceStore.ListAllNamespaces(ctx, true)
+	if err != nil {
+		return err
+	}
+
 	for _, ns := range allNamespaces {
 		err := c.loginMFABackend.loadMFAMethodConfigs(ctx, ns)
 		if err != nil {
-			return fmt.Errorf("error loading MFA method Config, namespaceid %s, error: %w", ns.ID, err)
+			return fmt.Errorf("error loading MFA method Config, namespace %s, error: %w", ns.Path, err)
 		}
 
 		loadedConfigs, err := c.loginMFABackend.loadMFAEnforcementConfigs(ctx, ns)
 		if err != nil {
-			return fmt.Errorf("error loading MFA enforcement Config, namespaceid %s, error: %w", ns.ID, err)
+			return fmt.Errorf("error loading MFA enforcement Config, namespace %s, error: %w", ns.Path, err)
 		}
 
 		eConfigs = append(eConfigs, loadedConfigs...)
@@ -3215,6 +3297,7 @@ func (c *Core) loadLoginMFAConfigs(ctx context.Context) error {
 
 type MFACachedAuthResponse struct {
 	CachedAuth            *logical.Auth
+	CachedUserLockout     *FailedLoginUser
 	RequestPath           string
 	RequestNSID           string
 	RequestNSPath         string
@@ -3245,7 +3328,6 @@ func (c *Core) setupCachedMFAResponseAuth() {
 			}
 		}
 	}()
-	return
 }
 
 // updateLockedUserEntries runs every 15 mins to remove stale user entries from storage
@@ -3276,7 +3358,6 @@ func (c *Core) updateLockedUserEntries() {
 			}
 		}
 	}()
-	return
 }
 
 // runLockedUserEntryUpdates runs updates for locked user storage entries and userFailedLoginInfo map
@@ -3294,33 +3375,19 @@ func (c *Core) runLockedUserEntryUpdates(ctx context.Context) error {
 		return nil
 	}
 
-	// get the list of namespaces of locked users from locked users path in storage
-	nsIDs, err := c.barrier.List(ctx, coreLockedUsersPath)
+	// get all namespaces
+	nsList, err := c.namespaceStore.ListAllNamespaces(ctx, true)
 	if err != nil {
 		return err
 	}
 
 	totalLockedUsersCount := 0
-	for _, nsID := range nsIDs {
-		// get the list of mount accessors of locked users for each namespace
-		mountAccessors, err := c.barrier.List(ctx, coreLockedUsersPath+nsID)
+	for _, ns := range nsList {
+		nsLockedUsers, err := c.runLockedUserEntryUpdatesForNamespace(ctx, ns, false)
 		if err != nil {
 			return err
 		}
-
-		// update the entries for locked users for each mount accessor
-		// if storage entry is stale i.e; the lockout duration has passed
-		// remove this entry from storage and userFailedLoginInfo map
-		// else check if the userFailedLoginInfo map has correct failed login information
-		// if incorrect, update the entry in userFailedLoginInfo map
-		for _, mountAccessorPath := range mountAccessors {
-			mountAccessor := strings.TrimSuffix(mountAccessorPath, "/")
-			lockedAliasesCount, err := c.runLockedUserEntryUpdatesForMountAccessor(ctx, mountAccessor, coreLockedUsersPath+nsID+mountAccessorPath)
-			if err != nil {
-				return err
-			}
-			totalLockedUsersCount = totalLockedUsersCount + lockedAliasesCount
-		}
+		totalLockedUsersCount += nsLockedUsers
 	}
 
 	// emit locked user count metrics
@@ -3328,11 +3395,42 @@ func (c *Core) runLockedUserEntryUpdates(ctx context.Context) error {
 	return nil
 }
 
-// runLockedUserEntryUpdatesForMountAccessor updates the storage entry for each locked user (alias name)
-// if the entry is stale, it removes it from storage and userFailedLoginInfo map if present
-// if the entry is not stale, it updates the userFailedLoginInfo map with correct values for entry if incorrect
-func (c *Core) runLockedUserEntryUpdatesForMountAccessor(ctx context.Context, mountAccessor string, path string) (int, error) {
+// runLockedUserEntryUpdatesForNamespace runs updates for locked users storage entries
+// for a single namespace. If a forceDelete flag is passed all login entries are deleted.
+func (c *Core) runLockedUserEntryUpdatesForNamespace(ctx context.Context, namespace *namespace.Namespace, forceDelete bool) (int, error) {
+	// get the list of mount accessors of locked users of a namespace
+	view := NamespaceView(c.barrier, namespace).SubView(coreLockedUsersPath)
+	mountAccessors, err := view.List(ctx, "")
+	if err != nil {
+		return 0, err
+	}
+
+	namespaceLockedUsers := 0
+	// update the entries for locked users for each mount accessor
+	// if storage entry is stale i.e; the lockout duration has
+	// passed or namespace was deleted then remove this entry
+	// from storage and userFailedLoginInfo map else check if
+	// the userFailedLoginInfo map has correct failed login information
+	// if incorrect, update the entry in userFailedLoginInfo map
+	for _, mountAccessorPath := range mountAccessors {
+		lockedAliasesCount, err := c.runLockedUserEntryUpdatesForMountAccessor(ctx, view.SubView(mountAccessorPath), mountAccessorPath, forceDelete)
+		if err != nil {
+			return namespaceLockedUsers, err
+		}
+		namespaceLockedUsers += lockedAliasesCount
+	}
+
+	return namespaceLockedUsers, nil
+}
+
+// runLockedUserEntryUpdatesForMountAccessor updates the storage entry
+// for each locked user (alias name). Removes stale entries or entries
+// belonging to deleted namespace from storage and userFailedLoginInfo map.
+// For valid entries userFailedLoginInfo map gets updated with correct
+// values for entry if they were incorrect before.
+func (c *Core) runLockedUserEntryUpdatesForMountAccessor(ctx context.Context, view logical.Storage, mountAccessor string, forceDelete bool) (int, error) {
 	// get mount entry for mountAccessor
+	mountAccessor = strings.TrimSuffix(mountAccessor, "/")
 	mountEntry := c.router.MatchingMountByAccessor(mountAccessor)
 	if mountEntry == nil {
 		mountEntry = &MountEntry{}
@@ -3341,7 +3439,7 @@ func (c *Core) runLockedUserEntryUpdatesForMountAccessor(ctx context.Context, mo
 	userLockoutConfiguration := c.getUserLockoutConfiguration(mountEntry)
 
 	// get the list of aliases for mount accessor
-	aliases, err := c.barrier.List(ctx, path)
+	aliases, err := view.List(ctx, "")
 	if err != nil {
 		return 0, err
 	}
@@ -3354,58 +3452,63 @@ func (c *Core) runLockedUserEntryUpdatesForMountAccessor(ctx context.Context, mo
 			aliasName:     alias,
 			mountAccessor: mountAccessor,
 		}
-
-		existingEntry, err := c.barrier.Get(ctx, path+alias)
-		if err != nil {
-			return 0, err
-		}
-
-		if existingEntry == nil {
-			continue
-		}
-
-		var lastLoginTime int
-		err = jsonutil.DecodeJSON(existingEntry.Value, &lastLoginTime)
-		if err != nil {
-			return 0, err
-		}
-
-		lastFailedLoginTimeFromStorageEntry := time.Unix(int64(lastLoginTime), 0)
-		lockoutDurationFromConfiguration := userLockoutConfiguration.LockoutDuration
-
 		// get the entry for the locked user from userFailedLoginInfo map
 		failedLoginInfoFromMap := c.LocalGetUserFailedLoginInfo(ctx, loginUserInfoKey)
 
-		// check if the storage entry for locked user is stale
-		if time.Now().After(lastFailedLoginTimeFromStorageEntry.Add(lockoutDurationFromConfiguration)) {
-			// stale entry, remove from storage
-			// leaving this as it is as this happens on the active node
-			// also handles case where namespace is deleted
-			if err := c.barrier.Delete(ctx, path+alias); err != nil {
+		var staleEntry bool
+		// if not forcing the delete, check if the entry is stale
+		if !forceDelete {
+			existingEntry, err := view.Get(ctx, alias)
+			if err != nil {
 				return 0, err
 			}
-			// remove entry for this user from userFailedLoginInfo map if present as the user is not locked
-			if failedLoginInfoFromMap != nil {
-				if err = c.LocalUpdateUserFailedLoginInfo(ctx, loginUserInfoKey, nil, true); err != nil {
-					return 0, err
+
+			if existingEntry == nil {
+				continue
+			}
+
+			var lastLoginTime int
+			err = jsonutil.DecodeJSON(existingEntry.Value, &lastLoginTime)
+			if err != nil {
+				return 0, err
+			}
+
+			lastFailedLoginTimeFromStorageEntry := time.Unix(int64(lastLoginTime), 0)
+			lockoutDurationFromConfiguration := userLockoutConfiguration.LockoutDuration
+			staleEntry = time.Now().After(lastFailedLoginTimeFromStorageEntry.Add(lockoutDurationFromConfiguration))
+			if !staleEntry {
+				// not a stale entry
+				// update the map with actual failed login information
+				actualFailedLoginInfo := FailedLoginInfo{
+					lastFailedLoginTime: lastLoginTime,
+					count:               uint(userLockoutConfiguration.LockoutThreshold),
+				}
+
+				if failedLoginInfoFromMap != &actualFailedLoginInfo {
+					// outdated entry, updating the entry in userFailedLoginMap with correct information
+					if err = c.LocalUpdateUserFailedLoginInfo(ctx, loginUserInfoKey, &actualFailedLoginInfo, false); err != nil {
+						return 0, err
+					}
 				}
 			}
-			lockedAliasesCount -= 1
-			continue
 		}
 
-		// this is not a stale entry
-		// update the map with actual failed login information
-		actualFailedLoginInfo := FailedLoginInfo{
-			lastFailedLoginTime: lastLoginTime,
-			count:               uint(userLockoutConfiguration.LockoutThreshold),
-		}
-
-		if failedLoginInfoFromMap != &actualFailedLoginInfo {
-			// entry is invalid, updating the entry in userFailedLoginMap with correct information
-			if err = c.LocalUpdateUserFailedLoginInfo(ctx, loginUserInfoKey, &actualFailedLoginInfo, false); err != nil {
+		// delete if the storage entry for locked user is stale
+		// or force delete if the namespace is being deleted
+		if staleEntry || forceDelete {
+			// stale entry, remove from storage
+			// leaving this as it is as this happens on the active node
+			// also handles case where entry is force deleted
+			if err := view.Delete(ctx, alias); err != nil {
 				return 0, err
 			}
+			// remove entry for this user from userFailedLoginInfo map
+			// as the user is not locked (if not present, this is no-op)
+			if err = c.LocalUpdateUserFailedLoginInfo(ctx, loginUserInfoKey, failedLoginInfoFromMap, true); err != nil {
+				return 0, err
+			}
+
+			lockedAliasesCount -= 1
 		}
 	}
 	return lockedAliasesCount, nil
@@ -3646,7 +3749,7 @@ func (c *Core) doResolveRoleLocked(ctx context.Context, mountPoint string, match
 
 // ResolveRoleForQuotas looks for any quotas requiring a role for early
 // computation in the RateLimitQuotaWrapping handler.
-func (c *Core) ResolveRoleForQuotas(ctx context.Context, req *quotas.Request) (bool, error) {
+func (c *Core) ResolveRoleForQuotas(req *quotas.Request) (bool, error) {
 	if c.quotaManager == nil {
 		return false, nil
 	}

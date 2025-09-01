@@ -1,0 +1,11 @@
+certs/
+dist/
+.build/
+*.pem
+*.log
+*.db
+*.exe
+
+bin/
+git-cliff-*
+tmp.CHANGELOG.md

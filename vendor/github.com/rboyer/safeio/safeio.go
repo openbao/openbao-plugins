@@ -4,9 +4,9 @@ package safeio
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // WriteToFile consumes the provided io.Reader and writes it to a temp
@@ -27,7 +27,7 @@ func writeToTempFile(src io.Reader, path string, perm os.FileMode) (tempName str
 	dir := filepath.Dir(path)
 	name := filepath.Base(path)
 
-	f, err := ioutil.TempFile(dir, name+".tmp")
+	f, err := os.CreateTemp(dir, name+".tmp")
 	if err != nil {
 		return "", 0, err
 	}
@@ -86,6 +86,11 @@ func Rename(oldname, newname string) error {
 }
 
 func syncParentDir(name string) error {
+	// Skipping sync dir for windows
+	// because it is not supported.
+	if runtime.GOOS == "windows" {
+		return nil
+	}
 	f, err := os.Open(filepath.Dir(name))
 	if err != nil {
 		return err

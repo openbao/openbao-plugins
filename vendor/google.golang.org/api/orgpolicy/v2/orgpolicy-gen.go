@@ -122,9 +122,6 @@ func NewService(ctx context.Context, opts ...option.ClientOption) (*Service, err
 	s.Folders = NewFoldersService(s)
 	s.Organizations = NewOrganizationsService(s)
 	s.Projects = NewProjectsService(s)
-	if err != nil {
-		return nil, err
-	}
 	if endpoint != "" {
 		s.BasePath = endpoint
 	}
@@ -140,7 +137,7 @@ func New(client *http.Client) (*Service, error) {
 	if client == nil {
 		return nil, errors.New("client is nil")
 	}
-	return NewService(context.Background(), option.WithHTTPClient(client))
+	return NewService(context.TODO(), option.WithHTTPClient(client))
 }
 
 type Service struct {
@@ -333,6 +330,10 @@ type GoogleCloudOrgpolicyV2Constraint struct {
 	Description string `json:"description,omitempty"`
 	// DisplayName: The human readable name. Mutable.
 	DisplayName string `json:"displayName,omitempty"`
+	// EquivalentConstraint: Managed constraint and canned constraint sometimes can
+	// have equivalents. This field is used to store the equivalent constraint
+	// name.
+	EquivalentConstraint string `json:"equivalentConstraint,omitempty"`
 	// ListConstraint: Defines this constraint as being a list constraint.
 	ListConstraint *GoogleCloudOrgpolicyV2ConstraintListConstraint `json:"listConstraint,omitempty"`
 	// Name: Immutable. The resource name of the constraint. Must be in one of the
@@ -836,8 +837,8 @@ type GoogleCloudOrgpolicyV2PolicySpecPolicyRule struct {
 	// can be set only in policies for list constraints.
 	DenyAll bool `json:"denyAll,omitempty"`
 	// Enforce: If `true`, then the policy is enforced. If `false`, then any
-	// configuration is acceptable. This field can be set only in policies for
-	// boolean constraints.
+	// configuration is acceptable. This field can be set in policies for boolean
+	// constraints, custom constraints and managed constraints.
 	Enforce bool `json:"enforce,omitempty"`
 	// Parameters: Optional. Required for managed constraints if parameters are
 	// defined. Passes parameter values when policy enforcement is enabled. Ensure

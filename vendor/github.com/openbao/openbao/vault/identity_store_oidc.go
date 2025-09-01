@@ -16,19 +16,20 @@ import (
 	"math"
 	mathrand "math/rand"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
+	"github.com/go-jose/go-jose/v4"
+	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-secure-stdlib/base62"
-	"github.com/hashicorp/go-secure-stdlib/strutil"
 	"github.com/hashicorp/go-uuid"
 	"github.com/openbao/openbao/helper/identity"
 	"github.com/openbao/openbao/helper/namespace"
 	"github.com/openbao/openbao/sdk/v2/framework"
+	"github.com/openbao/openbao/sdk/v2/helper/consts"
 	"github.com/openbao/openbao/sdk/v2/helper/identitytpl"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/patrickmn/go-cache"
@@ -625,7 +626,7 @@ func (i *IdentityStore) pathOIDCCreateUpdateKey(ctx context.Context, req *logica
 		key.Algorithm = d.Get("algorithm").(string)
 	}
 
-	if !strutil.StrListContains(supportedAlgs, key.Algorithm) {
+	if !slices.Contains(supportedAlgs, key.Algorithm) {
 		return logical.ErrorResponse("unknown signing algorithm %q", key.Algorithm), nil
 	}
 
@@ -927,7 +928,7 @@ func (i *IdentityStore) pathOIDCGenerateToken(ctx context.Context, req *logical.
 	}
 
 	// Validate that the role is allowed to sign with its key (the key could have been updated)
-	if !strutil.StrListContains(key.AllowedClientIDs, "*") && !strutil.StrListContains(key.AllowedClientIDs, role.ClientID) {
+	if !slices.Contains(key.AllowedClientIDs, "*") && !slices.Contains(key.AllowedClientIDs, role.ClientID) {
 		return logical.ErrorResponse("the key %q does not list the client ID of the role %q as an allowed client ID", role.Key, roleName), nil
 	}
 
@@ -959,7 +960,7 @@ func (i *IdentityStore) pathOIDCGenerateToken(ctx context.Context, req *logical.
 		IssuedAt:  now.Unix(),
 	}
 
-	e, err := i.MemDBEntityByID(req.EntityID, true)
+	e, err := i.MemDBEntityByID(ctx, req.EntityID, true)
 	if err != nil {
 		return nil, err
 	}
@@ -967,7 +968,7 @@ func (i *IdentityStore) pathOIDCGenerateToken(ctx context.Context, req *logical.
 		return nil, fmt.Errorf("error loading entity ID %q", req.EntityID)
 	}
 
-	groups, inheritedGroups, err := i.groupsByEntityID(e.ID)
+	groups, inheritedGroups, err := i.groupsByEntityID(ctx, e.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -1092,7 +1093,7 @@ func mergeJSONTemplates(logger hclog.Logger, output map[string]interface{}, temp
 		}
 
 		for k, v := range parsed {
-			if !strutil.StrListContains(reservedClaims, k) {
+			if !slices.Contains(reservedClaims, k) {
 				output[k] = v
 			} else {
 				logger.Warn("invalid top level OIDC template key", "template", template, "key", k)
@@ -1242,7 +1243,7 @@ func (i *IdentityStore) pathOIDCCreateUpdateRole(ctx context.Context, req *logic
 		}
 
 		for key := range tmp {
-			if strutil.StrListContains(reservedClaims, key) {
+			if slices.Contains(reservedClaims, key) {
 				return logical.ErrorResponse(`top level key %q not allowed. Restricted keys: %s`,
 					key, strings.Join(reservedClaims, ", ")), nil
 			}
@@ -1539,7 +1540,7 @@ func (i *IdentityStore) pathOIDCIntrospect(ctx context.Context, req *logical.Req
 	clientID := d.Get("client_id").(string)
 
 	// validate basic JWT structure
-	parsedJWT, err := jwt.ParseSigned(rawIDToken)
+	parsedJWT, err := jwt.ParseSigned(rawIDToken, consts.AllowedJWTSignatureAlgorithmsOIDC)
 	if err != nil {
 		return introspectionResp(fmt.Sprintf("error parsing token: %s", err.Error()))
 	}
@@ -1574,7 +1575,7 @@ func (i *IdentityStore) pathOIDCIntrospect(ctx context.Context, req *logical.Req
 	}
 
 	if clientID != "" {
-		expected.Audience = []string{clientID}
+		expected.AnyAudience = []string{clientID}
 	}
 
 	if claimsErr := claims.Validate(expected); claimsErr != nil {
@@ -1582,7 +1583,7 @@ func (i *IdentityStore) pathOIDCIntrospect(ctx context.Context, req *logical.Req
 	}
 
 	// validate entity exists and is active
-	entity, err := i.MemDBEntityByID(claims.Subject, true)
+	entity, err := i.MemDBEntityByID(ctx, claims.Subject, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1894,7 +1895,7 @@ func (i *IdentityStore) expireOIDCPublicKeys(ctx context.Context, s logical.Stor
 	// Delete all public keys that were not determined to be not expired and in
 	// use by some role.
 	for _, keyID := range publicKeyIDs {
-		if !strutil.StrListContains(usedKeys, keyID) {
+		if !slices.Contains(usedKeys, keyID) {
 			if err := s.Delete(ctx, publicKeysConfigPath+keyID); err != nil {
 				i.Logger().Error("error deleting OIDC public key", "key_id", keyID, "error", err)
 				nextExpiration = now
@@ -2000,13 +2001,17 @@ func (i *IdentityStore) oidcPeriodicFunc(ctx context.Context) {
 	// be run at any time safely, but there is no need to invoke them (which
 	// might be somewhat expensive if there are many roles/keys) if we're not
 	// past any rotation/expiration TTLs.
-	if now.After(nextRun) {
+	if now.Equal(nextRun) || now.After(nextRun) {
 		// Initialize to a fairly distant next run time. This will be brought in
 		// based on key rotation times.
 		nextRun = now.Add(24 * time.Hour)
 		minJwksClientCacheDuration := time.Duration(math.MaxInt64)
 
-		for _, ns := range i.namespacer.ListNamespaces(true) {
+		allNs, err := i.namespacer.ListNamespaces(ctx)
+		if err != nil {
+			i.Logger().Error("error listing namespaces", "err", err)
+		}
+		for _, ns := range allNs {
 			nsPath := ns.Path
 
 			s := i.router.MatchingStorageByAPIPath(ctx, nsPath+"identity/oidc")
@@ -2120,5 +2125,5 @@ func (c *oidcCache) Flush(ns *namespace.Namespace) error {
 // where <nsID> matches any targeted nsID
 func isTargetNamespacedKey(nskey string, nsTargets []string) bool {
 	split := strings.Split(nskey, ":")
-	return len(split) >= 3 && strutil.StrListContains(nsTargets, split[1])
+	return len(split) >= 3 && slices.Contains(nsTargets, split[1])
 }

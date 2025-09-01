@@ -62,6 +62,8 @@ func getOpts(opt ...wrapping.Option) (*options, error) {
 				opts.withMechanism = v
 			case "rsa_oaep_hash":
 				opts.withRsaOaepHash = v
+			case "disable_software_encryption":
+				opts.withDisableSoftwareEncryption = v
 			}
 		}
 	}
@@ -90,14 +92,15 @@ type OptionFunc func(*options) error
 type options struct {
 	*wrapping.Options
 
-	withSlot        string
-	withPin         string
-	withLib         string
-	withKeyId       string
-	withKeyLabel    string
-	withTokenLabel  string
-	withMechanism   string
-	withRsaOaepHash string
+	withSlot                      string
+	withPin                       string
+	withLib                       string
+	withKeyId                     string
+	withKeyLabel                  string
+	withTokenLabel                string
+	withMechanism                 string
+	withRsaOaepHash               string
+	withDisableSoftwareEncryption string
 }
 
 func getDefaultOptions() options {

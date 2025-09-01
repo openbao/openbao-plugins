@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-hclog"
 	"github.com/openbao/openbao/sdk/v2/helper/jsonutil"
 )
@@ -58,7 +57,7 @@ func (e *StorageEntry) DecodeJSON(out interface{}) error {
 func StorageEntryJSON(k string, v interface{}) (*StorageEntry, error) {
 	encodedBytes, err := jsonutil.EncodeJSON(v)
 	if err != nil {
-		return nil, errwrap.Wrapf("failed to encode storage entry: {{err}}", err)
+		return nil, fmt.Errorf("failed to encode storage entry: %w", err)
 	}
 
 	return &StorageEntry{
@@ -221,11 +220,7 @@ func ClearViewWithLogging(ctx context.Context, view ClearableView, logger hclog.
 		logger = hclog.NewNullLogger()
 	}
 
-	if paginated, ok := view.(ClearableView); ok {
-		return ClearViewWithPagination(ctx, paginated, logger)
-	}
-
-	return ClearViewWithoutPagination(ctx, view, logger)
+	return ClearViewWithPagination(ctx, view, logger)
 }
 
 func ClearViewWithPagination(ctx context.Context, view ClearableView, logger hclog.Logger) error {
@@ -314,18 +309,23 @@ func ClearViewWithoutPagination(ctx context.Context, view ClearableView, logger 
 // The callbacks are executed sequentially, with `itemCallback` processing each entry individually,
 // followed by `batchCallback` handling the entire batch.
 func HandleListPage(
+	ctx context.Context,
 	storage Storage,
 	prefix string,
 	limit int,
 	itemCallback func(page int, index int, entry string) (cont bool, err error),
 	batchCallback func(page int, entries []string) (cont bool, err error),
 ) error {
-	page := 0
+	var page int
+	var after string
 	for {
-		var after string
+		// Check for context cancellation. Storage should do this as well.
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 
-		// Fetch the next page
-		entries, err := storage.ListPage(context.Background(), prefix, after, limit)
+		// Fetch the next page. Storage should check for context cancellation.
+		entries, err := storage.ListPage(ctx, prefix, after, limit)
 		if err != nil {
 			return err
 		}
@@ -337,6 +337,11 @@ func HandleListPage(
 
 		// Process each entry in the page
 		for index, entry := range entries {
+			// Check for context cancellation. Storage should do this as well.
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+
 			if itemCallback != nil {
 				cont, err := itemCallback(page, index, entry)
 				if err != nil || !cont {

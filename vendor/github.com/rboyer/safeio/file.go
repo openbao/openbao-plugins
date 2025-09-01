@@ -2,7 +2,6 @@ package safeio
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -20,7 +19,7 @@ func OpenFile(path string, perm os.FileMode) (*File, error) {
 	dir := filepath.Dir(path)
 	name := filepath.Base(path)
 
-	f, err := ioutil.TempFile(dir, name+".tmp")
+	f, err := os.CreateTemp(dir, name+".tmp")
 	if err != nil {
 		return nil, err
 	}

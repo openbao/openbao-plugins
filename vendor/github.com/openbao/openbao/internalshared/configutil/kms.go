@@ -23,7 +23,9 @@ import (
 	"github.com/openbao/go-kms-wrapping/wrappers/awskms/v2"
 	"github.com/openbao/go-kms-wrapping/wrappers/azurekeyvault/v2"
 	"github.com/openbao/go-kms-wrapping/wrappers/gcpckms/v2"
+	"github.com/openbao/go-kms-wrapping/wrappers/kmip/v2"
 	"github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2"
+	statickms "github.com/openbao/go-kms-wrapping/wrappers/static/v2"
 	"github.com/openbao/go-kms-wrapping/wrappers/transit/v2"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
@@ -200,6 +202,12 @@ func configureWrapper(configKMS *KMS, infoKeys *[]string, info *map[string]strin
 	case wrapping.WrapperTypePkcs11:
 		wrapper, kmsInfo, err = GetPKCS11KMSFunc(configKMS, opts...)
 
+	case wrapping.WrapperTypeKmip:
+		wrapper, kmsInfo, err = GetKmipKMSFunc(configKMS, opts...)
+
+	case wrapping.WrapperTypeStatic:
+		wrapper, kmsInfo, err = GetStaticKMSFunc(configKMS, opts...)
+
 	default:
 		return nil, fmt.Errorf("Unknown KMS type %q", configKMS.Type)
 	}
@@ -345,6 +353,53 @@ var GetTransitKMSFunc = func(kms *KMS, opts ...wrapping.Option) (wrapping.Wrappe
 		if namespace, ok := wrapperInfo.Metadata["namespace"]; ok {
 			info["Transit Namespace"] = namespace
 		}
+	}
+	return wrapper, info, nil
+}
+
+func GetKmipKMSFunc(kms *KMS, opts ...wrapping.Option) (wrapping.Wrapper, map[string]string, error) {
+	wrapper := kmip.NewWrapper()
+	wrapperInfo, err := wrapper.SetConfig(context.Background(), append(opts, wrapping.WithConfigMap(kms.Config))...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	info := make(map[string]string)
+	if wrapperInfo != nil {
+		info["KMIP Key ID"] = wrapperInfo.Metadata["kms_key_id"]
+		info["KMIP Endpoint"] = wrapperInfo.Metadata["endpoint"]
+		info["KMIP Timeout"] = wrapperInfo.Metadata["timeout"]
+		info["KMIP Encryption Algorithm"] = wrapperInfo.Metadata["encrypt_alg"]
+		info["KMIP Protocol Version"] = wrapperInfo.Metadata["kmip_version"]
+
+		if tlsCiphers := wrapperInfo.Metadata["kmip_tls12_ciphers"]; tlsCiphers != "" {
+			info["KMIP TLS 1.2 Ciphers"] = tlsCiphers
+		}
+		if pubKeyId := wrapperInfo.Metadata["kms_public_key_id"]; pubKeyId != "" {
+			info["KMIP Public Key ID"] = pubKeyId
+		}
+		if serverName := wrapperInfo.Metadata["server_name"]; serverName != "" {
+			info["KMIP Server Name"] = serverName
+		}
+	}
+	return wrapper, info, nil
+}
+
+func GetStaticKMSFunc(kms *KMS, opts ...wrapping.Option) (wrapping.Wrapper, map[string]string, error) {
+	wrapper := statickms.NewWrapper()
+	wrapperInfo, err := wrapper.SetConfig(context.Background(), append(opts, wrapping.WithConfigMap(kms.Config))...)
+	if err != nil {
+		// If the error is any other than logical.KeyNotFoundError, return the error
+		if !errwrap.ContainsType(err, new(logical.KeyNotFoundError)) {
+			return nil, nil, err
+		}
+	}
+	info := make(map[string]string)
+	if wrapperInfo != nil {
+		if prev, ok := wrapperInfo.Metadata["previous_key_id"]; ok {
+			info["Static KMS Previous Key ID"] = prev
+		}
+		info["Static KMS Key ID"] = wrapperInfo.Metadata["current_key_id"]
 	}
 	return wrapper, info, nil
 }
