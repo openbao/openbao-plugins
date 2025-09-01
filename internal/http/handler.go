@@ -76,6 +76,11 @@ var (
 
 	alwaysRedirectPaths = pathmanager.New()
 
+	// restrictedSysAPIsNonLogical is the set of `sys/` APIs available only in the root namespace
+	// that may not pass through logical request handling but are handled in HTTP using specialized
+	// calls to core. This is a subset of `vault.restrictedSysAPIs`.
+	restrictedSysAPIsNonLogical = pathmanager.New()
+
 	injectDataIntoTopRoutes = []string{
 		"/v1/sys/audit",
 		"/v1/sys/audit/",
@@ -96,8 +101,11 @@ var (
 		"/v1/sys/policy/",
 		"/v1/sys/rekey/backup",
 		"/v1/sys/rekey/recovery-key-backup",
+		"/v1/sys/rotate/root/backup",
+		"/v1/sys/rotate/recovery/backup",
 		"/v1/sys/remount",
 		"/v1/sys/rotate",
+		"/v1/sys/rotate/keyring",
 		"/v1/sys/wrapping/wrap",
 	}
 
@@ -108,6 +116,23 @@ func init() {
 	alwaysRedirectPaths.AddPaths([]string{
 		"sys/storage/raft/snapshot",
 		"sys/storage/raft/snapshot-force",
+	})
+
+	restrictedSysAPIsNonLogical.AddPaths([]string{
+		"raw",
+		"generate-recovery-token",
+		"init",
+		"seal",
+		"step-down",
+		"unseal",
+		"health",
+		"rekey-recovery-key",
+		"rekey",
+		"storage",
+		"generate-root",
+		"metrics",
+		"pprof",
+		"in-flight-req",
 	})
 }
 
@@ -155,16 +180,28 @@ func handler(props *vault.HandlerProperties) http.Handler {
 		mux.Handle("/v1/sys/leader", handleSysLeader(core))
 		mux.Handle("/v1/sys/health", handleSysHealth(core))
 		mux.Handle("/v1/sys/monitor", handleLogicalNoForward(core))
+
 		mux.Handle("/v1/sys/generate-root/attempt", handleRequestForwarding(core,
 			handleAuditNonLogical(core, handleSysGenerateRootAttempt(core, vault.GenerateStandardRootTokenStrategy))))
 		mux.Handle("/v1/sys/generate-root/update", handleRequestForwarding(core,
 			handleAuditNonLogical(core, handleSysGenerateRootUpdate(core, vault.GenerateStandardRootTokenStrategy))))
-		mux.Handle("/v1/sys/rekey/init", handleRequestForwarding(core, handleSysRekeyInit(core, false)))
-		mux.Handle("/v1/sys/rekey/update", handleRequestForwarding(core, handleSysRekeyUpdate(core, false)))
-		mux.Handle("/v1/sys/rekey/verify", handleRequestForwarding(core, handleSysRekeyVerify(core, false)))
-		mux.Handle("/v1/sys/rekey-recovery-key/init", handleRequestForwarding(core, handleSysRekeyInit(core, true)))
-		mux.Handle("/v1/sys/rekey-recovery-key/update", handleRequestForwarding(core, handleSysRekeyUpdate(core, true)))
-		mux.Handle("/v1/sys/rekey-recovery-key/verify", handleRequestForwarding(core, handleSysRekeyVerify(core, true)))
+
+		// Register without unauthenticated rekey, if necessary.
+		if props.ListenerConfig == nil || !props.ListenerConfig.DisableUnauthedRekeyEndpoints {
+			mux.Handle("/v1/sys/rekey/init", handleRequestForwarding(core,
+				handleAuditNonLogical(core, handleSysRekeyInit(core, false))))
+			mux.Handle("/v1/sys/rekey/update", handleRequestForwarding(core,
+				handleAuditNonLogical(core, handleSysRekeyUpdate(core, false))))
+			mux.Handle("/v1/sys/rekey/verify", handleRequestForwarding(core,
+				handleAuditNonLogical(core, handleSysRekeyVerify(core, false))))
+			mux.Handle("/v1/sys/rekey-recovery-key/init", handleRequestForwarding(core,
+				handleAuditNonLogical(core, handleSysRekeyInit(core, true))))
+			mux.Handle("/v1/sys/rekey-recovery-key/update", handleRequestForwarding(core,
+				handleAuditNonLogical(core, handleSysRekeyUpdate(core, true))))
+			mux.Handle("/v1/sys/rekey-recovery-key/verify", handleRequestForwarding(core,
+				handleAuditNonLogical(core, handleSysRekeyVerify(core, true))))
+		}
+
 		mux.Handle("/v1/sys/storage/raft/bootstrap", handleSysRaftBootstrap(core))
 		mux.Handle("/v1/sys/storage/raft/join", handleSysRaftJoin(core))
 		mux.Handle("/v1/sys/internal/ui/feature-flags", handleSysInternalFeatureFlags(core))
@@ -271,13 +308,12 @@ func handleAuditNonLogical(core *vault.Core, h http.Handler) http.Handler {
 			respondError(w, status, err)
 			return
 		}
-		if origBody != nil {
-			r.Body = io.NopCloser(origBody)
-		}
+		r.Body = io.NopCloser(origBody)
 		input := &logical.LogInput{
 			Request: req,
 		}
-		err = core.AuditLogger().AuditRequest(r.Context(), input)
+		ctx := namespace.RootContext(r.Context())
+		err = core.AuditLogger().AuditRequest(ctx, input)
 		if err != nil {
 			respondError(w, status, err)
 			return
@@ -291,11 +327,10 @@ func handleAuditNonLogical(core *vault.Core, h http.Handler) http.Handler {
 		}
 		httpResp := &logical.HTTPResponse{Data: data, Headers: cw.Header()}
 		input.Response = logical.HTTPResponseToLogicalResponse(httpResp)
-		err = core.AuditLogger().AuditResponse(r.Context(), input)
+		err = core.AuditLogger().AuditResponse(ctx, input)
 		if err != nil {
 			respondError(w, status, err)
 		}
-		return
 	})
 }
 
@@ -344,8 +379,15 @@ func wrapGenericHandler(core *vault.Core, h http.Handler, props *vault.HandlerPr
 			ctx, cancelFunc = context.WithTimeout(ctx, maxRequestDuration)
 		}
 		ctx = context.WithValue(ctx, "original_request_path", r.URL.Path)
+
+		nsHeader := r.Header.Get(consts.NamespaceHeaderName)
+		if nsHeader != "" {
+			// Setting the namespace in the header to be included in the response
+			nw.Header().Set(consts.NamespaceHeaderName, nsHeader)
+		}
+
+		ctx = namespace.ContextWithNamespaceHeader(ctx, nsHeader)
 		r = r.WithContext(ctx)
-		r = r.WithContext(namespace.ContextWithNamespace(r.Context(), namespace.RootNamespace))
 
 		// Set some response headers with raft node id (if applicable) and hostname, if available
 		if core.RaftNodeIDHeaderEnabled() {
@@ -359,17 +401,16 @@ func wrapGenericHandler(core *vault.Core, h http.Handler, props *vault.HandlerPr
 			nw.Header().Set("X-Vault-Hostname", hostname)
 		}
 
-		switch {
-		case strings.HasPrefix(r.URL.Path, "/v1/"):
-			newR, status := adjustRequest(core, r)
-			if status != 0 {
-				respondError(nw, status, nil)
-				cancelFunc()
-				return
-			}
-			r = newR
+		isRestrictedSysAPI := nsHeader != "" && strings.HasPrefix(r.URL.Path, "/v1/sys/") &&
+			restrictedSysAPIsNonLogical.HasPathSegments(r.URL.Path[len("/v1/sys/"):])
 
-		case strings.HasPrefix(r.URL.Path, "/ui"), r.URL.Path == "/robots.txt", r.URL.Path == "/":
+		switch {
+		case isRestrictedSysAPI:
+			respondError(nw, http.StatusBadRequest, fmt.Errorf("operation unavailable in namespaces"))
+			cancelFunc()
+			return
+
+		case strings.HasPrefix(r.URL.Path, "/v1/"), strings.HasPrefix(r.URL.Path, "/ui"), r.URL.Path == "/robots.txt", r.URL.Path == "/":
 		case strings.HasPrefix(r.URL.Path, "/.well-known/acme-challenge/"):
 			for _, ln := range props.AllListeners {
 				if ln.Config == nil || ln.Config.TLSDisable {
@@ -426,16 +467,9 @@ func wrapGenericHandler(core *vault.Core, h http.Handler, props *vault.HandlerPr
 			core.FinalizeInFlightReqData(inFlightReqID, nw.StatusCode)
 		}()
 
-		// Setting the namespace in the header to be included in the error message
-		ns := r.Header.Get(consts.NamespaceHeaderName)
-		if ns != "" {
-			nw.Header().Set(consts.NamespaceHeaderName, ns)
-		}
-
 		h.ServeHTTP(nw, r)
 
 		cancelFunc()
-		return
 	})
 }
 
@@ -534,7 +568,6 @@ func WrapForwardedForHandler(h http.Handler, l *configutil.Listener) http.Handle
 
 		r.RemoteAddr = net.JoinHostPort(acc[indexToUse], port)
 		h.ServeHTTP(w, r)
-		return
 	})
 }
 
@@ -562,11 +595,9 @@ func handleUIHeaders(core *vault.Core, h http.Handler) http.Handler {
 			respondError(w, http.StatusInternalServerError, err)
 			return
 		}
-		if userHeaders != nil {
-			for k := range userHeaders {
-				v := userHeaders.Get(k)
-				header.Set(k, v)
-			}
+		for k := range userHeaders {
+			v := userHeaders.Get(k)
+			header.Set(k, v)
 		}
 		h.ServeHTTP(w, req)
 	})
@@ -579,7 +610,6 @@ func handleUI(h http.Handler) http.Handler {
 		// here.
 		req.URL.Path = strings.TrimSuffix(req.URL.Path, "/")
 		h.ServeHTTP(w, req)
-		return
 	})
 }
 
@@ -657,7 +687,6 @@ func handleUIStub() http.Handler {
 func handleUIRedirect() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		http.Redirect(w, req, "/ui/", 307)
-		return
 	})
 }
 
@@ -705,13 +734,9 @@ func parseJSONRequest(r *http.Request, w http.ResponseWriter, out interface{}) (
 	// Limit the maximum number of bytes to MaxRequestSize to protect
 	// against an indefinite amount of data being read.
 	reader := r.Body
-	var origBody io.ReadWriter
 	err := jsonutil.DecodeJSONFromReader(reader, out)
 	if err != nil && err != io.EOF {
 		return nil, fmt.Errorf("failed to parse JSON input: %w", err)
-	}
-	if origBody != nil {
-		return io.NopCloser(origBody), err
 	}
 	return nil, err
 }
@@ -773,7 +798,6 @@ func handleRequestForwarding(core *vault.Core, handler http.Handler) http.Handle
 		}
 
 		forwardRequest(core, w, r)
-		return
 	})
 }
 
@@ -790,13 +814,7 @@ func forwardRequest(core *vault.Core, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ns, err := namespace.FromContext(r.Context())
-	if err != nil {
-		respondError(w, http.StatusBadRequest, err)
-		return
-	}
-	path := ns.TrimmedPath(r.URL.Path[len("/v1/"):])
-	if alwaysRedirectPaths.HasPath(path) {
+	if alwaysRedirectPaths.HasPath(r.URL.Path[len("/v1/"):]) {
 		respondStandby(core, w, r.URL)
 		return
 	}
@@ -817,10 +835,8 @@ func forwardRequest(core *vault.Core, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if header != nil {
-		for k, v := range header {
-			w.Header()[k] = v
-		}
+	for k, v := range header {
+		w.Header()[k] = v
 	}
 
 	w.WriteHeader(statusCode)
