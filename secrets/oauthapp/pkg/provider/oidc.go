@@ -7,9 +7,9 @@ import (
 	"fmt"
 
 	gooidc "github.com/coreos/go-oidc"
+	"github.com/hashicorp/go-secure-stdlib/parseutil"
+	"github.com/hashicorp/go-secure-stdlib/strutil"
 	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/devicecode"
-	"github.com/openbao/openbao/sdk/v2/helper/parseutil"
-	"github.com/openbao/openbao/sdk/v2/helper/strutil"
 	"github.com/puppetlabs/leg/errmap/pkg/errmark"
 	"golang.org/x/oauth2"
 )
