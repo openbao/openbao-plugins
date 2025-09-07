@@ -3,6 +3,10 @@
 IMPROVEMENTS:
 
 * Enable proper plugin version reporting when registered in OpenBao
+* Updated dependencies:
+  * `github.com/openbao/openbao/sdk/v2` v2.3.0 -> v2.4.0
+  * `github.com/openbao/openbao/api/v2` v2.3.1 -> v2.4.0
+  * `github.com/openbao/openbao` v2.2.0-beta -> v2.4.0
 
 ## v0.22.0
 ### April 16, 2025
