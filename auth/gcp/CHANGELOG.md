@@ -1,4 +1,5 @@
-## Unreleased
+## v0.22.0
+### September 07, 2025
 
 IMPROVEMENTS:
 
