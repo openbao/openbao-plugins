@@ -26,6 +26,7 @@ _None available at this time._
 - **GCP** - Generate GCP service account keys and OAuth tokens based on IAM policies.
 - **GCPKMS** - Encrypt data and manage keys via GCP KMS.
 - **Nomad** - Generate Nomad ACL tokens.
+- **Consul** - Generate Consul ACL tokens.
 
 ## Development
 
