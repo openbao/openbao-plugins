@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - plugin tests
+- ignore missing tokens during revoke
 
 ### Changed
 

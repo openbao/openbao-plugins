@@ -5,6 +5,7 @@ package consul
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/consul/api"
@@ -113,6 +114,16 @@ func (b *backend) secretTokenRevoke(ctx context.Context, req *logical.Request, d
 	case tokenPolicyType:
 		_, err := c.ACL().TokenDelete(tokenRaw.(string), revokeWriteOptions)
 		if err != nil {
+			statusError := api.StatusError{}
+
+			if errors.As(err, &statusError) &&
+				statusError.Code == 404 &&
+				// Don't just rely on the status code, a 404 could have many causes (e.g. load balancer has briefly no backend)
+				// So we additionally match the exact response body.
+				// This might break in future versions of Consul, but at least it's safe.
+				statusError.Body == "Cannot find token to delete" {
+				return nil, nil //nolint:nilnil
+			}
 			return nil, err
 		}
 	default:
