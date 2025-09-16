@@ -15,10 +15,10 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/openbao/openbao-plugins/secrets/consul/testhelpers"
+	"github.com/mitchellh/mapstructure"
+	consul "github.com/openbao/openbao-plugins/secrets/consul/testhelpers"
 	logicaltest "github.com/openbao/openbao/helper/testhelpers/logical"
 	"github.com/openbao/openbao/sdk/v2/logical"
-	"github.com/mitchellh/mapstructure"
 )
 
 func TestBackend_Config_Access(t *testing.T) {

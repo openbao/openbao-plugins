@@ -7,8 +7,8 @@ import (
 	"os"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/openbao/openbao/api/v2"
 	"github.com/openbao/openbao-plugins/secrets/consul"
+	"github.com/openbao/openbao/api/v2"
 	"github.com/openbao/openbao/sdk/v2/plugin"
 )
 
