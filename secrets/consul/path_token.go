@@ -78,7 +78,7 @@ func (b *backend) pathTokenRead(ctx context.Context, req *logical.Request, d *fr
 	// Create an ACLEntry for Consul pre 1.4
 	if (roleConfigData.Policy != "" && roleConfigData.TokenType == "client") ||
 		(roleConfigData.Policy == "" && roleConfigData.TokenType == "management") {
-		token, _, err := c.ACL().Create(&api.ACLEntry{
+		token, _, err := c.ACL().Create(&api.ACLEntry{ //nolint:staticcheck
 			Name:  tokenName,
 			Type:  roleConfigData.TokenType,
 			Rules: roleConfigData.Policy,

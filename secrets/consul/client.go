@@ -14,13 +14,13 @@ import (
 func (b *backend) client(ctx context.Context, s logical.Storage) (*api.Client, error, error) {
 	conf, userErr, intErr := b.readConfigAccess(ctx, s)
 	if intErr != nil {
-		return nil, nil, intErr
+		return nil, nil, intErr //nolint:nilnil
 	}
 	if userErr != nil {
 		return nil, userErr, nil
 	}
 	if conf == nil {
-		return nil, nil, fmt.Errorf("no error received but no configuration found")
+		return nil, nil, fmt.Errorf("no error received but no configuration found") //nolint:nilnil
 	}
 
 	consulConf := conf.NewConfig()

@@ -81,7 +81,7 @@ must be x509 PEM encoded and if this is set you need to also set client_cert.`,
 func (b *backend) readConfigAccess(ctx context.Context, storage logical.Storage) (*accessConfig, error, error) {
 	entry, err := storage.Get(ctx, "config/access")
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, err //nolint:nilnil
 	}
 	if entry == nil {
 		return nil, fmt.Errorf("access credentials for the backend itself haven't been configured; please configure them at the '/config/access' endpoint"), nil
@@ -89,7 +89,7 @@ func (b *backend) readConfigAccess(ctx context.Context, storage logical.Storage)
 
 	conf := &accessConfig{}
 	if err := entry.DecodeJSON(conf); err != nil {
-		return nil, nil, fmt.Errorf("error reading consul access configuration: %w", err)
+		return nil, nil, fmt.Errorf("error reading consul access configuration: %w", err) //nolint:nilnil
 	}
 
 	return conf, nil, nil
@@ -149,7 +149,7 @@ func (b *backend) pathConfigAccessWrite(ctx context.Context, req *logical.Reques
 		return nil, err
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 type accessConfig struct {

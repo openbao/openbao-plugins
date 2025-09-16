@@ -94,7 +94,7 @@ func RunContainer(ctx context.Context, namePrefix, version string, isEnterprise 
 		envVars = append(envVars, "CONSUL_LICENSE="+license)
 
 		if !hasLicense {
-			return nil, nil, fmt.Errorf("Failed to find enterprise license")
+			return nil, nil, fmt.Errorf("failed to find enterprise license")
 		}
 	}
 	if namePrefix != "" {
@@ -129,7 +129,7 @@ func RunContainer(ctx context.Context, namePrefix, version string, isEnterprise 
 
 	runner, err := docker.NewServiceRunner(dockerOpts)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Could not start docker Consul: %s", err)
+		return nil, nil, fmt.Errorf("could not start docker Consul: %s", err)
 	}
 
 	svc, _, err := runner.StartNewService(ctx, addSuffix, false, func(ctx context.Context, host string, port int) (docker.ServiceConfig, error) {

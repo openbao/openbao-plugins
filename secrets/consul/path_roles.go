@@ -152,7 +152,7 @@ func (b *backend) pathRolesRead(ctx context.Context, req *logical.Request, d *fr
 		return nil, err
 	}
 	if entry == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	var roleConfigData roleConfig
@@ -268,7 +268,7 @@ func (b *backend) pathRolesWrite(ctx context.Context, req *logical.Request, d *f
 		return nil, err
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (b *backend) pathRolesDelete(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
@@ -276,7 +276,7 @@ func (b *backend) pathRolesDelete(ctx context.Context, req *logical.Request, d *
 	if err := req.Storage.Delete(ctx, "policy/"+name); err != nil {
 		return nil, err
 	}
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 type roleConfig struct {
