@@ -5,9 +5,9 @@ package consul
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
-	"strings"
 	"testing"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -15,11 +15,10 @@ import (
 	"github.com/openbao/openbao/sdk/v2/helper/docker"
 )
 
-// LatestConsulVersion is the most recent version of Consul which is used unless
-// another version is specified in the test config or environment. This will
-// probably go stale as we don't always update it on every release but we rarely
-// rely on specific new Consul functionality so that's probably not a problem.
-const LatestConsulVersion = "1.15.3"
+var versionPresets = map[string]string{
+	"latest-supported": "1.21.4",
+	"oldest-supported": "1.4.5",
+}
 
 type Config struct {
 	docker.ServiceHostPort
@@ -49,9 +48,7 @@ func PrepareTestContainer(t *testing.T, version string, isEnterprise bool, doBoo
 
 // RunContainer runs Consul in a Docker container unless CONSUL_HTTP_ADDR is
 // already found in the environment. Consul version is determined by the version
-// argument. If version is empty string, the CONSUL_DOCKER_VERSION environment
-// variable is used and if that is empty too, LatestConsulVersion is used
-// (defined above). If namePrefix is provided we assume you have chosen a unique
+// argument. If namePrefix is provided we assume you have chosen a unique
 // enough prefix to avoid collision with other tests that may be running in
 // parallel and so _do not_ add an additional unique ID suffix. We will also
 // ensure previous instances are deleted and leave the container running for
@@ -70,26 +67,24 @@ func RunContainer(ctx context.Context, namePrefix, version string, isEnterprise 
 	}
 
 	config := `acl { enabled = true default_policy = "deny" }`
-	if version == "" {
-		consulVersion := os.Getenv("CONSUL_DOCKER_VERSION")
-		if consulVersion != "" {
-			version = consulVersion
-		} else {
-			version = LatestConsulVersion
-		}
+	if preset, ok := versionPresets[version]; ok {
+		version = preset
 	}
-	if strings.HasPrefix(version, "1.3") {
-		config = `datacenter = "test" acl_default_policy = "deny" acl_datacenter = "test" acl_master_token = "test"`
-	}
+
+	currVersion := goversion.Must(goversion.NewVersion(version))
 
 	name := "consul"
 	repo := "docker.mirror.hashicorp.services/library/consul"
+	if currVersion.GreaterThanOrEqual(goversion.Must(goversion.NewVersion("1.9.0"))) {
+		repo = "docker.io/hashicorp/consul"
+	}
+
 	var envVars []string
 	// If running the enterprise container, set the appropriate values below.
 	if isEnterprise {
 		version += "-ent"
+		repo += "-enterprise"
 		name = "consul-enterprise"
-		repo = "docker.mirror.hashicorp.services/hashicorp/consul-enterprise"
 		license, hasLicense := os.LookupEnv("CONSUL_LICENSE")
 		envVars = append(envVars, "CONSUL_LICENSE="+license)
 
@@ -142,26 +137,12 @@ func RunContainer(ctx context.Context, namePrefix, version string, isEnterprise 
 		}
 
 		// Make sure Consul is up
-		if _, err = consul.Status().Leader(); err != nil {
+		leader, err := consul.Status().Leader()
+		if err != nil {
 			return nil, err
 		}
-
-		// For version of Consul < 1.4
-		if strings.HasPrefix(version, "1.3") {
-			consulToken := "test"
-			_, err = consul.KV().Put(&consulapi.KVPair{
-				Key:   "setuptest",
-				Value: []byte("setuptest"),
-			}, &consulapi.WriteOptions{
-				Token: consulToken,
-			})
-			if err != nil {
-				return nil, err
-			}
-			return &Config{
-				ServiceHostPort: *shp,
-				Token:           consulToken,
-			}, nil
+		if leader == "" {
+			return nil, errors.New("no leader elected")
 		}
 
 		// New default behavior
@@ -181,6 +162,10 @@ func RunContainer(ctx context.Context, namePrefix, version string, isEnterprise 
 
 				service_prefix "" {
 					policy = "read"
+				}
+
+				key "foo" {
+					policy = "write"
 				}`,
 			}
 			q := &consulapi.WriteOptions{
@@ -192,8 +177,7 @@ func RunContainer(ctx context.Context, namePrefix, version string, isEnterprise 
 			}
 
 			// Create a Consul role that contains the test policy, for Consul 1.5 and newer
-			currVersion, _ := goversion.NewVersion(version)
-			roleVersion, _ := goversion.NewVersion("1.5")
+			roleVersion := goversion.Must(goversion.NewVersion("1.5"))
 			if currVersion.GreaterThanOrEqual(roleVersion) {
 				ACLList := []*consulapi.ACLTokenRoleLink{{Name: "test"}}
 
@@ -212,7 +196,7 @@ func RunContainer(ctx context.Context, namePrefix, version string, isEnterprise 
 			// Configure a namespace and partition if testing enterprise Consul
 			if isEnterprise {
 				// Namespaces require Consul 1.7 or newer
-				namespaceVersion, _ := goversion.NewVersion("1.7")
+				namespaceVersion := goversion.Must(goversion.NewVersion("1.7"))
 				if currVersion.GreaterThanOrEqual(namespaceVersion) {
 					namespace := &consulapi.Namespace{
 						Name:        "ns1",
@@ -239,7 +223,7 @@ func RunContainer(ctx context.Context, namePrefix, version string, isEnterprise 
 				}
 
 				// Partitions require Consul 1.11 or newer
-				partitionVersion, _ := goversion.NewVersion("1.11")
+				partitionVersion := goversion.Must(goversion.NewVersion("1.11"))
 				if currVersion.GreaterThanOrEqual(partitionVersion) {
 					partition := &consulapi.Partition{
 						Name:        "part1",

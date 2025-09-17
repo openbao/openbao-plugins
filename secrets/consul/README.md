@@ -5,6 +5,7 @@ This is a standalone backend plugin for use with
 ACL tokens dynamically based on pre-existing Consul ACL policies.
 
 ## Quick Links
+
 - [Docs](docs/readme.md)
 - [API docs](docs/api/readme.md)
 - Main Project Github: https://www.github.com/openbao/openbao

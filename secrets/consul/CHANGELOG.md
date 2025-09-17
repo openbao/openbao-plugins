@@ -23,8 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - replace "Vault" with "OpenBao" in docs
 - use OpenBao go packages
 - refactor "main.go" to match other plugins
+- oldest supported Consul versions is now 1.4
 
 ### Other
 
 - code import
 - vendor new dependencies
+
+### Removed
+
+- deprecated features inherited from forking

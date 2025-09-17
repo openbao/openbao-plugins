@@ -14,10 +14,6 @@ import (
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
-const (
-	tokenPolicyType = "token"
-)
-
 func pathToken(b *backend) *framework.Path {
 	return &framework.Path{
 		Pattern: "creds/" + framework.GenericNameRegex("role"),
@@ -56,10 +52,6 @@ func (b *backend) pathTokenRead(ctx context.Context, req *logical.Request, d *fr
 		return nil, err
 	}
 
-	if roleConfigData.TokenType == "" {
-		roleConfigData.TokenType = "client"
-	}
-
 	// Get the consul client
 	c, userErr, intErr := b.client(ctx, req.Storage)
 	if intErr != nil {
@@ -75,31 +67,7 @@ func (b *backend) pathTokenRead(ctx context.Context, req *logical.Request, d *fr
 	writeOpts := &api.WriteOptions{}
 	writeOpts = writeOpts.WithContext(ctx)
 
-	// Create an ACLEntry for Consul pre 1.4
-	if (roleConfigData.Policy != "" && roleConfigData.TokenType == "client") ||
-		(roleConfigData.Policy == "" && roleConfigData.TokenType == "management") {
-		token, _, err := c.ACL().Create(&api.ACLEntry{ //nolint:staticcheck
-			Name:  tokenName,
-			Type:  roleConfigData.TokenType,
-			Rules: roleConfigData.Policy,
-		}, writeOpts)
-		if err != nil {
-			return logical.ErrorResponse(err.Error()), nil
-		}
-
-		// Use the helper to create the secret
-		s := b.Secret(SecretTokenType).Response(map[string]interface{}{
-			"token": token,
-		}, map[string]interface{}{
-			"token": token,
-			"role":  role,
-		})
-		s.Secret.TTL = roleConfigData.TTL
-		s.Secret.MaxTTL = roleConfigData.MaxTTL
-		return s, nil
-	}
-
-	// Create an ACLToken for Consul 1.4 and above
+	// Create an ACLToken
 	policyLinks := []*api.ACLTokenPolicyLink{}
 	for _, policyName := range roleConfigData.Policies {
 		policyLinks = append(policyLinks, &api.ACLTokenPolicyLink{
@@ -132,16 +100,15 @@ func (b *backend) pathTokenRead(ctx context.Context, req *logical.Request, d *fr
 	}
 
 	// Use the helper to create the secret
-	s := b.Secret(SecretTokenType).Response(map[string]interface{}{
+	s := b.Secret(SecretTokenType).Response(map[string]any{
 		"token":            token.SecretID,
 		"accessor":         token.AccessorID,
 		"local":            token.Local,
 		"consul_namespace": token.Namespace,
 		"partition":        token.Partition,
-	}, map[string]interface{}{
-		"token":   token.AccessorID,
-		"role":    role,
-		"version": tokenPolicyType,
+	}, map[string]any{
+		"token": token.AccessorID,
+		"role":  role,
 	})
 	s.Secret.TTL = roleConfigData.TTL
 	s.Secret.MaxTTL = roleConfigData.MaxTTL

@@ -1,11 +1,21 @@
 # Consul secrets engine
 
-The Consul secrets engine generates [Consul](https://www.consul.io/) API tokens
-dynamically based on Consul ACL policies.
+Consul is a service networking platform featuring service discovery, service
+mesh, API gateway and configuration management. The Consul secrets engine for
+OpenBao generates [Consul][consul] ACL tokens dynamically based on pre-existing
+Consul ACL policies.
+
+This page will show a quick start for this secrets engine. For detailed
+documentation on every path, use `bao path-help` after mounting the secrets
+engine.
+
+> [!TIP]
+> See the Consul Agent [config documentation][consul-bootstrap-acl] for details
+> on how to enable Consul's ACL system.
 
 > [!NOTE]
-> See the Consul Agent [config documentation](https://developer.hashicorp.com/consul/docs/reference/agent/configuration-file/acl)
-> for details on how to enable Consul's ACL system.
+> This documentation assumes you are using at least Consul version 1.4 (released
+> 2018). Older version are not supported.
 
 ## Setup
 
@@ -14,13 +24,13 @@ functions. These steps are usually completed by an operator or configuration
 management tool.
 
 1. (Optional) If you're only looking to set up a quick test environment, you can
-   start a Consul Agent in dev mode in a separate terminal window.
+    start a Consul Agent in dev mode in a separate terminal window.
 
     ```shell-session
     $ consul agent -dev -hcl "acl { enabled = true }"
     ```
 
-1.  Enable the Consul secrets engine:
+1. Enable the Consul secrets engine:
 
     ```shell-session
     $ bao secrets enable consul
@@ -30,7 +40,7 @@ management tool.
     By default, the secrets engine will mount at the name of the engine. To
     enable the secrets engine at a different path, use the `-path` argument.
 
-1.  Configure OpenBao to connect and authenticate to Consul.
+1. Configure OpenBao to connect and authenticate to Consul.
 
     OpenBao can bootstrap the Consul ACL system automatically if it is enabled
     and hasn't already been bootstrapped. If you have already bootstrapped the
@@ -38,7 +48,7 @@ management tool.
     This can either be the bootstrap token or another management token you've
     created yourself.
 
-    1.  Configuring OpenBao without previously bootstrapping the Consul ACL system:
+    - Configuring OpenBao without previously bootstrapping the Consul ACL system:
 
         ```shell-session
         $ bao write consul/config/access \
@@ -46,145 +56,104 @@ management tool.
         Success! Data written to: consul/config/access
         ```
 
-        > [!NOTE]
-        > OpenBao will silently store the bootstrap token as the
-        > configuration token when it performs the automatic bootstrap; it will
-        > not be presented to the user. If you need another management token,
-        > you will need to generate one by writing a OpenBao role with the
-        > `global-management` policy and then reading new creds back from it.
+        OpenBao will silently store the bootstrap token as the configuration
+        token when it performs the automatic bootstrap; it will not be presented
+        to the user. If you need another management token, you will need to
+        generate one by writing a OpenBao role with the `global-management`
+        policy and then reading new credentials back from it.
 
-    1. Configuring OpenBao after manually bootstrapping the Consul ACL system:
-
-        1.  For Consul 1.4 and above, use the command line to generate a token
-            with the appropriate policy:
-
-            ```shell-session
-            $ CONSUL_HTTP_TOKEN="<bootstrap-token>" consul acl token create -policy-name="global-management"
-            AccessorID:   865dc5e9-e585-3180-7b49-4ddc0fc45135
-            SecretID:     ef35f0f1-885b-0cab-573c-7c91b65a7a7e
-            Description:
-            Local:        false
-            Create Time:  2018-10-22 17:40:24.128188 -0700 PDT
-            Policies:
-                00000000-0000-0000-0000-000000000001 - global-management
-            ```
-
-            ```shell-session
-            $ bao write consul/config/access \
-                address="127.0.0.1:8500" \
-                token="ef35f0f1-885b-0cab-573c-7c91b65a7a7e"
-            Success! Data written to: consul/config/access
-            ```
-
-        1.  For Consul versions below 1.4, acquire a [management
-            token][consul-mgmt-token] from Consul, using the `acl_master_token`
-            from your Consul configuration file or another management token:
-
-            ```shell-session
-            $ curl \
-                --header "X-Consul-Token: my-management-token" \
-                --request PUT \
-                --data '{"Name": "sample", "Type": "management"}' \
-                https://consul.rocks/v1/acl/create
-            ```
-
-            OpenBao must have a management type token so that it can create and
-            revoke ACL tokens. The response will return a new token:
-
-            ```json
-            {
-            "ID": "7652ba4c-0f6e-8e75-5724-5e083d72cfe4"
-            }
-            ```
-
-1.  Configure a role that maps a name in OpenBao to a Consul ACL policy.
-    Depending on your Consul version, you will either provide a policy document
-    and a token type, a list of policies or roles, or a set of service or node
-    identities. When users generate credentials, they are generated against this
-    role.
-
-    1.  For Consul versions 1.8 and above, attach [a Consul node
-        identity](https://developer.hashicorp.com/consul/commands/acl/token/create#node-identity)
-        to the role.
+    - Configuring OpenBao after manually bootstrapping the Consul ACL system:
 
         ```shell-session
-        $ bao write consul/roles/my-role \
-            node_identities="server-1:dc1" \
-            node_identities="server-2:dc1"
-        Success! Data written to: consul/roles/my-role
-        ```
-
-    1.  For Consul versions 1.5 and above, attach either [a role in
-        Consul](https://developer.hashicorp.com/consul/api-docs/acl/roles) or [a
-        Consul service
-        identity](https://developer.hashicorp.com/consul/commands/acl/token/create#service-identity)
-        to the role:
-
-        ```shell-session
-        $ bao write consul/roles/my-role consul_roles="api-server"
-        Success! Data written to: consul/roles/my-role
+        $ CONSUL_HTTP_TOKEN="<bootstrap-token>" consul acl token create -policy-name="global-management"
+        AccessorID:   aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+        SecretID:     ffffffff-ffff-ffff-ffff-ffffffffffff
+        Description:
+        Local:        false
+        Create Time:  2025-01-01 10:10:10.124356789 +0000 UTC
+        Policies:
+            00000000-0000-0000-0000-000000000001 - global-management
         ```
 
         ```shell-session
-        $ bao write consul/roles/my-role \
-            service_identities="myservice-1:dc1,dc2" \
-            service_identities="myservice-2:dc1"
-        Success! Data written to: consul/roles/my-role
-        ```
-
-    1.  For Consul versions 1.4 and above, generate [a policy in
-        Consul](https://developer.hashicorp.com/consul/tutorials/security/access-control-setup-production),
-        and proceed to link it to the role:
-
-        ```shell-session
-        $ bao write consul/roles/my-role consul_policies="readonly"
-        Success! Data written to: consul/roles/my-role
-        ```
-
-    1.  For Consul versions below 1.4, the policy must be base64-encoded. The
-        policy language is [documented by
-        Consul](https://developer.hashicorp.com/consul/docs/security/acl/acl-legacy).
-        Support for this method is deprecated as of OpenBao 1.11.
-
-        Write a policy and proceed to link it to the role:
-
-        ```shell-session
-        $ bao write consul/roles/my-role policy="$(echo 'key "" { policy = "read" }' | base64)"
-        Success! Data written to: consul/roles/my-role
-        ```
-
-       > [!IMPORTANT]
-       > If you do not specify a value for `ttl` (or
-       >  `lease` for Consul versions below 1.4) the tokens created using
-       > OpenBao's Consul secrets engine are created with a Time To Live (TTL)
-       > of 30 days. You can change the lease duration by passing
-       > `-ttl=<duration>` to the command above.
-
-1.  You may further limit a role's access by adding the optional parameters
-    `consul_namespace` and `partition`. Please refer to Consul's [namespace
-    documentation](https://developer.hashicorp.com/consul/docs/enterprise/namespaces)
-    and [admin partition
-    documentation](https://developer.hashicorp.com/consul/docs/enterprise/admin-partitions)
-    for further information about these features.
-
-    1.  For Consul version 1.11 and above, link an admin partition to a role:
-
-        ```shell-session
-        $ bao write consul/roles/my-role consul_roles="admin-management" partition="admin1"
-        Success! Data written to: consul/roles/my-role
-        ```
-
-    1.  For Consul versions 1.7 and above, link a Consul namespace to the role:
-
-        ```shell-session
-        $ bao write consul/roles/my-role consul_roles="namespace-management" consul_namespace="ns1"
-        Success! Data written to: consul/roles/my-role
+        $ bao write consul/config/access \
+            address="127.0.0.1:8500" \
+            token="ffffffff-ffff-ffff-ffff-ffffffffffff"
+        Success! Data written to: consul/config/access
         ```
 
 ## Usage
 
-After the secrets engine is configured and a user/machine has a OpenBao token with
-the proper permission, it can generate credentials.
+### Configure Roles
+
+Configure a role that maps a name in OpenBao to a Consul ACL policy. You can
+either provide a list of policies or roles, or a set of service or node
+identities. When users generate credentials, they are generated against this
+role.
+
+- Attach [a Consul node identity][consul-node-identity] to the role
+  (requires at least Consul 1.8):
+
+    ```shell-session
+    $ bao write consul/roles/my-role \
+        node_identities="server-1:dc1" \
+        node_identities="server-2:dc1"
+    Success! Data written to: consul/roles/my-role
+    ```
+
+- Attach [a Consul role][consul-role] to the role (requires at least Consul
+  1.5):
+
+    ```shell-session
+    $ bao write consul/roles/my-role consul_roles="api-server"
+    Success! Data written to: consul/roles/my-role
+    ```
+
+- Attach [a Consul service identity][consul-service-identity] to the role
+   (requires at least Consul 1.5):
+
+   ```shell-session
+   $ bao write consul/roles/my-role \
+   service_identities="myservice-1:dc1,dc2" \
+   service_identities="myservice-2:dc1"
+   Success! Data written to: consul/roles/my-role
+   ```
+
+- Attach [a Consul policy][consul-policy]:
+
+   ```shell-session
+   $ bao write consul/roles/my-role consul_policies="readonly"
+   Success! Data written to: consul/roles/my-role
+   ```
+
+You may further limit a role's access by adding the optional parameters
+`consul_namespace` and `partition` (both require a Consul Enterprise license).
+Please refer to Consul's [namespace documentation][consul-namespaces] and [admin
+partition documentation][consul-partitions] for further information about these
+features.
+
+- For Consul version 1.11 and above, link an admin partition to a role:
+
+   ```shell-session
+   $ bao write consul/roles/my-role consul_roles="admin-management" partition="admin1"
+   Success! Data written to: consul/roles/my-role
+   ```
+
+- For Consul versions 1.7 and above, link a Consul namespace to the role:
+
+   ```shell-session
+   $ bao write consul/roles/my-role consul_roles="namespace-management" consul_namespace="ns1"
+   Success! Data written to: consul/roles/my-role
+   ```
+
+To learn about further configurations options like TTL and and local only tokens
+use `bao path-help consul/roles/`.
+
+### Generate Tokens
+
+After the secrets engine is configured, at least one role is defined and a
+user/machine has a OpenBao token with the proper permission, it can generate
+credentials.
 
 Generate a new credential by reading from the `/creds` endpoint with the name
 of the role:
@@ -193,15 +162,30 @@ of the role:
 $ bao read consul/creds/my-role
 Key                 Value
 ---                 -----
-lease_id            consul/creds/my-role/b2469121-f55f-53c5-89af-a3ba52b1d6d8
+lease_id            consul/creds/my-role/0aB0aB0aB0aB0aB0aB0aB0aB
 lease_duration      768h
 lease_renewable     true
-accessor            c81b9cf7-2c4f-afc7-1449-4e442b831f65
-consul_namespace    ns1
+accessor            cccccccc-cccc-cccc-cccc-cccccccccccc
+consul_namespace    n/a
 local               false
-partition           admin1
-token               642783bf-1540-526f-d4de-fe1ac1aed6f0
+partition           n/a
+token               bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
 ```
+
+Here we can see that OpenBao has generated a new Consul ACL token for us.
+We can verify this, by reading it in Consul (by it's accessor):
+
+```shell-session
+$ consul acl token read -accessor-id cccccccc-cccc-cccc-cccc-cccccccccccc
+AccessorID:       cccccccc-cccc-cccc-cccc-cccccccccccc
+SecretID:         bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+Description:      Vault worker root 1735726200124356789
+Local:            false
+Create Time:      2025-01-01 10:10:10.124356789 +0000 UTC
+Policies:
+   dddddddd-dddd-dddd-dddd-dddddddddddd - readonly
+```
+
 
 > [!WARNING]
 > **Expired token rotation:** Once a token's TTL expires, then Consul
@@ -216,4 +200,11 @@ token               642783bf-1540-526f-d4de-fe1ac1aed6f0
 The Consul secrets engine has a full HTTP API. Please see the [Consul secrets
 engine API](./api/readme.md) for more details.
 
-[consul-mgmt-token]: https://developer.hashicorp.com/consul/api-docs/acl#acl_create
+[consul]: https://developer.hashicorp.com/consul
+[consul-bootstrap-acl]: https://developer.hashicorp.com/consul/docs/secure/acl/bootstrap
+[consul-namespaces]: https://developer.hashicorp.com/consul/docs/enterprise/namespaces
+[consul-node-identity]: https://developer.hashicorp.com/consul/commands/acl/token/create#node-identity
+[consul-partitions]: https://developer.hashicorp.com/consul/docs/enterprise/admin-partitions
+[consul-policy]: https://developer.hashicorp.com/consul/docs/secure/acl/policy
+[consul-role]: https://developer.hashicorp.com/consul/docs/secure/acl/role
+[consul-service-identity]: https://developer.hashicorp.com/consul/commands/acl/token/create#service-identity

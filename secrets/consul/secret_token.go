@@ -80,12 +80,6 @@ func (b *backend) secretTokenRevoke(ctx context.Context, req *logical.Request, d
 		return nil, nil //nolint:nilnil
 	}
 
-	var version string
-	versionRaw, ok := req.Secret.InternalData["version"]
-	if ok {
-		version = versionRaw.(string)
-	}
-
 	// Extract Consul Namespace and Partition info from secret
 	var revokeWriteOptions *api.WriteOptions
 	var namespace, partition string
@@ -104,30 +98,19 @@ func (b *backend) secretTokenRevoke(ctx context.Context, req *logical.Request, d
 		Partition: partition,
 	}
 
-	switch version {
-	case "":
-		// Pre 1.4 tokens
-		_, err := c.ACL().Destroy(tokenRaw.(string), nil) //nolint:staticcheck
-		if err != nil {
-			return nil, err
-		}
-	case tokenPolicyType:
-		_, err := c.ACL().TokenDelete(tokenRaw.(string), revokeWriteOptions)
-		if err != nil {
-			statusError := api.StatusError{}
+	_, err := c.ACL().TokenDelete(tokenRaw.(string), revokeWriteOptions)
+	if err != nil {
+		statusError := api.StatusError{}
 
-			if errors.As(err, &statusError) &&
-				statusError.Code == 404 &&
-				// Don't just rely on the status code, a 404 could have many causes (e.g. load balancer has briefly no backend)
-				// So we additionally match the exact response body.
-				// This might break in future versions of Consul, but at least it's safe.
-				statusError.Body == "Cannot find token to delete" {
-				return nil, nil //nolint:nilnil
-			}
-			return nil, err
+		if errors.As(err, &statusError) &&
+			statusError.Code == 404 &&
+			// Don't just rely on the status code, a 404 could have many causes (e.g. load balancer has briefly no backend)
+			// So we additionally match the exact response body.
+			// This might break in future versions of Consul, but at least it's safe.
+			statusError.Body == "Cannot find token to delete" {
+			return nil, nil //nolint:nilnil
 		}
-	default:
-		return nil, fmt.Errorf("invalid version string in data: %s", version)
+		return nil, err
 	}
 
 	return nil, nil //nolint:nilnil
