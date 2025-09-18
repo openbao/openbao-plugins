@@ -241,6 +241,13 @@ func (b *backend) assumeRole(ctx context.Context, s logical.Storage,
 	if len(policyARNs) > 0 {
 		assumeRoleInput.SetPolicyArns(convertPolicyARNs(policyARNs))
 	}
+	roleEntry, err := b.roleRead(ctx, s, roleName, true)
+	if err != nil {
+		return logical.ErrorResponse(err.Error()), nil
+	}
+	if roleEntry != nil && roleEntry.ExternalID != "" {
+		assumeRoleInput.SetExternalId(roleEntry.ExternalID)
+	}
 	tokenResp, err := stsClient.AssumeRoleWithContext(ctx, assumeRoleInput)
 	if err != nil {
 		return logical.ErrorResponse("Error assuming role: %s", err), awsutil.CheckAWSError(err)

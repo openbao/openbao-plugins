@@ -161,6 +161,14 @@ delimited key pairs.`,
 				},
 				Default: "/",
 			},
+
+			"external_id": {
+				Type:        framework.TypeString,
+				Required:    false,
+				Description: "Optional External ID for STS AssumeRole (only with credential_type=assumed_role).",
+				DisplayAttrs: &framework.DisplayAttributes{Name: "External ID"},
+			},
+
 		},
 
 		Callbacks: map[logical.Operation]framework.OperationFunc{
@@ -336,6 +344,14 @@ func (b *backend) pathRolesWrite(ctx context.Context, req *logical.Request, d *f
 		resp.AddWarning("Detected use of legacy role or policy parameter. Please upgrade to use the new parameters.")
 	} else {
 		roleEntry.ProhibitFlexibleCredPath = false
+	}
+
+	if externalIDRaw, ok := d.GetOk("external_id"); ok {
+		ext := externalIDRaw.(string)
+		if ext != "" && !strutil.StrListContains(roleEntry.CredentialTypes, assumedRoleCred) {
+			return logical.ErrorResponse("cannot supply external_id when credential_type isn't assumed_role"), nil
+		}
+		roleEntry.ExternalID = ext
 	}
 
 	err = roleEntry.validate()
@@ -521,6 +537,7 @@ type awsRoleEntry struct {
 	MaxSTSTTL                time.Duration     `json:"max_sts_ttl"`                           // Max allowed TTL for STS credentials
 	UserPath                 string            `json:"user_path"`                             // The path for the IAM user when using "iam_user" credential type
 	PermissionsBoundaryARN   string            `json:"permissions_boundary_arn"`              // ARN of an IAM policy to attach as a permissions boundary
+	ExternalID               string            `json:"external_id,omitempty"`                 // External ID for STS AssumeRole (only with assumed_role)
 }
 
 func (r *awsRoleEntry) toResponseData() map[string]interface{} {
@@ -535,6 +552,7 @@ func (r *awsRoleEntry) toResponseData() map[string]interface{} {
 		"max_sts_ttl":              int64(r.MaxSTSTTL.Seconds()),
 		"user_path":                r.UserPath,
 		"permissions_boundary_arn": r.PermissionsBoundaryARN,
+		"external_id":              r.ExternalID,
 	}
 
 	if r.InvalidData != "" {
@@ -591,6 +609,10 @@ func (r *awsRoleEntry) validate() error {
 
 	if len(r.RoleArns) > 0 && !strutil.StrListContains(r.CredentialTypes, assumedRoleCred) {
 		errors = multierror.Append(errors, fmt.Errorf("cannot supply role_arns when credential_type isn't %s", assumedRoleCred))
+	}
+
+	if r.ExternalID != "" && !strutil.StrListContains(r.CredentialTypes, assumedRoleCred) {
+		errors = multierror.Append(errors, fmt.Errorf("cannot supply external_id when credential_type isn't %s", assumedRoleCred))
 	}
 
 	return errors.ErrorOrNil()
