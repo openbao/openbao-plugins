@@ -552,7 +552,10 @@ func (r *awsRoleEntry) toResponseData() map[string]interface{} {
 		"max_sts_ttl":              int64(r.MaxSTSTTL.Seconds()),
 		"user_path":                r.UserPath,
 		"permissions_boundary_arn": r.PermissionsBoundaryARN,
-		"external_id":              r.ExternalID,
+	}
+
+	if r.ExternalID != "" && strutil.StrListContains(r.CredentialTypes, assumedRoleCred) {
+		respData["external_id"] = r.ExternalID
 	}
 
 	if r.InvalidData != "" {
