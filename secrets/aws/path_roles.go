@@ -349,7 +349,7 @@ func (b *backend) pathRolesWrite(ctx context.Context, req *logical.Request, d *f
 	if externalIDRaw, ok := d.GetOk("external_id"); ok {
 		ext := externalIDRaw.(string)
 		if ext != "" && !strutil.StrListContains(roleEntry.CredentialTypes, assumedRoleCred) {
-			return logical.ErrorResponse("cannot supply external_id when credential_type isn't assumed_role"), nil
+			return logical.ErrorResponse("can only supply external_id when credential_type is assumed_role"), nil
 		}
 		roleEntry.ExternalID = ext
 	}
