@@ -183,8 +183,8 @@ func (b *backend) getFederationToken(ctx context.Context, s logical.Storage,
 }
 
 func (b *backend) assumeRole(ctx context.Context, s logical.Storage,
-        displayName, roleName, roleArn, policy string, policyARNs []string,
-        iamGroups []string, lifeTimeInSeconds int64, roleSessionName string, externalID string) (*logical.Response, error,
+	displayName, roleName, roleArn, policy string, policyARNs []string,
+	iamGroups []string, lifeTimeInSeconds int64, roleSessionName string, externalID string) (*logical.Response, error,
 ) {
 
 	// grab any IAM group policies associated with the vault role, both inline

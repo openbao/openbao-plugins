@@ -163,12 +163,11 @@ delimited key pairs.`,
 			},
 
 			"external_id": {
-				Type:        framework.TypeString,
-				Required:    false,
-				Description: "Optional External ID for STS AssumeRole (only with credential_type=assumed_role).",
+				Type:         framework.TypeString,
+				Required:     false,
+				Description:  "Optional External ID for STS AssumeRole (only with credential_type=assumed_role).",
 				DisplayAttrs: &framework.DisplayAttributes{Name: "External ID"},
 			},
-
 		},
 
 		Callbacks: map[logical.Operation]framework.OperationFunc{

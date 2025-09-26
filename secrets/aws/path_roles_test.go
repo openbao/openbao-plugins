@@ -451,100 +451,100 @@ func TestRoleEntryValidationFederationTokenCred(t *testing.T) {
 }
 
 func TestRoleCRUDWithExternalIDAssumedRole(t *testing.T) {
-    roleName := "test_external_id_assumed"
-    config := logical.TestBackendConfig()
-    config.StorageView = &logical.InmemStorage{}
-    b := Backend(config)
-    if err := b.Setup(context.Background(), config); err != nil {
-        t.Fatal(err)
-    }
+	roleName := "test_external_id_assumed"
+	config := logical.TestBackendConfig()
+	config.StorageView = &logical.InmemStorage{}
+	b := Backend(config)
+	if err := b.Setup(context.Background(), config); err != nil {
+		t.Fatal(err)
+	}
 
-    externalID := "77c9f8d5-6b8a-4b5c-9a2e-123456789abc"
-    roleData := map[string]interface{}{
-        "credential_type": assumedRoleCred,
-        "role_arns":       []string{"arn:aws:iam::123456789012:role/CrossAccountRole"},
-        "external_id":     externalID,
-    }
+	externalID := "77c9f8d5-6b8a-4b5c-9a2e-123456789abc"
+	roleData := map[string]interface{}{
+		"credential_type": assumedRoleCred,
+		"role_arns":       []string{"arn:aws:iam::123456789012:role/CrossAccountRole"},
+		"external_id":     externalID,
+	}
 
-    req := &logical.Request{
-        Operation: logical.UpdateOperation,
-        Path:      "roles/" + roleName,
-        Storage:   config.StorageView,
-        Data:      roleData,
-    }
-    resp, err := b.HandleRequest(context.Background(), req)
-    if err != nil || (resp != nil && resp.IsError()) {
-        t.Fatalf("bad: role creation failed. resp:%#v\nerr:%v", resp, err)
-    }
+	req := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "roles/" + roleName,
+		Storage:   config.StorageView,
+		Data:      roleData,
+	}
+	resp, err := b.HandleRequest(context.Background(), req)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatalf("bad: role creation failed. resp:%#v\nerr:%v", resp, err)
+	}
 
-    readReq := &logical.Request{
-        Operation: logical.ReadOperation,
-        Path:      "roles/" + roleName,
-        Storage:   config.StorageView,
-    }
-    resp, err = b.HandleRequest(context.Background(), readReq)
-    if err != nil || (resp != nil && resp.IsError()) {
-        t.Fatalf("bad: reading role failed. resp:%#v\nerr:%v", resp, err)
-    }
+	readReq := &logical.Request{
+		Operation: logical.ReadOperation,
+		Path:      "roles/" + roleName,
+		Storage:   config.StorageView,
+	}
+	resp, err = b.HandleRequest(context.Background(), readReq)
+	if err != nil || (resp != nil && resp.IsError()) {
+		t.Fatalf("bad: reading role failed. resp:%#v\nerr:%v", resp, err)
+	}
 
-    gotCredType, _ := resp.Data["credential_type"].(string)
-    if gotCredType != assumedRoleCred {
-        t.Fatalf("bad: expected credential_type=%s got=%s", assumedRoleCred, gotCredType)
-    }
-    gotExternalID, _ := resp.Data["external_id"].(string)
-    if gotExternalID != externalID {
-        t.Fatalf("bad: expected external_id=%s got=%s", externalID, gotExternalID)
-    }
+	gotCredType, _ := resp.Data["credential_type"].(string)
+	if gotCredType != assumedRoleCred {
+		t.Fatalf("bad: expected credential_type=%s got=%s", assumedRoleCred, gotCredType)
+	}
+	gotExternalID, _ := resp.Data["external_id"].(string)
+	if gotExternalID != externalID {
+		t.Fatalf("bad: expected external_id=%s got=%s", externalID, gotExternalID)
+	}
 }
 
 func TestRoleValidationExternalIDWithIamUserFails(t *testing.T) {
-    config := logical.TestBackendConfig()
-    config.StorageView = &logical.InmemStorage{}
-    b := Backend(config)
-    if err := b.Setup(context.Background(), config); err != nil {
-        t.Fatal(err)
-    }
+	config := logical.TestBackendConfig()
+	config.StorageView = &logical.InmemStorage{}
+	b := Backend(config)
+	if err := b.Setup(context.Background(), config); err != nil {
+		t.Fatal(err)
+	}
 
-    roleData := map[string]interface{}{
-        "credential_type": iamUserCred,
-        "policy_arns":     []string{adminAccessPolicyARN},
-        "external_id":     "should-not-be-allowed",
-    }
-    req := &logical.Request{
-        Operation: logical.UpdateOperation,
-        Path:      "roles/test_extid_iamuser",
-        Storage:   config.StorageView,
-        Data:      roleData,
-    }
-    resp, err := b.HandleRequest(context.Background(), req)
+	roleData := map[string]interface{}{
+		"credential_type": iamUserCred,
+		"policy_arns":     []string{adminAccessPolicyARN},
+		"external_id":     "should-not-be-allowed",
+	}
+	req := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "roles/test_extid_iamuser",
+		Storage:   config.StorageView,
+		Data:      roleData,
+	}
+	resp, err := b.HandleRequest(context.Background(), req)
 
-    if err == nil && (resp == nil || !resp.IsError()) {
-        t.Fatalf("bad: expected failure when external_id is set with credential_type=%s, but request succeeded. resp:%#v err:%v", iamUserCred, resp, err)
-    }
+	if err == nil && (resp == nil || !resp.IsError()) {
+		t.Fatalf("bad: expected failure when external_id is set with credential_type=%s, but request succeeded. resp:%#v err:%v", iamUserCred, resp, err)
+	}
 }
 
 func TestRoleValidationExternalIDWithFederationTokenFails(t *testing.T) {
-    config := logical.TestBackendConfig()
-    config.StorageView = &logical.InmemStorage{}
-    b := Backend(config)
-    if err := b.Setup(context.Background(), config); err != nil {
-        t.Fatal(err)
-    }
+	config := logical.TestBackendConfig()
+	config.StorageView = &logical.InmemStorage{}
+	b := Backend(config)
+	if err := b.Setup(context.Background(), config); err != nil {
+		t.Fatal(err)
+	}
 
-    roleData := map[string]interface{}{
-        "credential_type": federationTokenCred,
-        "policy_arns":     []string{adminAccessPolicyARN},
-        "external_id":     "should-not-be-allowed",
-    }
-    req := &logical.Request{
-        Operation: logical.UpdateOperation,
-        Path:      "roles/test_extid_fedtoken",
-        Storage:   config.StorageView,
-        Data:      roleData,
-    }
-    resp, err := b.HandleRequest(context.Background(), req)
+	roleData := map[string]interface{}{
+		"credential_type": federationTokenCred,
+		"policy_arns":     []string{adminAccessPolicyARN},
+		"external_id":     "should-not-be-allowed",
+	}
+	req := &logical.Request{
+		Operation: logical.UpdateOperation,
+		Path:      "roles/test_extid_fedtoken",
+		Storage:   config.StorageView,
+		Data:      roleData,
+	}
+	resp, err := b.HandleRequest(context.Background(), req)
 
-    if err == nil && (resp == nil || !resp.IsError()) {
-        t.Fatalf("bad: expected failure when external_id is set with credential_type=%s, but request succeeded. resp:%#v err:%v", federationTokenCred, resp, err)
-    }
+	if err == nil && (resp == nil || !resp.IsError()) {
+		t.Fatalf("bad: expected failure when external_id is set with credential_type=%s, but request succeeded. resp:%#v err:%v", federationTokenCred, resp, err)
+	}
 }
