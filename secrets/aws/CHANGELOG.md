@@ -1,3 +1,10 @@
+## v0.2.0
+### Oktober 13, 2025
+
+IMPROVEMENTS:
+
+* Added external_id support for assumed_role
+
 ## v0.1.0
 ### September 07, 2025
 
