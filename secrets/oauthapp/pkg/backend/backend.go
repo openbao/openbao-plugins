@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/cache"
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/persistence"
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/provider"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/cache"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/persistence"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/provider"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/puppetlabs/leg/scheduler"

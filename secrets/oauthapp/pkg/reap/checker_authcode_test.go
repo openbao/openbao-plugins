@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/persistence"
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/provider"
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/reap"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/persistence"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/provider"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/reap"
 	"github.com/puppetlabs/leg/timeutil/pkg/clock/k8sext"
 	"github.com/puppetlabs/leg/timeutil/pkg/clockctx"
 	"github.com/stretchr/testify/require"

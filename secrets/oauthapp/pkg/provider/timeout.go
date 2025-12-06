@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/devicecode"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/oauth2ext/devicecode"
 	"github.com/puppetlabs/leg/timeutil/pkg/clockctx"
 )
 

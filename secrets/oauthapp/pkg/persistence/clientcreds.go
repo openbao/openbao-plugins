@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/provider"
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/vaultext"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/provider"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/vaultext"
 	"github.com/openbao/openbao/sdk/v2/helper/locksutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/puppetlabs/leg/timeutil/pkg/clockctx"

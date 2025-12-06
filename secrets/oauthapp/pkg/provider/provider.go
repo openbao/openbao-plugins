@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/devicecode"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/oauth2ext/devicecode"
 	"golang.org/x/oauth2"
 )
 

@@ -3,7 +3,7 @@ package cache
 import (
 	"context"
 
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/persistence"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/persistence"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
 

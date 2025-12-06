@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/vaultext"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/vaultext"
 	"github.com/openbao/openbao/sdk/v2/helper/locksutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )

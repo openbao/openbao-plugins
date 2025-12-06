@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	gooidc "github.com/coreos/go-oidc"
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/clientctx"
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/devicecode"
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/semerr"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/oauth2ext/clientctx"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/oauth2ext/devicecode"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/oauth2ext/semerr"
 	"github.com/puppetlabs/leg/errmap/pkg/errmark"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/bitbucket"

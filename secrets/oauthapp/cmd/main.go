@@ -4,7 +4,7 @@ import (
 	"os"
 
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/backend"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/backend"
 	"github.com/openbao/openbao/api/v2"
 	"github.com/openbao/openbao/sdk/v2/plugin"
 )

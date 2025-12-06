@@ -3,9 +3,9 @@ package testutil
 import (
 	"net/http"
 
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/devicecode"
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/oauth2ext/interop"
-	"github.com/openbao/openbao-plugin-secrets-oauthapp/v3/pkg/provider"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/oauth2ext/devicecode"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/oauth2ext/interop"
+	"github.com/openbao/openbao-plugins/secrets/oauthapp/pkg/provider"
 )
 
 func StaticMockDeviceCodeAuth(auth *devicecode.Auth) MockDeviceCodeAuthFunc {
