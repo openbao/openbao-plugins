@@ -51,36 +51,22 @@ type Reporter interface {
 // StreamWatcher turns any stream for which you can write a Decoder interface
 // into a watch.Interface.
 type StreamWatcher struct {
-	logger klog.Logger
 	sync.Mutex
 	source   Decoder
 	reporter Reporter
 	result   chan Event
-	done     chan struct{}
+	stopped  bool
 }
 
 // NewStreamWatcher creates a StreamWatcher from the given decoder.
-//
-// Contextual logging: NewStreamWatcherWithLogger should be used instead of NewStreamWatcher in code which supports contextual logging.
 func NewStreamWatcher(d Decoder, r Reporter) *StreamWatcher {
-	return NewStreamWatcherWithLogger(klog.Background(), d, r)
-}
-
-// NewStreamWatcherWithLogger creates a StreamWatcher from the given decoder and logger.
-func NewStreamWatcherWithLogger(logger klog.Logger, d Decoder, r Reporter) *StreamWatcher {
 	sw := &StreamWatcher{
-		logger:   logger,
 		source:   d,
 		reporter: r,
 		// It's easy for a consumer to add buffering via an extra
 		// goroutine/channel, but impossible for them to remove it,
 		// so nonbuffered is better.
 		result: make(chan Event),
-		// If the watcher is externally stopped there is no receiver anymore
-		// and the send operations on the result channel, especially the
-		// error reporting might block forever.
-		// Therefore a dedicated stop channel is used to resolve this blocking.
-		done: make(chan struct{}),
 	}
 	go sw.receive()
 	return sw
@@ -96,50 +82,51 @@ func (sw *StreamWatcher) Stop() {
 	// Call Close() exactly once by locking and setting a flag.
 	sw.Lock()
 	defer sw.Unlock()
-	// closing a closed channel always panics, therefore check before closing
-	select {
-	case <-sw.done:
-	default:
-		close(sw.done)
+	if !sw.stopped {
+		sw.stopped = true
 		sw.source.Close()
 	}
 }
 
+// stopping returns true if Stop() was called previously.
+func (sw *StreamWatcher) stopping() bool {
+	sw.Lock()
+	defer sw.Unlock()
+	return sw.stopped
+}
+
 // receive reads result from the decoder in a loop and sends down the result channel.
 func (sw *StreamWatcher) receive() {
-	defer utilruntime.HandleCrashWithLogger(sw.logger)
+	defer utilruntime.HandleCrash()
 	defer close(sw.result)
 	defer sw.Stop()
 	for {
 		action, obj, err := sw.source.Decode()
 		if err != nil {
+			// Ignore expected error.
+			if sw.stopping() {
+				return
+			}
 			switch err {
 			case io.EOF:
 				// watch closed normally
 			case io.ErrUnexpectedEOF:
-				sw.logger.V(1).Info("Unexpected EOF during watch stream event decoding", "err", err)
+				klog.V(1).Infof("Unexpected EOF during watch stream event decoding: %v", err)
 			default:
 				if net.IsProbableEOF(err) || net.IsTimeout(err) {
-					sw.logger.V(5).Info("Unable to decode an event from the watch stream", "err", err)
+					klog.V(5).Infof("Unable to decode an event from the watch stream: %v", err)
 				} else {
-					select {
-					case <-sw.done:
-					case sw.result <- Event{
+					sw.result <- Event{
 						Type:   Error,
 						Object: sw.reporter.AsObject(fmt.Errorf("unable to decode an event from the watch stream: %v", err)),
-					}:
 					}
 				}
 			}
 			return
 		}
-		select {
-		case <-sw.done:
-			return
-		case sw.result <- Event{
+		sw.result <- Event{
 			Type:   action,
 			Object: obj,
-		}:
 		}
 	}
 }

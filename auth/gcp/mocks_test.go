@@ -11,7 +11,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	consts "github.com/openbao/openbao/sdk/v2/helper/consts"
-	license "github.com/openbao/openbao/sdk/v2/helper/license"
 	pluginutil "github.com/openbao/openbao/sdk/v2/helper/pluginutil"
 	wrapping "github.com/openbao/openbao/sdk/v2/helper/wrapping"
 	logical "github.com/openbao/openbao/sdk/v2/logical"
@@ -126,20 +125,6 @@ func (m *MockSystemView) GroupsForEntity(arg0 string) ([]*logical.Group, error) 
 func (mr *MockSystemViewMockRecorder) GroupsForEntity(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GroupsForEntity", reflect.TypeOf((*MockSystemView)(nil).GroupsForEntity), arg0)
-}
-
-// HasFeature mocks base method.
-func (m *MockSystemView) HasFeature(arg0 license.Features) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HasFeature", arg0)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// HasFeature indicates an expected call of HasFeature.
-func (mr *MockSystemViewMockRecorder) HasFeature(arg0 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasFeature", reflect.TypeOf((*MockSystemView)(nil).HasFeature), arg0)
 }
 
 // ListVersionedPlugins mocks base method.

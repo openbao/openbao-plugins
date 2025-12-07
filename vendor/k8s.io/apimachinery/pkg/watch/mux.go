@@ -17,7 +17,6 @@ limitations under the License.
 package watch
 
 import (
-	"fmt"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -45,11 +44,8 @@ type Broadcaster struct {
 	nextWatcher  int64
 	distributing sync.WaitGroup
 
-	// incomingBlock allows us to ensure we don't race and end up sending events
-	// to a closed channel following a broadcaster shutdown.
-	incomingBlock sync.Mutex
-	incoming      chan Event
-	stopped       chan struct{}
+	incoming chan Event
+	stopped  chan struct{}
 
 	// How large to make watcher's channel.
 	watchQueueLength int
@@ -69,22 +65,6 @@ func NewBroadcaster(queueLength int, fullChannelBehavior FullChannelBehavior) *B
 	m := &Broadcaster{
 		watchers:            map[int64]*broadcasterWatcher{},
 		incoming:            make(chan Event, incomingQueueLength),
-		stopped:             make(chan struct{}),
-		watchQueueLength:    queueLength,
-		fullChannelBehavior: fullChannelBehavior,
-	}
-	m.distributing.Add(1)
-	go m.loop()
-	return m
-}
-
-// NewLongQueueBroadcaster functions nearly identically to NewBroadcaster,
-// except that the incoming queue is the same size as the outgoing queues
-// (specified by queueLength).
-func NewLongQueueBroadcaster(queueLength int, fullChannelBehavior FullChannelBehavior) *Broadcaster {
-	m := &Broadcaster{
-		watchers:            map[int64]*broadcasterWatcher{},
-		incoming:            make(chan Event, queueLength),
 		stopped:             make(chan struct{}),
 		watchQueueLength:    queueLength,
 		fullChannelBehavior: fullChannelBehavior,
@@ -115,8 +95,6 @@ func (obj functionFakeRuntimeObject) DeepCopyObject() runtime.Object {
 // won't ever see that event, and will always see any event after they are
 // added.
 func (m *Broadcaster) blockQueue(f func()) {
-	m.incomingBlock.Lock()
-	defer m.incomingBlock.Unlock()
 	select {
 	case <-m.stopped:
 		return
@@ -138,7 +116,7 @@ func (m *Broadcaster) blockQueue(f func()) {
 // Note: new watchers will only receive new events. They won't get an entire history
 // of previous events. It will block until the watcher is actually added to the
 // broadcaster.
-func (m *Broadcaster) Watch() (Interface, error) {
+func (m *Broadcaster) Watch() Interface {
 	var w *broadcasterWatcher
 	m.blockQueue(func() {
 		id := m.nextWatcher
@@ -152,9 +130,11 @@ func (m *Broadcaster) Watch() (Interface, error) {
 		m.watchers[id] = w
 	})
 	if w == nil {
-		return nil, fmt.Errorf("broadcaster already stopped")
+		// The panic here is to be consistent with the previous interface behavior
+		// we are willing to re-evaluate in the future.
+		panic("broadcaster already stopped")
 	}
-	return w, nil
+	return w
 }
 
 // WatchWithPrefix adds a new watcher to the list and returns an Interface for it. It sends
@@ -162,7 +142,7 @@ func (m *Broadcaster) Watch() (Interface, error) {
 // The returned watch will have a queue length that is at least large enough to accommodate
 // all of the items in queuedEvents. It will block until the watcher is actually added to
 // the broadcaster.
-func (m *Broadcaster) WatchWithPrefix(queuedEvents []Event) (Interface, error) {
+func (m *Broadcaster) WatchWithPrefix(queuedEvents []Event) Interface {
 	var w *broadcasterWatcher
 	m.blockQueue(func() {
 		id := m.nextWatcher
@@ -183,9 +163,11 @@ func (m *Broadcaster) WatchWithPrefix(queuedEvents []Event) (Interface, error) {
 		}
 	})
 	if w == nil {
-		return nil, fmt.Errorf("broadcaster already stopped")
+		// The panic here is to be consistent with the previous interface behavior
+		// we are willing to re-evaluate in the future.
+		panic("broadcaster already stopped")
 	}
-	return w, nil
+	return w
 }
 
 // stopWatching stops the given watcher and removes it from the list.
@@ -212,39 +194,8 @@ func (m *Broadcaster) closeAll() {
 }
 
 // Action distributes the given event among all watchers.
-func (m *Broadcaster) Action(action EventType, obj runtime.Object) error {
-	m.incomingBlock.Lock()
-	defer m.incomingBlock.Unlock()
-	select {
-	case <-m.stopped:
-		return fmt.Errorf("broadcaster already stopped")
-	default:
-	}
-
+func (m *Broadcaster) Action(action EventType, obj runtime.Object) {
 	m.incoming <- Event{action, obj}
-	return nil
-}
-
-// Action distributes the given event among all watchers, or drops it on the floor
-// if too many incoming actions are queued up.  Returns true if the action was sent,
-// false if dropped.
-func (m *Broadcaster) ActionOrDrop(action EventType, obj runtime.Object) (bool, error) {
-	m.incomingBlock.Lock()
-	defer m.incomingBlock.Unlock()
-
-	// Ensure that if the broadcaster is stopped we do not send events to it.
-	select {
-	case <-m.stopped:
-		return false, fmt.Errorf("broadcaster already stopped")
-	default:
-	}
-
-	select {
-	case m.incoming <- Event{action, obj}:
-		return true, nil
-	default:
-		return false, nil
-	}
 }
 
 // Shutdown disconnects all watchers (but any queued events will still be distributed).

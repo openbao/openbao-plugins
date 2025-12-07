@@ -129,6 +129,25 @@ type RecordSetter interface {
 	// zone so that for each RRset in the input, the records provided in the input
 	// are the only members of their RRset in the output zone.
 	//
+	// SetRecords is distinct from [libdns.RecordAppender.AppendRecords] in that
+	// AppendRecords *only* adds records to the zone, while SetRecords may also
+	// delete records if necessary. Therefore, SetRecords behaves similarly to
+	// the following code:
+	//
+	//	func SetRecords(ctx context.Context, zone string, recs []Record) ([]Record, error) {
+	//		prevs, _ := p.GetRecords(ctx, zone)
+	//		toDelete := []Record{}
+	//		for _, prev := range prevs {
+	//			for _, new := range recs {
+	//				if prev.RR().Name == new.RR().Name && prev.RR().Type == new.RR().Type {
+	//					toDelete = append(toDelete, prev)
+	//				}
+	//			}
+	//		}
+	//		DeleteRecords(ctx, zone, toDelete)
+	//		return AppendRecords(ctx, zone, recs)
+	//	}
+	//
 	// Implementations may decide whether or not to support DNSSEC-related records
 	// in calls to SetRecords, but should document their decision. Note that the
 	// decision to support DNSSEC records in SetRecords is independent of the
@@ -136,14 +155,16 @@ type RecordSetter interface {
 	// should not blindly call SetRecords with the output of
 	// [libdns.RecordGetter.GetRecords].
 	//
-	// Calls to SetRecords are presumed to be atomic; that is, if err == nil,
-	// then all of the requested changes were made; if err != nil, then none of
-	// the requested changes were made, and the zone is as if the method was
-	// never called. Some provider APIs may not support atomic operations, so it
-	// is recommended that implementations synthesize atomicity by transparently
-	// rolling back changes on failure; if this is not possible, then it should
-	// be clearly documented that errors may result in partial changes to the
-	// zone.
+	// If possible, implementations should make SetRecords atomic, such that if
+	// err == nil, then all of the requested changes were made, and if err != nil,
+	// then the zone remains as if the method was never called. However, as very
+	// few providers offer batch/atomic operations, the actual result of a call
+	// where err != nil is undefined. Implementations may implement synthetic
+	// atomicity that rolls back partial changes on failure ONLY if it can be
+	// done reliably. For calls that error atomically, implementations should
+	// return [AtomicErr] as the error so callers may know that their zone remains
+	// in a consistent state. Implementations should document their atomicity
+	// guarantees (or lack thereof).
 	//
 	// If SetRecords is used to add a CNAME record to a name with other existing
 	// non-DNSSEC records, implementations may either fail with an error, add
@@ -177,22 +198,22 @@ type RecordSetter interface {
 	// Example 2:
 	//
 	//	;; Original zone
-	//	a.example.com. 3600 IN AAAA 2001:db8::1
-	//	a.example.com. 3600 IN AAAA 2001:db8::2
-	//	b.example.com. 3600 IN AAAA 2001:db8::3
-	//	b.example.com. 3600 IN AAAA 2001:db8::4
+	//	alpha.example.com. 3600 IN AAAA 2001:db8::1
+	//	alpha.example.com. 3600 IN AAAA 2001:db8::2
+	//	beta.example.com.  3600 IN AAAA 2001:db8::3
+	//	beta.example.com.  3600 IN AAAA 2001:db8::4
 	//
 	//	;; Input
-	//	a.example.com. 3600 IN AAAA 2001:db8::1
-	//	a.example.com. 3600 IN AAAA 2001:db8::2
-	//	a.example.com. 3600 IN AAAA 2001:db8::5
+	//	alpha.example.com. 3600 IN AAAA 2001:db8::1
+	//	alpha.example.com. 3600 IN AAAA 2001:db8::2
+	//	alpha.example.com. 3600 IN AAAA 2001:db8::5
 	//
 	//	;; Resultant zone
-	//	a.example.com. 3600 IN AAAA 2001:db8::1
-	//	a.example.com. 3600 IN AAAA 2001:db8::2
-	//	a.example.com. 3600 IN AAAA 2001:db8::5
-	//	b.example.com. 3600 IN AAAA 2001:db8::3
-	//	b.example.com. 3600 IN AAAA 2001:db8::4
+	//	alpha.example.com. 3600 IN AAAA 2001:db8::1
+	//	alpha.example.com. 3600 IN AAAA 2001:db8::2
+	//	alpha.example.com. 3600 IN AAAA 2001:db8::5
+	//	beta.example.com.  3600 IN AAAA 2001:db8::3
+	//	beta.example.com.  3600 IN AAAA 2001:db8::4
 	SetRecords(ctx context.Context, zone string, recs []Record) ([]Record, error)
 }
 
@@ -290,3 +311,9 @@ func AbsoluteName(name, zone string) string {
 	}
 	return name + "." + zone
 }
+
+// AtomicErr should be returned as the error when a method errors
+// atomically. When this error type is returned, the caller can
+// know that their zone remains in a consistent state despite an
+// error.
+type AtomicErr error

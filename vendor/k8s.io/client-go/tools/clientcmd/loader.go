@@ -18,12 +18,16 @@ package clientcmd
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	goruntime "runtime"
 	"strings"
 
+	"github.com/imdario/mergo"
 	"k8s.io/klog/v2"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,24 +48,24 @@ const (
 )
 
 var (
-	RecommendedConfigDir  = filepath.Join(homedir.HomeDir(), RecommendedHomeDir)
-	RecommendedHomeFile   = filepath.Join(RecommendedConfigDir, RecommendedFileName)
-	RecommendedSchemaFile = filepath.Join(RecommendedConfigDir, RecommendedSchemaName)
+	RecommendedConfigDir  = path.Join(homedir.HomeDir(), RecommendedHomeDir)
+	RecommendedHomeFile   = path.Join(RecommendedConfigDir, RecommendedFileName)
+	RecommendedSchemaFile = path.Join(RecommendedConfigDir, RecommendedSchemaName)
 )
 
 // currentMigrationRules returns a map that holds the history of recommended home directories used in previous versions.
 // Any future changes to RecommendedHomeFile and related are expected to add a migration rule here, in order to make
 // sure existing config files are migrated to their new locations properly.
 func currentMigrationRules() map[string]string {
-	var oldRecommendedHomeFileName string
+	oldRecommendedHomeFile := path.Join(os.Getenv("HOME"), "/.kube/.kubeconfig")
+	oldRecommendedWindowsHomeFile := path.Join(os.Getenv("HOME"), RecommendedHomeDir, RecommendedFileName)
+
+	migrationRules := map[string]string{}
+	migrationRules[RecommendedHomeFile] = oldRecommendedHomeFile
 	if goruntime.GOOS == "windows" {
-		oldRecommendedHomeFileName = RecommendedFileName
-	} else {
-		oldRecommendedHomeFileName = ".kubeconfig"
+		migrationRules[RecommendedHomeFile] = oldRecommendedWindowsHomeFile
 	}
-	return map[string]string{
-		RecommendedHomeFile: filepath.Join(os.Getenv("HOME"), RecommendedHomeDir, oldRecommendedHomeFileName),
-	}
+	return migrationRules
 }
 
 type ClientConfigLoader interface {
@@ -127,28 +131,6 @@ type ClientConfigLoadingRules struct {
 	// WarnIfAllMissing indicates whether the configuration files pointed by KUBECONFIG environment variable are present or not.
 	// In case of missing files, it warns the user about the missing files.
 	WarnIfAllMissing bool
-
-	// Warner is the warning log callback to use in case of missing files.
-	Warner WarningHandler
-}
-
-// WarningHandler allows to set the logging function to use
-type WarningHandler func(error)
-
-func (handler WarningHandler) Warn(err error) {
-	if handler == nil {
-		klog.V(1).Info(err)
-	} else {
-		handler(err)
-	}
-}
-
-type MissingConfigError struct {
-	Missing []string
-}
-
-func (c MissingConfigError) Error() string {
-	return fmt.Sprintf("Config not found: %s", strings.Join(c.Missing, ", "))
 }
 
 // ClientConfigLoadingRules implements the ClientConfigLoader interface.
@@ -180,10 +162,8 @@ func NewDefaultClientConfigLoadingRules() *ClientConfigLoadingRules {
 
 // Load starts by running the MigrationRules and then
 // takes the loading rules and returns a Config object based on following rules.
-//
-//	if the ExplicitPath, return the unmerged explicit file
-//	Otherwise, return a merged config based on the Precedence slice
-//
+//   if the ExplicitPath, return the unmerged explicit file
+//   Otherwise, return a merged config based on the Precedence slice
 // A missing ExplicitPath file produces an error. Empty filenames or other missing files are ignored.
 // Read errors or files with non-deserializable content produce errors.
 // The first file to set a particular map key wins and map key's value is never changed.
@@ -240,16 +220,14 @@ func (rules *ClientConfigLoadingRules) Load() (*clientcmdapi.Config, error) {
 	}
 
 	if rules.WarnIfAllMissing && len(missingList) > 0 && len(kubeconfigs) == 0 {
-		rules.Warner.Warn(MissingConfigError{Missing: missingList})
+		klog.Warningf("Config not found: %s", strings.Join(missingList, ", "))
 	}
 
 	// first merge all of our maps
 	mapConfig := clientcmdapi.NewConfig()
 
 	for _, kubeconfig := range kubeconfigs {
-		if err := merge(mapConfig, kubeconfig); err != nil {
-			return nil, err
-		}
+		mergo.MergeWithOverwrite(mapConfig, kubeconfig)
 	}
 
 	// merge all of the struct values in the reverse order so that priority is given correctly
@@ -257,20 +235,14 @@ func (rules *ClientConfigLoadingRules) Load() (*clientcmdapi.Config, error) {
 	nonMapConfig := clientcmdapi.NewConfig()
 	for i := len(kubeconfigs) - 1; i >= 0; i-- {
 		kubeconfig := kubeconfigs[i]
-		if err := merge(nonMapConfig, kubeconfig); err != nil {
-			return nil, err
-		}
+		mergo.MergeWithOverwrite(nonMapConfig, kubeconfig)
 	}
 
 	// since values are overwritten, but maps values are not, we can merge the non-map config on top of the map config and
 	// get the values we expect.
 	config := clientcmdapi.NewConfig()
-	if err := merge(config, mapConfig); err != nil {
-		return nil, err
-	}
-	if err := merge(config, nonMapConfig); err != nil {
-		return nil, err
-	}
+	mergo.MergeWithOverwrite(config, mapConfig)
+	mergo.MergeWithOverwrite(config, nonMapConfig)
 
 	if rules.ResolvePaths() {
 		if err := ResolveLocalPaths(config); err != nil {
@@ -311,13 +283,18 @@ func (rules *ClientConfigLoadingRules) Migrate() error {
 			return fmt.Errorf("cannot migrate %v to %v because it is a directory", source, destination)
 		}
 
-		data, err := os.ReadFile(source)
+		in, err := os.Open(source)
 		if err != nil {
 			return err
 		}
-		// destination is created with mode 0666 before umask
-		err = os.WriteFile(destination, data, 0666)
+		defer in.Close()
+		out, err := os.Create(destination)
 		if err != nil {
+			return err
+		}
+		defer out.Close()
+
+		if _, err = io.Copy(out, in); err != nil {
 			return err
 		}
 	}
@@ -391,7 +368,7 @@ func (rules *ClientConfigLoadingRules) IsDefaultConfig(config *restclient.Config
 
 // LoadFromFile takes a filename and deserializes the contents into Config object
 func LoadFromFile(filename string) (*clientcmdapi.Config, error) {
-	kubeconfigBytes, err := os.ReadFile(filename)
+	kubeconfigBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +434,7 @@ func WriteToFile(config clientcmdapi.Config, filename string) error {
 		}
 	}
 
-	if err := os.WriteFile(filename, content, 0600); err != nil {
+	if err := ioutil.WriteFile(filename, content, 0600); err != nil {
 		return err
 	}
 	return nil

@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hkdf"
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
@@ -14,7 +15,6 @@ import (
 	"hash"
 
 	wrapping "github.com/openbao/go-kms-wrapping/v2"
-	"golang.org/x/crypto/hkdf"
 )
 
 // Wrapper implements the wrapping.Wrapper interface for AEAD
@@ -95,17 +95,18 @@ func (s *Wrapper) NewDerivedWrapper(opt ...wrapping.Option) (*Wrapper, error) {
 	ret := &Wrapper{
 		keyId: opts.WithKeyId,
 	}
-	reader := hkdf.New(h, s.keyBytes, opts.WithSalt, opts.WithInfo)
 
 	switch opts.WithAeadType {
 	case wrapping.AeadTypeAesGcm:
 		ret.keyBytes = make([]byte, len(s.keyBytes))
-		n, err := reader.Read(ret.keyBytes)
+		keyBytes, err := hkdf.Key(h, s.keyBytes, opts.WithSalt, string(opts.WithInfo), len(s.keyBytes))
 		if err != nil {
 			return nil, fmt.Errorf("error reading bytes from derived reader: %w", err)
 		}
-		if n != len(s.keyBytes) {
-			return nil, fmt.Errorf("expected to read %d bytes, but read %d bytes from derived reader", len(s.keyBytes), n)
+		ret.keyBytes = keyBytes
+
+		if (len(ret.keyBytes)) != len(s.keyBytes) {
+			return nil, fmt.Errorf("expected to read %d bytes, but read %d bytes from derived reader", len(s.keyBytes), len(keyBytes))
 		}
 		if err := ret.SetAesGcmKeyBytes(ret.keyBytes); err != nil {
 			return nil, fmt.Errorf("error setting derived AES GCM key: %w", err)
@@ -182,7 +183,7 @@ func (s *Wrapper) SetAesGcmKeyBytes(key []byte) error {
 		return err
 	}
 
-	aead, err := cipher.NewGCM(aesCipher)
+	aead, err := cipher.NewGCMWithRandomNonce(aesCipher)
 	if err != nil {
 		return err
 	}
@@ -230,19 +231,10 @@ func (s *Wrapper) Encrypt(_ context.Context, plaintext []byte, opt ...wrapping.O
 		opts.WithRandomReader = rand.Reader
 	}
 
-	iv := make([]byte, 12)
-	n, err := opts.WithRandomReader.Read(iv)
-	if err != nil {
-		return nil, err
-	}
-	if n != 12 {
-		return nil, fmt.Errorf("expected to read %d bytes for iv, got %d", 12, n)
-	}
-
-	ciphertext := s.aead.Seal(nil, iv, plaintext, opts.WithAad)
+	ciphertext := s.aead.Seal(nil, nil, plaintext, opts.WithAad)
 
 	return &wrapping.BlobInfo{
-		Ciphertext: append(iv, ciphertext...),
+		Ciphertext: ciphertext,
 		KeyInfo: &wrapping.KeyInfo{
 			KeyId: s.keyId,
 		},
@@ -269,9 +261,7 @@ func (s *Wrapper) Decrypt(_ context.Context, in *wrapping.BlobInfo, opt ...wrapp
 		return nil, err
 	}
 
-	iv, ciphertext := in.Ciphertext[:12], in.Ciphertext[12:]
-
-	plaintext, err := s.aead.Open(nil, iv, ciphertext, opts.WithAad)
+	plaintext, err := s.aead.Open(nil, nil, in.Ciphertext, opts.WithAad)
 	if err != nil {
 		return nil, err
 	}

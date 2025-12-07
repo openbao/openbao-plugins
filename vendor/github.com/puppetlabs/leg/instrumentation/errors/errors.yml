@@ -1,0 +1,30 @@
+version: 1
+domain:
+  key: hi
+  title: Horsehead Instrumentation
+sections:
+  metrics:
+    title: Metrics errors
+    errors:
+      unknown_error:
+        title: Unknown error
+        description: The backend {{backend}} returned an unknown error
+        arguments:
+          backend:
+            description: the type of backend
+      not_found_error:
+        title: Not found error
+        description: The metric type {{type}} with name {{name}} was not found
+        arguments:
+          type:
+            description: the type of metric
+          name:
+            description: the name of the metric
+
+  alerts:
+    title: Alerting errors
+    errors:
+      sentry_initialization_error:
+        title: Sentry initialization error
+        description: >
+          The Sentry alerting service could not be configured.

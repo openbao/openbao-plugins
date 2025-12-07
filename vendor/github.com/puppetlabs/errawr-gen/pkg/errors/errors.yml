@@ -1,0 +1,43 @@
+version: 1
+domain:
+  key: errawr
+  title: Errawr Generator
+sections:
+  #
+  # Document errors
+  #
+  doc:
+    title: Document errors
+    errors:
+      no_version_error:
+        title: Document does not have version information
+        description: >
+          The input document does not have a version key.
+      unknown_version_error:
+        title: Unknown version
+        description: >
+          The document version is {{document_version}}, but we expected
+          {{#join expected_versions}}{{this}}{{/join}}.
+        arguments:
+          document_version:
+            description: the version given in the input document
+          expected_versions:
+            type: list<string>
+            description: the versions known to this application
+      parse_error:
+        title: Parse error
+        description: >
+          The YAML document failed to parse.
+      validation_error:
+        title: Validation error
+        description: >
+          The YAML document does not conform to the errawr schema.
+          {{#if errors}}
+
+          {{#enum errors}}{{this}}{{/enum}}
+          {{/if}}
+        arguments:
+          errors:
+            type: list<string>
+            description: the problems with the document
+            default: []

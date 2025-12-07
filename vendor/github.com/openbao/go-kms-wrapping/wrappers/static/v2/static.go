@@ -8,13 +8,11 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/hashicorp/go-hclog"
@@ -196,26 +194,15 @@ func (s *Wrapper) Encrypt(ctx context.Context, plaintext []byte, opts ...wrappin
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cipher: %w", err)
 	}
-	gcm, err := cipher.NewGCM(block)
+	gcm, err := cipher.NewGCMWithRandomNonce(block)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GCM: %w", err)
 	}
 
-	var nonce []byte
-	if len(opt.WithIv) != 12 {
-		nonce = make([]byte, 12)
-		if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-			return nil, fmt.Errorf("failed to generate nonce: %w", err)
-		}
-	} else {
-		nonce = opt.WithIv
-	}
-
-	ciphertext := gcm.Seal(nil, nonce, plaintext, opt.WithAad)
+	ciphertext := gcm.Seal(nil, nil, plaintext, opt.WithAad)
 
 	ret := &wrapping.BlobInfo{
 		Ciphertext: ciphertext,
-		Iv:         nonce,
 		KeyInfo: &wrapping.KeyInfo{
 			KeyId: s.currentKeyId,
 		},
@@ -250,12 +237,12 @@ func (s *Wrapper) decryptWithKey(ctx context.Context, in *wrapping.BlobInfo, key
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cipher: %w", err)
 	}
-	gcm, err := cipher.NewGCM(block)
+	gcm, err := cipher.NewGCMWithRandomNonce(block)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GCM: %w", err)
 	}
 
-	plaintext, err := gcm.Open(nil, in.Iv, in.Ciphertext, opt.WithAad)
+	plaintext, err := gcm.Open(nil, nil, in.Ciphertext, opt.WithAad)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open ciphertext: %w", err)
 	}
