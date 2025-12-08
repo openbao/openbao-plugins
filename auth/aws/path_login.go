@@ -33,6 +33,7 @@ import (
 	"github.com/hashicorp/go-secure-stdlib/strutil"
 	uuid "github.com/hashicorp/go-uuid"
 
+	"github.com/openbao/openbao-plugins/auth/aws/partitions"
 	"github.com/openbao/openbao-plugins/auth/aws/pkcs7"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/helper/cidrutil"
@@ -1846,12 +1847,12 @@ func (e *iamEntity) canonicalArn() string {
 func (b *backend) fullArn(ctx context.Context, e *iamEntity, s logical.Storage) (string, error) {
 	// Not assuming path is reliable for any entity types
 
-	region := b.partitionToRegionMap[e.Partition]
-	if region == nil {
+	region, ok := partitions.GetGlobalRegionForPartition(e.Partition)
+	if !ok {
 		return "", fmt.Errorf("unable to resolve partition %q to a region", e.Partition)
 	}
 
-	client, err := b.clientIAM(ctx, s, region.ID(), e.AccountNumber)
+	client, err := b.clientIAM(ctx, s, region, e.AccountNumber)
 	if err != nil {
 		return "", fmt.Errorf("error creating IAM client: %w", err)
 	}
