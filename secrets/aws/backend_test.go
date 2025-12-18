@@ -5,6 +5,7 @@ package aws
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,17 +17,19 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
+	credentialsv1 "github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/smithy-go"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/mitchellh/mapstructure"
 	logicaltest "github.com/openbao/openbao-plugins/internal/logical"
@@ -633,7 +636,7 @@ func testAccStepRotateRoot(oldAccessKey *awsAccessKey) logicaltest.TestStep {
 			awsConfig := &aws.Config{
 				Region:      aws.String("us-east-1"),
 				HTTPClient:  cleanhttp.DefaultClient(),
-				Credentials: credentials.NewStaticCredentials(oldAccessKey.AccessKeyID, oldAccessKey.SecretAccessKey, ""),
+				Credentials: credentialsv1.NewStaticCredentials(oldAccessKey.AccessKeyID, oldAccessKey.SecretAccessKey, ""),
 			}
 			// sigh....
 			oldAccessKey.AccessKeyID = newAccessKeyID
@@ -674,7 +677,7 @@ func testAccStepRead(t *testing.T, path, name string, credentialTests []credenti
 			}
 			log.Printf("[WARN] Generated credentials: %v", d)
 			for _, test := range credentialTests {
-				err := test(d.AccessKey, d.SecretKey, d.STSToken)
+				err := test(t.Context(), d.AccessKey, d.SecretKey, d.STSToken)
 				if err != nil {
 					return err
 				}
@@ -701,46 +704,35 @@ func testAccStepReadSTSResponse(name string, maximumTTL time.Duration) logicalte
 	}
 }
 
-func describeInstancesTest(accessKey, secretKey, token string) error {
-	creds := credentials.NewStaticCredentials(accessKey, secretKey, token)
-	awsConfig := &aws.Config{
-		Credentials: creds,
-		Region:      aws.String("us-east-1"),
+func describeInstancesTest(ctx context.Context, accessKey, secretKey, token string) error {
+	client := ec2.New(ec2.Options{
+		Credentials: credentials.NewStaticCredentialsProvider(accessKey, secretKey, token),
+		Region:      "us-east-1",
 		HTTPClient:  cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
-	if err != nil {
-		return err
-	}
-	client := ec2.New(sess)
+	})
 	log.Printf("[WARN] Verifying that the generated credentials work with ec2:DescribeInstances...")
 	return retryUntilSuccess(func() error {
-		_, err := client.DescribeInstances(&ec2.DescribeInstancesInput{})
+		_, err := client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{})
 		return err
 	})
 }
 
-func describeAzsTestUnauthorized(accessKey, secretKey, token string) error {
-	creds := credentials.NewStaticCredentials(accessKey, secretKey, token)
-	awsConfig := &aws.Config{
-		Credentials: creds,
-		Region:      aws.String("us-east-1"),
+func describeAzsTestUnauthorized(ctx context.Context, accessKey, secretKey, token string) error {
+	client := ec2.New(ec2.Options{
+		Credentials: credentials.NewStaticCredentialsProvider(accessKey, secretKey, token),
+		Region:      "us-east-1",
 		HTTPClient:  cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
-	if err != nil {
-		return err
-	}
-	client := ec2.New(sess)
+	})
 	log.Printf("[WARN] Verifying that the generated credentials don't work with ec2:DescribeAvailabilityZones...")
 	return retryUntilSuccess(func() error {
-		_, err := client.DescribeAvailabilityZones(&ec2.DescribeAvailabilityZonesInput{})
+		_, err := client.DescribeAvailabilityZones(ctx, &ec2.DescribeAvailabilityZonesInput{})
 		// Need to make sure AWS authenticates the generated credentials but does not authorize the operation
 		if err == nil {
 			return fmt.Errorf("operation succeeded when expected failure")
 		}
-		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() == "UnauthorizedOperation" {
+		var aerr smithy.APIError
+		if errors.As(err, &aerr) {
+			if aerr.ErrorCode() == "UnauthorizedOperation" {
 				return nil
 			}
 		}
@@ -748,8 +740,8 @@ func describeAzsTestUnauthorized(accessKey, secretKey, token string) error {
 	})
 }
 
-func assertCreatedIAMUser(accessKey, secretKey, token string) error {
-	creds := credentials.NewStaticCredentials(accessKey, secretKey, token)
+func assertCreatedIAMUser(ctx context.Context, accessKey, secretKey, token string) error {
+	creds := credentialsv1.NewStaticCredentials(accessKey, secretKey, token)
 	awsConfig := &aws.Config{
 		Credentials: creds,
 		Region:      aws.String("us-east-1"),
@@ -773,8 +765,8 @@ func assertCreatedIAMUser(accessKey, secretKey, token string) error {
 	return nil
 }
 
-func listIamUsersTest(accessKey, secretKey, token string) error {
-	creds := credentials.NewStaticCredentials(accessKey, secretKey, token)
+func listIamUsersTest(ctx context.Context, accessKey, secretKey, token string) error {
+	creds := credentialsv1.NewStaticCredentials(accessKey, secretKey, token)
 	awsConfig := &aws.Config{
 		Credentials: creds,
 		Region:      aws.String("us-east-1"),
@@ -792,40 +784,29 @@ func listIamUsersTest(accessKey, secretKey, token string) error {
 	})
 }
 
-func listDynamoTablesTest(accessKey, secretKey, token string) error {
-	creds := credentials.NewStaticCredentials(accessKey, secretKey, token)
-	awsConfig := &aws.Config{
-		Credentials: creds,
-		Region:      aws.String("us-east-1"),
+func listDynamoTablesTest(ctx context.Context, accessKey, secretKey, token string) error {
+	client := dynamodb.New(dynamodb.Options{
+		Credentials: credentials.NewStaticCredentialsProvider(accessKey, secretKey, token),
+		Region:      "us-east-1",
 		HTTPClient:  cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
-	if err != nil {
-		return err
-	}
-	client := dynamodb.New(sess)
+	})
+
 	log.Printf("[WARN] Verifying that the generated credentials work with dynamodb:ListTables...")
 	return retryUntilSuccess(func() error {
-		_, err := client.ListTables(&dynamodb.ListTablesInput{})
+		_, err := client.ListTables(ctx, &dynamodb.ListTablesInput{})
 		return err
 	})
 }
 
-func listS3BucketsTest(accessKey, secretKey, token string) error {
-	creds := credentials.NewStaticCredentials(accessKey, secretKey, token)
-	awsConfig := &aws.Config{
-		Credentials: creds,
-		Region:      aws.String("us-east-1"),
+func listS3BucketsTest(ctx context.Context, accessKey, secretKey, token string) error {
+	client := s3.New(s3.Options{
+		Credentials: credentials.NewStaticCredentialsProvider(accessKey, secretKey, token),
+		Region:      "us-east-1",
 		HTTPClient:  cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
-	if err != nil {
-		return err
-	}
-	client := s3.New(sess)
+	})
 	log.Printf("[WARN] Verifying that the generated credentials work with s3:ListBuckets...")
 	return retryUntilSuccess(func() error {
-		_, err := client.ListBuckets(&s3.ListBucketsInput{})
+		_, err := client.ListBuckets(ctx, &s3.ListBucketsInput{})
 		return err
 	})
 }
@@ -1556,4 +1537,4 @@ type awsAccessKey struct {
 	SecretAccessKey string
 }
 
-type credentialTestFunc func(string, string, string) error
+type credentialTestFunc func(context.Context, string, string, string) error
