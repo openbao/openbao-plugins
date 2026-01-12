@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
-	"github.com/aws/aws-sdk-go/service/sts/stsiface"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/openbao/openbao/sdk/v2/queue"
@@ -24,6 +24,11 @@ const (
 	operationPrefixAWS    = "aws"
 	operationPrefixAWSASD = "aws-config"
 )
+
+type STSAPI interface {
+	AssumeRole(ctx context.Context, params *sts.AssumeRoleInput, optFns ...func(*sts.Options)) (*sts.AssumeRoleOutput, error)
+	GetFederationToken(ctx context.Context, params *sts.GetFederationTokenInput, optFns ...func(*sts.Options)) (*sts.GetFederationTokenOutput, error)
+}
 
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
 	b := Backend(conf)
@@ -89,7 +94,7 @@ type backend struct {
 	// iamClient and stsClient hold configured iam and sts clients for reuse, and
 	// to enable mocking with AWS iface for tests
 	iamClient iamiface.IAMAPI
-	stsClient stsiface.STSAPI
+	stsClient STSAPI
 
 	// the age of a static role's credential is tracked by a priority queue and handled
 	// by the PeriodicFunc
@@ -150,7 +155,7 @@ func (b *backend) clientIAM(ctx context.Context, s logical.Storage) (iamiface.IA
 	return b.iamClient, nil
 }
 
-func (b *backend) clientSTS(ctx context.Context, s logical.Storage) (stsiface.STSAPI, error) {
+func (b *backend) clientSTS(ctx context.Context, s logical.Storage) (STSAPI, error) {
 	b.clientMutex.RLock()
 	if b.stsClient != nil {
 		b.clientMutex.RUnlock()

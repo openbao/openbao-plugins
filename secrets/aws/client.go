@@ -9,10 +9,10 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	awsv1 "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/sts"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
 	awsutilv1 "github.com/hashicorp/go-secure-stdlib/awsutil"
@@ -91,16 +91,12 @@ func nonCachedClientIAM(ctx context.Context, s logical.Storage, logger hclog.Log
 	return client, nil
 }
 
-func nonCachedClientSTS(ctx context.Context, s logical.Storage, logger hclog.Logger) (*sts.STS, error) {
-	awsConfig, err := getRootConfigV1(ctx, s, "sts", logger)
+func nonCachedClientSTS(ctx context.Context, s logical.Storage, logger hclog.Logger) (*sts.Client, error) {
+	awsConfig, err := getRootConfig(ctx, s, "sts", logger)
 	if err != nil {
 		return nil, err
 	}
-	sess, err := session.NewSession(awsConfig)
-	if err != nil {
-		return nil, err
-	}
-	client := sts.New(sess)
+	client := sts.NewFromConfig(*awsConfig)
 	if client == nil {
 		return nil, fmt.Errorf("could not obtain sts client")
 	}

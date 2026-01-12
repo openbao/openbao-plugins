@@ -14,9 +14,10 @@ import (
 	"github.com/openbao/openbao/sdk/v2/helper/template"
 	"github.com/openbao/openbao/sdk/v2/logical"
 
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+	ststypes "github.com/aws/aws-sdk-go-v2/service/sts/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/hashicorp/errwrap"
 )
 
@@ -95,7 +96,7 @@ func genUsername(displayName, policyName, userType, usernameTemplate string) (re
 
 func (b *backend) getFederationToken(ctx context.Context, s logical.Storage,
 	displayName, policyName, policy string, policyARNs []string,
-	iamGroups []string, lifeTimeInSeconds int64) (*logical.Response, error,
+	iamGroups []string, lifeTimeInSeconds int32) (*logical.Response, error,
 ) {
 	groupPolicies, groupPolicyARNs, err := b.getGroupPolicies(ctx, s, iamGroups)
 	if err != nil {
@@ -153,7 +154,7 @@ func (b *backend) getFederationToken(ctx context.Context, s logical.Storage,
 		return logical.ErrorResponse("must specify at least one of policy_arns or policy_document with %s credential_type", federationTokenCred), nil
 	}
 
-	tokenResp, err := stsClient.GetFederationTokenWithContext(ctx, getTokenInput)
+	tokenResp, err := stsClient.GetFederationToken(ctx, getTokenInput)
 	if err != nil {
 		return logical.ErrorResponse("Error generating STS keys: %s", err), awsutil.CheckAWSError(err)
 	}
@@ -184,7 +185,7 @@ func (b *backend) getFederationToken(ctx context.Context, s logical.Storage,
 
 func (b *backend) assumeRole(ctx context.Context, s logical.Storage,
 	displayName, roleName, roleArn, policy string, policyARNs []string,
-	iamGroups []string, lifeTimeInSeconds int64, roleSessionName string, externalID string) (*logical.Response, error,
+	iamGroups []string, lifeTimeInSeconds int32, roleSessionName string, externalID string) (*logical.Response, error,
 ) {
 
 	// grab any IAM group policies associated with the vault role, both inline
@@ -237,15 +238,15 @@ func (b *backend) assumeRole(ctx context.Context, s logical.Storage,
 		DurationSeconds: &lifeTimeInSeconds,
 	}
 	if policy != "" {
-		assumeRoleInput.SetPolicy(policy)
+		assumeRoleInput.Policy = aws.String(policy)
 	}
 	if len(policyARNs) > 0 {
-		assumeRoleInput.SetPolicyArns(convertPolicyARNs(policyARNs))
+		assumeRoleInput.PolicyArns = convertPolicyARNs(policyARNs)
 	}
 	if externalID != "" {
-		assumeRoleInput.SetExternalId(externalID)
+		assumeRoleInput.ExternalId = aws.String(externalID)
 	}
-	tokenResp, err := stsClient.AssumeRoleWithContext(ctx, assumeRoleInput)
+	tokenResp, err := stsClient.AssumeRole(ctx, assumeRoleInput)
 	if err != nil {
 		return logical.ErrorResponse("Error assuming role: %s", err), awsutil.CheckAWSError(err)
 	}
@@ -512,11 +513,11 @@ func normalizeDisplayName(displayName string) string {
 	return re.ReplaceAllString(displayName, "_")
 }
 
-func convertPolicyARNs(policyARNs []string) []*sts.PolicyDescriptorType {
+func convertPolicyARNs(policyARNs []string) []ststypes.PolicyDescriptorType {
 	size := len(policyARNs)
-	retval := make([]*sts.PolicyDescriptorType, size, size)
+	retval := make([]ststypes.PolicyDescriptorType, size, size)
 	for i, arn := range policyARNs {
-		retval[i] = &sts.PolicyDescriptorType{
+		retval[i] = ststypes.PolicyDescriptorType{
 			Arn: aws.String(arn),
 		}
 	}

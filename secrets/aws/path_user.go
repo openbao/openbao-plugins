@@ -83,22 +83,22 @@ func (b *backend) pathCredsRead(ctx context.Context, req *logical.Request, d *fr
 			"Role %q not found", roleName)), nil
 	}
 
-	var ttl int64
+	var ttl int32
 	ttlRaw, ok := d.GetOk("ttl")
 	switch {
 	case ok:
-		ttl = int64(ttlRaw.(int))
+		ttl = int32(ttlRaw.(int))
 	case role.DefaultSTSTTL > 0:
-		ttl = int64(role.DefaultSTSTTL.Seconds())
+		ttl = int32(role.DefaultSTSTTL.Seconds())
 	default:
-		ttl = int64(d.Get("ttl").(int))
+		ttl = int32(d.Get("ttl").(int))
 	}
 
-	var maxTTL int64
+	var maxTTL int32
 	if role.MaxSTSTTL > 0 {
-		maxTTL = int64(role.MaxSTSTTL.Seconds())
+		maxTTL = int32(role.MaxSTSTTL.Seconds())
 	} else {
-		maxTTL = int64(b.System().MaxLeaseTTL().Seconds())
+		maxTTL = int32(b.System().MaxLeaseTTL().Seconds())
 	}
 
 	if ttl > maxTTL {
