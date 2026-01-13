@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	credentialsv1 "github.com/aws/aws-sdk-go/aws/credentials"
@@ -28,7 +29,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
-	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/smithy-go"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/mitchellh/mapstructure"
@@ -87,7 +87,7 @@ func TestAcceptanceBackend_IamUserWithPermissionsBoundary(t *testing.T) {
 
 func TestAcceptanceBackend_basicSTS(t *testing.T) {
 	t.Parallel()
-	awsAccountID, err := getAccountID()
+	awsAccountID, err := getAccountID(t.Context())
 	if err != nil {
 		t.Logf("Unable to retrive user via sts:GetCallerIdentity: %#v", err)
 		t.Skip("Could not determine AWS account ID from sts:GetCallerIdentity for acceptance tests, skipping")
@@ -109,7 +109,7 @@ func TestAcceptanceBackend_basicSTS(t *testing.T) {
 		LogicalBackend: getBackend(t),
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigWithCreds(t, accessKey),
-			testAccStepRotateRoot(accessKey),
+			testAccStepRotateRoot(t.Context(), accessKey),
 			testAccStepWritePolicy(t, "test", testDynamoPolicy),
 			testAccStepRead(t, "sts", "test", []credentialTestFunc{listDynamoTablesTest}),
 			testAccStepWriteArnPolicyRef(t, "test", ec2PolicyArn),
@@ -232,19 +232,18 @@ func hasAWSCredentials() bool {
 	return creds.HasKeys()
 }
 
-func getAccountID() (string, error) {
-	awsConfig := &aws.Config{
-		Region:     aws.String("us-east-1"),
-		HTTPClient: cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
+func getAccountID(ctx context.Context) (string, error) {
+	awsConfig, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion("us-east-1"),
+		config.WithHTTPClient(cleanhttp.DefaultClient()),
+	)
 	if err != nil {
 		return "", err
 	}
-	svc := sts.New(sess)
+	svc := sts.NewFromConfig(awsConfig)
 
 	params := &sts.GetCallerIdentityInput{}
-	res, err := svc.GetCallerIdentity(params)
+	res, err := svc.GetCallerIdentity(ctx, params)
 	if err != nil {
 		return "", err
 	}
@@ -621,7 +620,7 @@ func testAccStepConfigWithCreds(t *testing.T, accessKey *awsAccessKey) logicalte
 	}
 }
 
-func testAccStepRotateRoot(oldAccessKey *awsAccessKey) logicaltest.TestStep {
+func testAccStepRotateRoot(ctx context.Context, oldAccessKey *awsAccessKey) logicaltest.TestStep {
 	return logicaltest.TestStep{
 		Operation: logical.UpdateOperation,
 		Path:      "config/rotate-root",
@@ -633,26 +632,21 @@ func testAccStepRotateRoot(oldAccessKey *awsAccessKey) logicaltest.TestStep {
 			if newAccessKeyID == oldAccessKey.AccessKeyID {
 				return fmt.Errorf("rotate-root didn't rotate access key")
 			}
-			awsConfig := &aws.Config{
-				Region:      aws.String("us-east-1"),
-				HTTPClient:  cleanhttp.DefaultClient(),
-				Credentials: credentialsv1.NewStaticCredentials(oldAccessKey.AccessKeyID, oldAccessKey.SecretAccessKey, ""),
-			}
-			// sigh....
-			oldAccessKey.AccessKeyID = newAccessKeyID
 			log.Println("[WARN] Sleeping for 10 seconds waiting for AWS...")
 			time.Sleep(10 * time.Second)
-			sess, err := session.NewSession(awsConfig)
-			if err != nil {
-				return err
-			}
-			svc := sts.New(sess)
+			svc := sts.New(sts.Options{
+				Region:      "us-east-1",
+				HTTPClient:  cleanhttp.DefaultClient(),
+				Credentials: credentials.NewStaticCredentialsProvider(oldAccessKey.AccessKeyID, oldAccessKey.SecretAccessKey, ""),
+			})
 			params := &sts.GetCallerIdentityInput{}
-			if _, err := svc.GetCallerIdentity(params); err == nil {
+			_, err := svc.GetCallerIdentity(ctx, params)
+			if err == nil {
 				return fmt.Errorf("bad: old credentials succeeded after rotate")
 			}
-			if aerr, ok := err.(awserr.Error); ok {
-				if aerr.Code() != "InvalidClientTokenId" {
+			var aerr smithy.APIError
+			if errors.As(err, &aerr) {
+				if aerr.ErrorCode() != "InvalidClientTokenId" {
 					return fmt.Errorf("Unknown error returned from AWS: %#v", aerr)
 				}
 				return nil
@@ -1094,7 +1088,7 @@ func TestAcceptanceBackend_AssumedRoleWithPolicyDoc(t *testing.T) {
 	}]
 }
 `
-	awsAccountID, err := getAccountID()
+	awsAccountID, err := getAccountID(t.Context())
 	if err != nil {
 		t.Logf("Unable to retrive user via sts:GetCallerIdentity: %#v", err)
 		t.Skip("Could not determine AWS account ID from sts:GetCallerIdentity for acceptance tests, skipping")
@@ -1130,7 +1124,7 @@ func TestAcceptanceBackend_AssumedRoleWithPolicyARN(t *testing.T) {
 	t.Parallel()
 	roleName := generateUniqueRoleName(t.Name())
 
-	awsAccountID, err := getAccountID()
+	awsAccountID, err := getAccountID(t.Context())
 	if err != nil {
 		t.Logf("Unable to retrive user via sts:GetCallerIdentity: %#v", err)
 		t.Skip("Could not determine AWS account ID from sts:GetCallerIdentity for acceptance tests, skipping")
@@ -1181,7 +1175,7 @@ func TestAcceptanceBackend_AssumedRoleWithGroups(t *testing.T) {
 		}
 	]
 }`
-	awsAccountID, err := getAccountID()
+	awsAccountID, err := getAccountID(t.Context())
 	if err != nil {
 		t.Logf("Unable to retrive user via sts:GetCallerIdentity: %#v", err)
 		t.Skip("Could not determine AWS account ID from sts:GetCallerIdentity for acceptance tests, skipping")
@@ -1303,7 +1297,7 @@ func TestAcceptanceBackend_RoleDefaultSTSTTL(t *testing.T) {
 	t.Parallel()
 	roleName := generateUniqueRoleName(t.Name())
 	minAwsAssumeRoleDuration := 900
-	awsAccountID, err := getAccountID()
+	awsAccountID, err := getAccountID(t.Context())
 	if err != nil {
 		t.Logf("Unable to retrive user via sts:GetCallerIdentity: %#v", err)
 		t.Skip("Could not determine AWS account ID from sts:GetCallerIdentity for acceptance tests, skipping")
