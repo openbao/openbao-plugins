@@ -25,9 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go/aws"
-	credentialsv1 "github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	iamv1 "github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/smithy-go"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/mitchellh/mapstructure"
@@ -119,10 +116,10 @@ func TestAcceptanceBackend_basicSTS(t *testing.T) {
 			testAccStepRead(t, "sts", "test2", []credentialTestFunc{describeInstancesTest}),
 		},
 		Teardown: func() error {
-			if err := deleteTestRole(roleName); err != nil {
+			if err := deleteTestRole(t.Context(), roleName); err != nil {
 				return err
 			}
-			return deleteTestUser(accessKey, userName)
+			return deleteTestUser(t.Context(), accessKey, userName)
 		},
 	})
 }
@@ -272,34 +269,34 @@ func createRole(t *testing.T, roleName, awsAccountID string, policyARNs []string
       ]
 }
 `
-	awsConfig := &aws.Config{
-		Region:     aws.String("us-east-1"),
-		HTTPClient: cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
+
+	awsConfig, err := config.LoadDefaultConfig(t.Context(),
+		config.WithRegion("us-east-1"),
+		config.WithHTTPClient(cleanhttp.DefaultClient()),
+	)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("AWS LoadDefaultConfig failed: %v", err)
 	}
-	svc := iamv1.New(sess)
+	svc := iam.NewFromConfig(awsConfig)
 	trustPolicy := fmt.Sprintf(testRoleAssumePolicy, awsAccountID)
 
-	params := &iamv1.CreateRoleInput{
+	params := &iam.CreateRoleInput{
 		AssumeRolePolicyDocument: aws.String(trustPolicy),
 		RoleName:                 aws.String(roleName),
 		Path:                     aws.String("/"),
 	}
 
 	log.Printf("[INFO] AWS CreateRole: %s", roleName)
-	if _, err := svc.CreateRole(params); err != nil {
+	if _, err := svc.CreateRole(t.Context(), params); err != nil {
 		t.Fatalf("AWS CreateRole failed: %v", err)
 	}
 
 	for _, policyARN := range policyARNs {
-		attachment := &iamv1.AttachRolePolicyInput{
+		attachment := &iam.AttachRolePolicyInput{
 			PolicyArn: aws.String(policyARN),
 			RoleName:  aws.String(roleName), // Required
 		}
-		_, err = svc.AttachRolePolicy(attachment)
+		_, err = svc.AttachRolePolicy(t.Context(), attachment)
 
 		if err != nil {
 			t.Fatalf("AWS AttachRolePolicy failed: %v", err)
@@ -337,46 +334,45 @@ func createUser(t *testing.T, userName string, accessKey *awsAccessKey) {
 	validity := time.Duration(2 * time.Hour)
 	expiry := time.Now().Add(validity)
 	timebombPolicy := fmt.Sprintf(timebombPolicyTemplate, expiry.Format(time.RFC3339))
-	awsConfig := &aws.Config{
-		Region:     aws.String("us-east-1"),
-		HTTPClient: cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
+	awsConfig, err := config.LoadDefaultConfig(t.Context(),
+		config.WithRegion("us-east-1"),
+		config.WithHTTPClient(cleanhttp.DefaultClient()),
+	)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("AWS LoadDefaultConfig failed: %v", err)
 	}
-	svc := iamv1.New(sess)
-	createUserInput := &iamv1.CreateUserInput{
+	svc := iam.NewFromConfig(awsConfig)
+	createUserInput := &iam.CreateUserInput{
 		UserName: aws.String(userName),
 	}
 	log.Printf("[INFO] AWS CreateUser: %s", userName)
-	if _, err := svc.CreateUser(createUserInput); err != nil {
+	if _, err := svc.CreateUser(t.Context(), createUserInput); err != nil {
 		t.Fatalf("AWS CreateUser failed: %v", err)
 	}
 
-	putPolicyInput := &iamv1.PutUserPolicyInput{
+	putPolicyInput := &iam.PutUserPolicyInput{
 		PolicyDocument: aws.String(timebombPolicy),
 		PolicyName:     aws.String("SelfDestructionTimebomb"),
 		UserName:       aws.String(userName),
 	}
-	_, err = svc.PutUserPolicy(putPolicyInput)
+	_, err = svc.PutUserPolicy(t.Context(), putPolicyInput)
 	if err != nil {
 		t.Fatalf("AWS PutUserPolicy failed: %v", err)
 	}
 
-	attachUserPolicyInput := &iamv1.AttachUserPolicyInput{
+	attachUserPolicyInput := &iam.AttachUserPolicyInput{
 		PolicyArn: aws.String("arn:aws:iam::aws:policy/AdministratorAccess"),
 		UserName:  aws.String(userName),
 	}
-	_, err = svc.AttachUserPolicy(attachUserPolicyInput)
+	_, err = svc.AttachUserPolicy(t.Context(), attachUserPolicyInput)
 	if err != nil {
 		t.Fatalf("AWS AttachUserPolicy failed, %v", err)
 	}
 
-	createAccessKeyInput := &iamv1.CreateAccessKeyInput{
+	createAccessKeyInput := &iam.CreateAccessKeyInput{
 		UserName: aws.String(userName),
 	}
-	createAccessKeyOutput, err := svc.CreateAccessKey(createAccessKeyInput)
+	createAccessKeyOutput, err := svc.CreateAccessKey(t.Context(), createAccessKeyInput)
 	if err != nil {
 		t.Fatalf("AWS CreateAccessKey failed: %v", err)
 	}
@@ -391,83 +387,84 @@ func createUser(t *testing.T, userName string, accessKey *awsAccessKey) {
 
 // Create an IAM Group and add an inline policy and managed policies if specified
 func createGroup(t *testing.T, groupName string, inlinePolicy string, managedPolicies []string) {
-	awsConfig := &aws.Config{
-		Region:     aws.String("us-east-1"),
-		HTTPClient: cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
+	awsConfig, err := config.LoadDefaultConfig(t.Context(),
+		config.WithRegion("us-east-1"),
+		config.WithHTTPClient(cleanhttp.DefaultClient()),
+	)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("AWS LoadDefaultConfig failed: %v", err)
 	}
-	svc := iamv1.New(sess)
-	createGroupInput := &iamv1.CreateGroupInput{
+	svc := iam.NewFromConfig(awsConfig)
+	createGroupInput := &iam.CreateGroupInput{
 		GroupName: aws.String(groupName),
 	}
 	log.Printf("[INFO] AWS CreateGroup: %s", groupName)
-	if _, err := svc.CreateGroup(createGroupInput); err != nil {
+	if _, err := svc.CreateGroup(t.Context(), createGroupInput); err != nil {
 		t.Fatalf("AWS CreateGroup failed: %v", err)
 	}
 
 	if len(inlinePolicy) > 0 {
-		putPolicyInput := &iamv1.PutGroupPolicyInput{
+		putPolicyInput := &iam.PutGroupPolicyInput{
 			PolicyDocument: aws.String(inlinePolicy),
 			PolicyName:     aws.String("InlinePolicy"),
 			GroupName:      aws.String(groupName),
 		}
-		_, err = svc.PutGroupPolicy(putPolicyInput)
+		_, err = svc.PutGroupPolicy(t.Context(), putPolicyInput)
 		if err != nil {
 			t.Fatalf("AWS PutGroupPolicy failed: %v", err)
 		}
 	}
 
 	for _, mp := range managedPolicies {
-		attachGroupPolicyInput := &iamv1.AttachGroupPolicyInput{
+		attachGroupPolicyInput := &iam.AttachGroupPolicyInput{
 			PolicyArn: aws.String(mp),
 			GroupName: aws.String(groupName),
 		}
-		_, err = svc.AttachGroupPolicy(attachGroupPolicyInput)
+		_, err = svc.AttachGroupPolicy(t.Context(), attachGroupPolicyInput)
 		if err != nil {
 			t.Fatalf("AWS AttachGroupPolicy failed, %v", err)
 		}
 	}
 }
 
-func deleteTestRole(roleName string) error {
-	awsConfig := &aws.Config{
-		Region:     aws.String("us-east-1"),
-		HTTPClient: cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
+func deleteTestRole(ctx context.Context, roleName string) error {
+	awsConfig, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion("us-east-1"),
+		config.WithHTTPClient(cleanhttp.DefaultClient()),
+	)
 	if err != nil {
 		return err
 	}
-	svc := iamv1.New(sess)
-	listAttachmentsInput := &iamv1.ListAttachedRolePoliciesInput{
+	svc := iam.NewFromConfig(awsConfig)
+	listAttachmentsInput := &iam.ListAttachedRolePoliciesInput{
 		RoleName: aws.String(roleName),
 	}
-	detacher := func(result *iamv1.ListAttachedRolePoliciesOutput, lastPage bool) bool {
+
+	paginator := iam.NewListAttachedRolePoliciesPaginator(svc, listAttachmentsInput)
+	for paginator.HasMorePages() {
+		result, err := paginator.NextPage(ctx)
+		if err != nil {
+			log.Printf("[WARN] AWS ListAttachedRolePolicies failed to fetch next page: %v", err)
+		}
+
 		for _, policy := range result.AttachedPolicies {
-			detachInput := &iamv1.DetachRolePolicyInput{
+			detachInput := &iam.DetachRolePolicyInput{
 				PolicyArn: policy.PolicyArn,
 				RoleName:  aws.String(roleName), // Required
 			}
-			_, err := svc.DetachRolePolicy(detachInput)
+			_, err := svc.DetachRolePolicy(ctx, detachInput)
 			if err != nil {
 				log.Printf("[WARN] AWS DetachRolePolicy failed for policy %s: %v", *policy.PolicyArn, err)
 			}
 		}
-		return true
-	}
-	if err := svc.ListAttachedRolePoliciesPages(listAttachmentsInput, detacher); err != nil {
-		log.Printf("[WARN] AWS DetachRolePolicy failed: %v", err)
 	}
 
-	params := &iamv1.DeleteRoleInput{
+	params := &iam.DeleteRoleInput{
 		RoleName: aws.String(roleName),
 	}
 
 	log.Printf("[INFO] AWS DeleteRole: %s", roleName)
-	_, err = svc.DeleteRole(params)
+	_, err = svc.DeleteRole(ctx, params)
 
 	if err != nil {
 		log.Printf("[WARN] AWS DeleteRole failed: %v", err)
@@ -476,49 +473,48 @@ func deleteTestRole(roleName string) error {
 	return nil
 }
 
-func deleteTestUser(accessKey *awsAccessKey, userName string) error {
-	awsConfig := &aws.Config{
-		Region:     aws.String("us-east-1"),
-		HTTPClient: cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
+func deleteTestUser(ctx context.Context, accessKey *awsAccessKey, userName string) error {
+	awsConfig, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion("us-east-1"),
+		config.WithHTTPClient(cleanhttp.DefaultClient()),
+	)
 	if err != nil {
 		return err
 	}
-	svc := iamv1.New(sess)
-	userDetachment := &iamv1.DetachUserPolicyInput{
+	svc := iam.NewFromConfig(awsConfig)
+	userDetachment := &iam.DetachUserPolicyInput{
 		PolicyArn: aws.String("arn:aws:iam::aws:policy/AdministratorAccess"),
 		UserName:  aws.String(userName),
 	}
-	if _, err := svc.DetachUserPolicy(userDetachment); err != nil {
+	if _, err := svc.DetachUserPolicy(ctx, userDetachment); err != nil {
 		log.Printf("[WARN] AWS DetachUserPolicy failed: %v", err)
 		return err
 	}
 
-	deleteAccessKeyInput := &iamv1.DeleteAccessKeyInput{
+	deleteAccessKeyInput := &iam.DeleteAccessKeyInput{
 		AccessKeyId: aws.String(accessKey.AccessKeyID),
 		UserName:    aws.String(userName),
 	}
-	_, err = svc.DeleteAccessKey(deleteAccessKeyInput)
+	_, err = svc.DeleteAccessKey(ctx, deleteAccessKeyInput)
 	if err != nil {
 		log.Printf("[WARN] AWS DeleteAccessKey failed: %v", err)
 		return err
 	}
 
-	deleteTestUserPolicyInput := &iamv1.DeleteUserPolicyInput{
+	deleteTestUserPolicyInput := &iam.DeleteUserPolicyInput{
 		PolicyName: aws.String("SelfDestructionTimebomb"),
 		UserName:   aws.String(userName),
 	}
-	_, err = svc.DeleteUserPolicy(deleteTestUserPolicyInput)
+	_, err = svc.DeleteUserPolicy(ctx, deleteTestUserPolicyInput)
 	if err != nil {
 		log.Printf("[WARN] AWS DeleteUserPolicy failed: %v", err)
 		return err
 	}
-	deleteTestUserInput := &iamv1.DeleteUserInput{
+	deleteTestUserInput := &iam.DeleteUserInput{
 		UserName: aws.String(userName),
 	}
 	log.Printf("[INFO] AWS DeleteUser: %s", userName)
-	_, err = svc.DeleteUser(deleteTestUserInput)
+	_, err = svc.DeleteUser(ctx, deleteTestUserInput)
 	if err != nil {
 		log.Printf("[WARN] AWS DeleteUser failed: %v", err)
 		return err
@@ -527,63 +523,62 @@ func deleteTestUser(accessKey *awsAccessKey, userName string) error {
 	return nil
 }
 
-func deleteTestGroup(groupName string) error {
-	awsConfig := &aws.Config{
-		Region:     aws.String("us-east-1"),
-		HTTPClient: cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
+func deleteTestGroup(ctx context.Context, groupName string) error {
+	awsConfig, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion("us-east-1"),
+		config.WithHTTPClient(cleanhttp.DefaultClient()),
+	)
 	if err != nil {
 		return err
 	}
-	svc := iamv1.New(sess)
+	svc := iam.NewFromConfig(awsConfig)
 
 	// Detach any managed group policies
-	getGroupsInput := &iamv1.ListAttachedGroupPoliciesInput{
+	getGroupsInput := &iam.ListAttachedGroupPoliciesInput{
 		GroupName: aws.String(groupName),
 	}
-	getGroupsOutput, err := svc.ListAttachedGroupPolicies(getGroupsInput)
+	getGroupsOutput, err := svc.ListAttachedGroupPolicies(ctx, getGroupsInput)
 	if err != nil {
 		log.Printf("[WARN] AWS ListAttachedGroupPolicies failed: %v", err)
 		return err
 	}
 	for _, g := range getGroupsOutput.AttachedPolicies {
-		detachGroupInput := &iamv1.DetachGroupPolicyInput{
+		detachGroupInput := &iam.DetachGroupPolicyInput{
 			GroupName: aws.String(groupName),
 			PolicyArn: g.PolicyArn,
 		}
-		if _, err := svc.DetachGroupPolicy(detachGroupInput); err != nil {
+		if _, err := svc.DetachGroupPolicy(ctx, detachGroupInput); err != nil {
 			log.Printf("[WARN] AWS DetachGroupPolicy failed: %v", err)
 			return err
 		}
 	}
 
 	// Remove any inline policies
-	listGroupPoliciesInput := &iamv1.ListGroupPoliciesInput{
+	listGroupPoliciesInput := &iam.ListGroupPoliciesInput{
 		GroupName: aws.String(groupName),
 	}
-	listGroupPoliciesOutput, err := svc.ListGroupPolicies(listGroupPoliciesInput)
+	listGroupPoliciesOutput, err := svc.ListGroupPolicies(ctx, listGroupPoliciesInput)
 	if err != nil {
 		log.Printf("[WARN] AWS ListGroupPolicies failed: %v", err)
 		return err
 	}
 	for _, g := range listGroupPoliciesOutput.PolicyNames {
-		deleteGroupPolicyInput := &iamv1.DeleteGroupPolicyInput{
+		deleteGroupPolicyInput := &iam.DeleteGroupPolicyInput{
 			GroupName:  aws.String(groupName),
-			PolicyName: g,
+			PolicyName: aws.String(g),
 		}
-		if _, err := svc.DeleteGroupPolicy(deleteGroupPolicyInput); err != nil {
+		if _, err := svc.DeleteGroupPolicy(ctx, deleteGroupPolicyInput); err != nil {
 			log.Printf("[WARN] AWS DeleteGroupPolicy failed: %v", err)
 			return err
 		}
 	}
 
 	// Delete the group
-	deleteTestGroupInput := &iamv1.DeleteGroupInput{
+	deleteTestGroupInput := &iam.DeleteGroupInput{
 		GroupName: aws.String(groupName),
 	}
 	log.Printf("[INFO] AWS DeleteGroup: %s", groupName)
-	_, err = svc.DeleteGroup(deleteTestGroupInput)
+	_, err = svc.DeleteGroup(ctx, deleteTestGroupInput)
 	if err != nil {
 		log.Printf("[WARN] AWS DeleteGroup failed: %v", err)
 		return err
@@ -736,19 +731,15 @@ func describeAzsTestUnauthorized(ctx context.Context, accessKey, secretKey, toke
 }
 
 func assertCreatedIAMUser(ctx context.Context, accessKey, secretKey, token string) error {
-	creds := credentialsv1.NewStaticCredentials(accessKey, secretKey, token)
-	awsConfig := &aws.Config{
+	creds := credentials.NewStaticCredentialsProvider(accessKey, secretKey, token)
+	client := iam.New(iam.Options{
 		Credentials: creds,
-		Region:      aws.String("us-east-1"),
+		Region:      "us-east-1",
 		HTTPClient:  cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
-	if err != nil {
-		return err
-	}
-	client := iamv1.New(sess)
+	})
+
 	log.Printf("[WARN] Checking if IAM User is created properly...")
-	userOutput, err := client.GetUser(&iamv1.GetUserInput{})
+	userOutput, err := client.GetUser(ctx, &iam.GetUserInput{})
 	if err != nil {
 		return err
 	}
@@ -761,20 +752,15 @@ func assertCreatedIAMUser(ctx context.Context, accessKey, secretKey, token strin
 }
 
 func listIamUsersTest(ctx context.Context, accessKey, secretKey, token string) error {
-	creds := credentialsv1.NewStaticCredentials(accessKey, secretKey, token)
-	awsConfig := &aws.Config{
+	creds := credentials.NewStaticCredentialsProvider(accessKey, secretKey, token)
+	client := iam.New(iam.Options{
 		Credentials: creds,
-		Region:      aws.String("us-east-1"),
+		Region:      "us-east-1",
 		HTTPClient:  cleanhttp.DefaultClient(),
-	}
-	sess, err := session.NewSession(awsConfig)
-	if err != nil {
-		return err
-	}
-	client := iamv1.New(sess)
+	})
 	log.Printf("[WARN] Verifying that the generated credentials work with iam:ListUsers...")
 	return retryUntilSuccess(func() error {
-		_, err := client.ListUsers(&iamv1.ListUsersInput{})
+		_, err := client.ListUsers(ctx, &iam.ListUsersInput{})
 		return err
 	})
 }
@@ -1017,7 +1003,7 @@ func TestAcceptanceBackend_iamUserManagedInlinePoliciesGroups(t *testing.T) {
 			testAccStepRead(t, "sts", "test", []credentialTestFunc{describeInstancesTest, listIamUsersTest, listDynamoTablesTest, listS3BucketsTest}),
 		},
 		Teardown: func() error {
-			return deleteTestGroup(groupName)
+			return deleteTestGroup(t.Context(), groupName)
 		},
 	})
 }
@@ -1062,10 +1048,10 @@ func TestAcceptanceBackend_iamUserGroups(t *testing.T) {
 			testAccStepRead(t, "sts", "test", []credentialTestFunc{describeInstancesTest, listIamUsersTest, listDynamoTablesTest, listS3BucketsTest}),
 		},
 		Teardown: func() error {
-			if err := deleteTestGroup(group1Name); err != nil {
+			if err := deleteTestGroup(t.Context(), group1Name); err != nil {
 				return err
 			}
-			return deleteTestGroup(group2Name)
+			return deleteTestGroup(t.Context(), group2Name)
 		},
 	})
 }
@@ -1116,7 +1102,7 @@ func TestAcceptanceBackend_AssumedRoleWithPolicyDoc(t *testing.T) {
 			testAccStepRead(t, "creds", "test", []credentialTestFunc{describeInstancesTest, describeAzsTestUnauthorized}),
 		},
 		Teardown: func() error {
-			return deleteTestRole(roleName)
+			return deleteTestRole(t.Context(), roleName)
 		},
 	})
 }
@@ -1151,7 +1137,7 @@ func TestAcceptanceBackend_AssumedRoleWithPolicyARN(t *testing.T) {
 			testAccStepRead(t, "creds", "test", []credentialTestFunc{listIamUsersTest, describeAzsTestUnauthorized}),
 		},
 		Teardown: func() error {
-			return deleteTestRole(roleName)
+			return deleteTestRole(t.Context(), roleName)
 		},
 	})
 }
@@ -1205,10 +1191,10 @@ func TestAcceptanceBackend_AssumedRoleWithGroups(t *testing.T) {
 			testAccStepRead(t, "creds", "test", []credentialTestFunc{describeInstancesTest, describeAzsTestUnauthorized}),
 		},
 		Teardown: func() error {
-			if err := deleteTestGroup(groupName); err != nil {
+			if err := deleteTestGroup(t.Context(), groupName); err != nil {
 				return err
 			}
-			return deleteTestRole(roleName)
+			return deleteTestRole(t.Context(), roleName)
 		},
 	})
 }
@@ -1239,7 +1225,7 @@ func TestAcceptanceBackend_FederationTokenWithPolicyARN(t *testing.T) {
 			testAccStepRead(t, "creds", "test", []credentialTestFunc{listDynamoTablesTest, describeAzsTestUnauthorized}),
 		},
 		Teardown: func() error {
-			return deleteTestUser(accessKey, userName)
+			return deleteTestUser(t.Context(), accessKey, userName)
 		},
 	})
 }
@@ -1286,10 +1272,10 @@ func TestAcceptanceBackend_FederationTokenWithGroups(t *testing.T) {
 			testAccStepRead(t, "creds", "test", []credentialTestFunc{listDynamoTablesTest, describeAzsTestUnauthorized, listS3BucketsTest}),
 		},
 		Teardown: func() error {
-			if err := deleteTestGroup(groupName); err != nil {
+			if err := deleteTestGroup(t.Context(), groupName); err != nil {
 				return err
 			}
-			return deleteTestUser(accessKey, userName)
+			return deleteTestUser(t.Context(), accessKey, userName)
 		},
 	})
 }
@@ -1324,7 +1310,7 @@ func TestAcceptanceBackend_RoleDefaultSTSTTL(t *testing.T) {
 			testAccStepReadSTSResponse("test", time.Duration(minAwsAssumeRoleDuration)*time.Second), // allow a little slack
 		},
 		Teardown: func() error {
-			return deleteTestRole(roleName)
+			return deleteTestRole(t.Context(), roleName)
 		},
 	})
 }
