@@ -20,15 +20,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	credentialsv1 "github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	iamv1 "github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/smithy-go"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/mitchellh/mapstructure"
@@ -40,11 +39,13 @@ import (
 var initSetup sync.Once
 
 type mockIAMClient struct {
-	iamiface.IAMAPI
+	IAMAPI
 }
 
-func (m *mockIAMClient) CreateUserWithContext(_ aws.Context, input *iam.CreateUserInput, _ ...request.Option) (*iam.CreateUserOutput, error) {
-	return nil, awserr.New("Throttling", "", nil)
+func (m *mockIAMClient) CreateUser(_ context.Context, params *iam.CreateUserInput, optFns ...func(*iam.Options)) (*iam.CreateUserOutput, error) {
+	return nil, &iamtypes.LimitExceededException{
+		ErrorCodeOverride: aws.String("LimitExceededException"),
+	}
 }
 
 func getBackend(t *testing.T) logical.Backend {
@@ -187,7 +188,7 @@ func TestBackend_throttled(t *testing.T) {
 		t.Fatalf("failed to trigger expected throttling error condition: resp:%#v", credResp)
 	}
 	rErr := credResp.Error()
-	expected := "Error creating IAM user: Throttling: "
+	expected := "Error creating IAM user: LimitExceededException: "
 	if rErr.Error() != expected {
 		t.Fatalf("error message did not match, expected (%s), got (%s)", expected, rErr.Error())
 	}
@@ -279,10 +280,10 @@ func createRole(t *testing.T, roleName, awsAccountID string, policyARNs []string
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc := iam.New(sess)
+	svc := iamv1.New(sess)
 	trustPolicy := fmt.Sprintf(testRoleAssumePolicy, awsAccountID)
 
-	params := &iam.CreateRoleInput{
+	params := &iamv1.CreateRoleInput{
 		AssumeRolePolicyDocument: aws.String(trustPolicy),
 		RoleName:                 aws.String(roleName),
 		Path:                     aws.String("/"),
@@ -294,7 +295,7 @@ func createRole(t *testing.T, roleName, awsAccountID string, policyARNs []string
 	}
 
 	for _, policyARN := range policyARNs {
-		attachment := &iam.AttachRolePolicyInput{
+		attachment := &iamv1.AttachRolePolicyInput{
 			PolicyArn: aws.String(policyARN),
 			RoleName:  aws.String(roleName), // Required
 		}
@@ -344,8 +345,8 @@ func createUser(t *testing.T, userName string, accessKey *awsAccessKey) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc := iam.New(sess)
-	createUserInput := &iam.CreateUserInput{
+	svc := iamv1.New(sess)
+	createUserInput := &iamv1.CreateUserInput{
 		UserName: aws.String(userName),
 	}
 	log.Printf("[INFO] AWS CreateUser: %s", userName)
@@ -353,7 +354,7 @@ func createUser(t *testing.T, userName string, accessKey *awsAccessKey) {
 		t.Fatalf("AWS CreateUser failed: %v", err)
 	}
 
-	putPolicyInput := &iam.PutUserPolicyInput{
+	putPolicyInput := &iamv1.PutUserPolicyInput{
 		PolicyDocument: aws.String(timebombPolicy),
 		PolicyName:     aws.String("SelfDestructionTimebomb"),
 		UserName:       aws.String(userName),
@@ -363,7 +364,7 @@ func createUser(t *testing.T, userName string, accessKey *awsAccessKey) {
 		t.Fatalf("AWS PutUserPolicy failed: %v", err)
 	}
 
-	attachUserPolicyInput := &iam.AttachUserPolicyInput{
+	attachUserPolicyInput := &iamv1.AttachUserPolicyInput{
 		PolicyArn: aws.String("arn:aws:iam::aws:policy/AdministratorAccess"),
 		UserName:  aws.String(userName),
 	}
@@ -372,7 +373,7 @@ func createUser(t *testing.T, userName string, accessKey *awsAccessKey) {
 		t.Fatalf("AWS AttachUserPolicy failed, %v", err)
 	}
 
-	createAccessKeyInput := &iam.CreateAccessKeyInput{
+	createAccessKeyInput := &iamv1.CreateAccessKeyInput{
 		UserName: aws.String(userName),
 	}
 	createAccessKeyOutput, err := svc.CreateAccessKey(createAccessKeyInput)
@@ -398,8 +399,8 @@ func createGroup(t *testing.T, groupName string, inlinePolicy string, managedPol
 	if err != nil {
 		t.Fatal(err)
 	}
-	svc := iam.New(sess)
-	createGroupInput := &iam.CreateGroupInput{
+	svc := iamv1.New(sess)
+	createGroupInput := &iamv1.CreateGroupInput{
 		GroupName: aws.String(groupName),
 	}
 	log.Printf("[INFO] AWS CreateGroup: %s", groupName)
@@ -408,7 +409,7 @@ func createGroup(t *testing.T, groupName string, inlinePolicy string, managedPol
 	}
 
 	if len(inlinePolicy) > 0 {
-		putPolicyInput := &iam.PutGroupPolicyInput{
+		putPolicyInput := &iamv1.PutGroupPolicyInput{
 			PolicyDocument: aws.String(inlinePolicy),
 			PolicyName:     aws.String("InlinePolicy"),
 			GroupName:      aws.String(groupName),
@@ -420,7 +421,7 @@ func createGroup(t *testing.T, groupName string, inlinePolicy string, managedPol
 	}
 
 	for _, mp := range managedPolicies {
-		attachGroupPolicyInput := &iam.AttachGroupPolicyInput{
+		attachGroupPolicyInput := &iamv1.AttachGroupPolicyInput{
 			PolicyArn: aws.String(mp),
 			GroupName: aws.String(groupName),
 		}
@@ -440,13 +441,13 @@ func deleteTestRole(roleName string) error {
 	if err != nil {
 		return err
 	}
-	svc := iam.New(sess)
-	listAttachmentsInput := &iam.ListAttachedRolePoliciesInput{
+	svc := iamv1.New(sess)
+	listAttachmentsInput := &iamv1.ListAttachedRolePoliciesInput{
 		RoleName: aws.String(roleName),
 	}
-	detacher := func(result *iam.ListAttachedRolePoliciesOutput, lastPage bool) bool {
+	detacher := func(result *iamv1.ListAttachedRolePoliciesOutput, lastPage bool) bool {
 		for _, policy := range result.AttachedPolicies {
-			detachInput := &iam.DetachRolePolicyInput{
+			detachInput := &iamv1.DetachRolePolicyInput{
 				PolicyArn: policy.PolicyArn,
 				RoleName:  aws.String(roleName), // Required
 			}
@@ -461,7 +462,7 @@ func deleteTestRole(roleName string) error {
 		log.Printf("[WARN] AWS DetachRolePolicy failed: %v", err)
 	}
 
-	params := &iam.DeleteRoleInput{
+	params := &iamv1.DeleteRoleInput{
 		RoleName: aws.String(roleName),
 	}
 
@@ -484,8 +485,8 @@ func deleteTestUser(accessKey *awsAccessKey, userName string) error {
 	if err != nil {
 		return err
 	}
-	svc := iam.New(sess)
-	userDetachment := &iam.DetachUserPolicyInput{
+	svc := iamv1.New(sess)
+	userDetachment := &iamv1.DetachUserPolicyInput{
 		PolicyArn: aws.String("arn:aws:iam::aws:policy/AdministratorAccess"),
 		UserName:  aws.String(userName),
 	}
@@ -494,7 +495,7 @@ func deleteTestUser(accessKey *awsAccessKey, userName string) error {
 		return err
 	}
 
-	deleteAccessKeyInput := &iam.DeleteAccessKeyInput{
+	deleteAccessKeyInput := &iamv1.DeleteAccessKeyInput{
 		AccessKeyId: aws.String(accessKey.AccessKeyID),
 		UserName:    aws.String(userName),
 	}
@@ -504,7 +505,7 @@ func deleteTestUser(accessKey *awsAccessKey, userName string) error {
 		return err
 	}
 
-	deleteTestUserPolicyInput := &iam.DeleteUserPolicyInput{
+	deleteTestUserPolicyInput := &iamv1.DeleteUserPolicyInput{
 		PolicyName: aws.String("SelfDestructionTimebomb"),
 		UserName:   aws.String(userName),
 	}
@@ -513,7 +514,7 @@ func deleteTestUser(accessKey *awsAccessKey, userName string) error {
 		log.Printf("[WARN] AWS DeleteUserPolicy failed: %v", err)
 		return err
 	}
-	deleteTestUserInput := &iam.DeleteUserInput{
+	deleteTestUserInput := &iamv1.DeleteUserInput{
 		UserName: aws.String(userName),
 	}
 	log.Printf("[INFO] AWS DeleteUser: %s", userName)
@@ -535,10 +536,10 @@ func deleteTestGroup(groupName string) error {
 	if err != nil {
 		return err
 	}
-	svc := iam.New(sess)
+	svc := iamv1.New(sess)
 
 	// Detach any managed group policies
-	getGroupsInput := &iam.ListAttachedGroupPoliciesInput{
+	getGroupsInput := &iamv1.ListAttachedGroupPoliciesInput{
 		GroupName: aws.String(groupName),
 	}
 	getGroupsOutput, err := svc.ListAttachedGroupPolicies(getGroupsInput)
@@ -547,7 +548,7 @@ func deleteTestGroup(groupName string) error {
 		return err
 	}
 	for _, g := range getGroupsOutput.AttachedPolicies {
-		detachGroupInput := &iam.DetachGroupPolicyInput{
+		detachGroupInput := &iamv1.DetachGroupPolicyInput{
 			GroupName: aws.String(groupName),
 			PolicyArn: g.PolicyArn,
 		}
@@ -558,7 +559,7 @@ func deleteTestGroup(groupName string) error {
 	}
 
 	// Remove any inline policies
-	listGroupPoliciesInput := &iam.ListGroupPoliciesInput{
+	listGroupPoliciesInput := &iamv1.ListGroupPoliciesInput{
 		GroupName: aws.String(groupName),
 	}
 	listGroupPoliciesOutput, err := svc.ListGroupPolicies(listGroupPoliciesInput)
@@ -567,7 +568,7 @@ func deleteTestGroup(groupName string) error {
 		return err
 	}
 	for _, g := range listGroupPoliciesOutput.PolicyNames {
-		deleteGroupPolicyInput := &iam.DeleteGroupPolicyInput{
+		deleteGroupPolicyInput := &iamv1.DeleteGroupPolicyInput{
 			GroupName:  aws.String(groupName),
 			PolicyName: g,
 		}
@@ -578,7 +579,7 @@ func deleteTestGroup(groupName string) error {
 	}
 
 	// Delete the group
-	deleteTestGroupInput := &iam.DeleteGroupInput{
+	deleteTestGroupInput := &iamv1.DeleteGroupInput{
 		GroupName: aws.String(groupName),
 	}
 	log.Printf("[INFO] AWS DeleteGroup: %s", groupName)
@@ -745,9 +746,9 @@ func assertCreatedIAMUser(ctx context.Context, accessKey, secretKey, token strin
 	if err != nil {
 		return err
 	}
-	client := iam.New(sess)
+	client := iamv1.New(sess)
 	log.Printf("[WARN] Checking if IAM User is created properly...")
-	userOutput, err := client.GetUser(&iam.GetUserInput{})
+	userOutput, err := client.GetUser(&iamv1.GetUserInput{})
 	if err != nil {
 		return err
 	}
@@ -770,10 +771,10 @@ func listIamUsersTest(ctx context.Context, accessKey, secretKey, token string) e
 	if err != nil {
 		return err
 	}
-	client := iam.New(sess)
+	client := iamv1.New(sess)
 	log.Printf("[WARN] Verifying that the generated credentials work with iam:ListUsers...")
 	return retryUntilSuccess(func() error {
-		_, err := client.ListUsers(&iam.ListUsersInput{})
+		_, err := client.ListUsers(&iamv1.ListUsersInput{})
 		return err
 	})
 }

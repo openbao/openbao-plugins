@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/fatih/structs"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
@@ -269,7 +269,7 @@ func (b *backend) validateIAMUserExists(ctx context.Context, storage logical.Sto
 	}
 
 	// we don't really care about the content of the result, just that it's not an error
-	out, err := c.GetUser(&iam.GetUserInput{
+	out, err := c.GetUser(ctx, &iam.GetUserInput{
 		UserName: aws.String(entry.Username),
 	})
 	if err != nil || out.User == nil {

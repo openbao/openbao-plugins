@@ -7,8 +7,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
@@ -66,7 +66,7 @@ func (b *backend) pathConfigRotateRootUpdate(ctx context.Context, req *logical.R
 	}
 
 	var getUserInput iam.GetUserInput // empty input means get current user
-	getUserRes, err := client.GetUserWithContext(ctx, &getUserInput)
+	getUserRes, err := client.GetUser(ctx, &getUserInput)
 	if err != nil {
 		return nil, fmt.Errorf("error calling GetUser: %w", err)
 	}
@@ -83,7 +83,7 @@ func (b *backend) pathConfigRotateRootUpdate(ctx context.Context, req *logical.R
 	createAccessKeyInput := iam.CreateAccessKeyInput{
 		UserName: getUserRes.User.UserName,
 	}
-	createAccessKeyRes, err := client.CreateAccessKeyWithContext(ctx, &createAccessKeyInput)
+	createAccessKeyRes, err := client.CreateAccessKey(ctx, &createAccessKeyInput)
 	if err != nil {
 		return nil, fmt.Errorf("error calling CreateAccessKey: %w", err)
 	}
@@ -114,7 +114,7 @@ func (b *backend) pathConfigRotateRootUpdate(ctx context.Context, req *logical.R
 		AccessKeyId: aws.String(oldAccessKey),
 		UserName:    getUserRes.User.UserName,
 	}
-	_, err = client.DeleteAccessKeyWithContext(ctx, &deleteAccessKeyInput)
+	_, err = client.DeleteAccessKey(ctx, &deleteAccessKeyInput)
 	if err != nil {
 		return nil, fmt.Errorf("error deleting old access key: %w", err)
 	}

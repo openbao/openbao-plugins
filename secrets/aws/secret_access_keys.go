@@ -9,15 +9,16 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/hashicorp/go-secure-stdlib/awsutil"
+	"github.com/hashicorp/go-secure-stdlib/awsutil/v2"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/helper/template"
 	"github.com/openbao/openbao/sdk/v2/logical"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	ststypes "github.com/aws/aws-sdk-go-v2/service/sts/types"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/hashicorp/errwrap"
 )
 
@@ -345,7 +346,7 @@ func (b *backend) secretAccessKeysCreate(
 	}
 
 	// Create the user
-	_, err = iamClient.CreateUserWithContext(ctx, createUserRequest)
+	_, err = iamClient.CreateUser(ctx, createUserRequest)
 	if err != nil {
 		if walErr := framework.DeleteWAL(ctx, s, walID); walErr != nil {
 			iamErr := fmt.Errorf("error creating IAM user: %w", err)
@@ -356,7 +357,7 @@ func (b *backend) secretAccessKeysCreate(
 
 	for _, arn := range role.PolicyArns {
 		// Attach existing policy against user
-		_, err = iamClient.AttachUserPolicyWithContext(ctx, &iam.AttachUserPolicyInput{
+		_, err = iamClient.AttachUserPolicy(ctx, &iam.AttachUserPolicyInput{
 			UserName:  aws.String(username),
 			PolicyArn: aws.String(arn),
 		})
@@ -367,7 +368,7 @@ func (b *backend) secretAccessKeysCreate(
 	}
 	if role.PolicyDocument != "" {
 		// Add new inline user policy against user
-		_, err = iamClient.PutUserPolicyWithContext(ctx, &iam.PutUserPolicyInput{
+		_, err = iamClient.PutUserPolicy(ctx, &iam.PutUserPolicyInput{
 			UserName:       aws.String(username),
 			PolicyName:     aws.String(policyName),
 			PolicyDocument: aws.String(role.PolicyDocument),
@@ -379,7 +380,7 @@ func (b *backend) secretAccessKeysCreate(
 
 	for _, group := range role.IAMGroups {
 		// Add user to IAM groups
-		_, err = iamClient.AddUserToGroupWithContext(ctx, &iam.AddUserToGroupInput{
+		_, err = iamClient.AddUserToGroup(ctx, &iam.AddUserToGroupInput{
 			UserName:  aws.String(username),
 			GroupName: aws.String(group),
 		})
@@ -388,17 +389,17 @@ func (b *backend) secretAccessKeysCreate(
 		}
 	}
 
-	var tags []*iam.Tag
+	var tags []iamtypes.Tag
 	for key, value := range role.IAMTags {
 		// This assignment needs to be done in order to create unique addresses for
 		// these variables. Without doing so, all the tags will be copies of the last
 		// tag listed in the role.
 		k, v := key, value
-		tags = append(tags, &iam.Tag{Key: &k, Value: &v})
+		tags = append(tags, iamtypes.Tag{Key: &k, Value: &v})
 	}
 
 	if len(tags) > 0 {
-		_, err = iamClient.TagUserWithContext(ctx, &iam.TagUserInput{
+		_, err = iamClient.TagUser(ctx, &iam.TagUserInput{
 			Tags:     tags,
 			UserName: &username,
 		})
@@ -409,7 +410,7 @@ func (b *backend) secretAccessKeysCreate(
 	}
 
 	// Create the keys
-	keyResp, err := iamClient.CreateAccessKeyWithContext(ctx, &iam.CreateAccessKeyInput{
+	keyResp, err := iamClient.CreateAccessKey(ctx, &iam.CreateAccessKeyInput{
 		UserName: aws.String(username),
 	})
 	if err != nil {
