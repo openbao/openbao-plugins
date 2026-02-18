@@ -1,3 +1,10 @@
-* @openbao/openbao-org-maintainers
+# Most changes can be approved by Org-Level Maintainers and Plugins Comitters
+* @openbao/openbao-org-maintainers @openbao/openbao-plugins-committers
 
-secrets/consul/ @openbao/openbao-org-maintainers @openbao/plugins-secrets-consul-committers 
+# Changes to LICENSE and CODEOWNER itself is more restricted
+CODEOWNERS @openbao/openbao-org-maintainers
+LICENSE    @openbao/openbao-org-maintainers
+
+# Changes to the consul plugin can additionally be approved by the Consol Plugin Comitters
+secrets/consul/ @openbao/openbao-org-maintainers @openbao/openbao-plugins-committers @openbao/plugins-secrets-consul-committers
+
