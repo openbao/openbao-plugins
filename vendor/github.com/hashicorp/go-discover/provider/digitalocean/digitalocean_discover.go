@@ -4,7 +4,7 @@ package digitalocean
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 
 	"github.com/digitalocean/godo"
@@ -53,9 +53,7 @@ func listDropletsByTag(c *godo.Client, tagName string) ([]godo.Droplet, error) {
 			return nil, err
 		}
 
-		for _, d := range droplets {
-			dropletList = append(dropletList, d)
-		}
+		dropletList = append(dropletList, droplets...)
 
 		if resp.Links == nil || resp.Links.IsLastPage() {
 			break
@@ -78,7 +76,7 @@ func (p *Provider) Addrs(args map[string]string, l *log.Logger) ([]string, error
 	}
 
 	if l == nil {
-		l = log.New(ioutil.Discard, "", 0)
+		l = log.New(io.Discard, "", 0)
 	}
 
 	region := args["region"]

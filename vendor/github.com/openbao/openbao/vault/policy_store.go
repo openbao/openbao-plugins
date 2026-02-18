@@ -10,14 +10,14 @@ import (
 	"path"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/openbao/openbao/helper/identity"
 	"github.com/openbao/openbao/helper/namespace"
+	"github.com/openbao/openbao/sdk/v2/helper/locksutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
@@ -157,7 +157,7 @@ type PolicyStore struct {
 	// This is used to ensure that writes to the store (acl) or to the egp
 	// path tree don't happen concurrently. We are okay reading stale data so
 	// long as there aren't concurrent writes.
-	modifyLock *sync.RWMutex
+	modifyLocks []*locksutil.LockEntry
 
 	// logger is the server logger copied over from core
 	logger log.Logger
@@ -179,9 +179,9 @@ type PolicyEntry struct {
 // using a given view. It used used to durable store and manage named policy.
 func NewPolicyStore(ctx context.Context, core *Core, baseView BarrierView, system logical.SystemView, logger log.Logger) (*PolicyStore, error) {
 	ps := &PolicyStore{
-		modifyLock: new(sync.RWMutex),
-		logger:     logger,
-		core:       core,
+		modifyLocks: locksutil.CreateLocks(),
+		logger:      logger,
+		core:        core,
 	}
 
 	if !system.CachingDisabled() {
@@ -220,19 +220,53 @@ func (c *Core) teardownPolicyStore() error {
 	return nil
 }
 
-func (ps *PolicyStore) invalidate(ctx context.Context, name string, policyType PolicyType) {
+func (ps *PolicyStore) lockWithUnlock(ctx context.Context) func() {
+	ns, err := namespace.FromContext(ctx)
+	if err != nil || ns == nil {
+		ns = namespace.RootNamespace
+	}
+
+	lock := locksutil.LockForKey(ps.modifyLocks, ns.UUID)
+
+	ps.logger.Trace("acquiring lock for", "namespace", ns.UUID)
+	lock.Lock()
+	return lock.Unlock
+}
+
+func (ps *PolicyStore) rLockWithUnlock(ctx context.Context) func() {
+	ns, err := namespace.FromContext(ctx)
+	if err != nil || ns == nil {
+		ns = namespace.RootNamespace
+	}
+
+	lock := locksutil.LockForKey(ps.modifyLocks, ns.UUID)
+
+	ps.logger.Trace("acquiring lock for", "namespace", ns.UUID)
+	lock.RLock()
+	return lock.RUnlock
+}
+
+func (ps *PolicyStore) invalidateNamespace(ctx context.Context, uuid string) {
+	defer ps.lockWithUnlock(ctx)()
+
+	for _, key := range ps.tokenPoliciesLRU.Keys() {
+		if strings.HasPrefix(key, uuid) {
+			ps.tokenPoliciesLRU.Remove(key)
+		}
+	}
+}
+
+func (ps *PolicyStore) invalidate(ctx context.Context, name string, policyType PolicyType) error {
 	ns, err := namespace.FromContext(ctx)
 	if err != nil {
-		ps.logger.Error("unable to invalidate key, no namespace info passed", "key", name)
-		return
+		return err
 	}
 
 	// This may come with a prefixed "/" due to joining the file path
 	saneName := strings.TrimPrefix(name, "/")
 	index := ps.cacheKey(ns, saneName)
 
-	ps.modifyLock.Lock()
-	defer ps.modifyLock.Unlock()
+	defer ps.lockWithUnlock(ctx)()
 
 	// We don't lock before removing from the LRU here because the worst that
 	// can happen is we load again if something since added it
@@ -243,23 +277,10 @@ func (ps *PolicyStore) invalidate(ctx context.Context, name string, policyType P
 		}
 
 	default:
-		// Can't do anything
-		return
+		return fmt.Errorf("unknown policy type: %w", err)
 	}
 
-	// Force a reload
-	out, err := ps.switchedGetPolicy(ctx, name, policyType, false)
-	if err != nil {
-		ps.logger.Error("error fetching policy after invalidation", "name", saneName)
-	}
-
-	// If true, the invalidation was actually a delete, so we may need to
-	// perform further deletion tasks. We skip the physical deletion just in
-	// case another process has re-written the policy; instead next time Get is
-	// called the values will be loaded back in.
-	if out == nil {
-		ps.switchedDeletePolicy(ctx, name, policyType, false, true)
-	}
+	return nil
 }
 
 // SetPolicy is used to create or update the given policy
@@ -281,8 +302,7 @@ func (ps *PolicyStore) SetPolicy(ctx context.Context, p *Policy, casVersion *int
 }
 
 func (ps *PolicyStore) setPolicyInternal(ctx context.Context, p *Policy, casVersion *int) error {
-	ps.modifyLock.Lock()
-	defer ps.modifyLock.Unlock()
+	defer ps.lockWithUnlock(ctx)()
 
 	// Get the appropriate view based on policy type and namespace
 	view := ps.getBarrierView(p.namespace, p.Type)
@@ -441,8 +461,7 @@ func (ps *PolicyStore) switchedGetPolicy(ctx context.Context, name string, polic
 	}
 
 	if grabLock {
-		ps.modifyLock.Lock()
-		defer ps.modifyLock.Unlock()
+		defer ps.rLockWithUnlock(ctx)()
 	}
 
 	// See if anything has added it since we got the lock. At this point,
@@ -598,8 +617,7 @@ func (ps *PolicyStore) switchedDeletePolicy(ctx context.Context, name string, po
 	// If not set, the call comes from invalidation, where we'll already have
 	// grabbed the lock
 	if physicalDeletion {
-		ps.modifyLock.Lock()
-		defer ps.modifyLock.Unlock()
+		defer ps.lockWithUnlock(ctx)()
 	}
 
 	// Policies are normalized to lower-case
@@ -735,7 +753,7 @@ func (ps *PolicyStore) sanitizeName(name string) string {
 }
 
 func (ps *PolicyStore) cacheKey(ns *namespace.Namespace, name string) string {
-	return path.Join(ns.ID, name)
+	return path.Join(ns.UUID, name)
 }
 
 // loadDefaultPolicies loads default policies for the namespace in the provided context

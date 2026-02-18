@@ -1418,6 +1418,7 @@ func (b *SystemBackend) statusPaths() []*framework.Path {
 							},
 						}},
 					},
+					ForwardPerformanceStandby: true,
 				},
 			},
 
@@ -1757,6 +1758,10 @@ func (b *SystemBackend) pluginsCatalogCRUDPath() *framework.Path {
 				Type:        framework.TypeString,
 				Description: strings.TrimSpace(sysHelp["plugin-catalog_version"][0]),
 			},
+			"oci": {
+				Type:        framework.TypeBool,
+				Description: strings.TrimSpace(sysHelp["plugin-catalog_oci"][0]),
+			},
 		},
 
 		Operations: map[logical.Operation]framework.OperationHandler{
@@ -1829,6 +1834,16 @@ func (b *SystemBackend) pluginsCatalogCRUDPath() *framework.Path {
 							"deprecation_status": {
 								Type:     framework.TypeString,
 								Required: false,
+							},
+							"oci": {
+								Type:        framework.TypeBool,
+								Description: strings.TrimSpace(sysHelp["plugin-catalog_oci"][0]),
+								Required:    true,
+							},
+							"declarative": {
+								Type:        framework.TypeBool,
+								Description: strings.TrimSpace(sysHelp["plugin-catalog_declarative"][0]),
+								Required:    true,
 							},
 						},
 					}},
@@ -2131,35 +2146,6 @@ func (b *SystemBackend) internalPaths() []*framework.Path {
 			HelpSynopsis: "Generate an OpenAPI 3 document of all mounted paths.",
 		},
 		{
-			Pattern: "internal/ui/feature-flags",
-
-			DisplayAttrs: &framework.DisplayAttributes{
-				OperationPrefix: "internal-ui",
-				OperationVerb:   "list",
-				OperationSuffix: "enabled-feature-flags",
-			},
-
-			Operations: map[logical.Operation]framework.OperationHandler{
-				logical.ReadOperation: &framework.PathOperation{
-					// callback is absent because this is an unauthenticated method
-					Summary: "Lists enabled feature flags.",
-					Responses: map[int][]framework.Response{
-						http.StatusOK: {{
-							Description: "OK",
-							Fields: map[string]*framework.FieldSchema{
-								"feature_flags": {
-									Type:     framework.TypeCommaStringSlice,
-									Required: true,
-								},
-							},
-						}},
-					},
-				},
-			},
-			HelpSynopsis:    strings.TrimSpace(sysHelp["internal-ui-feature-flags"][0]),
-			HelpDescription: strings.TrimSpace(sysHelp["internal-ui-feature-flags"][1]),
-		},
-		{
 			Pattern: "internal/ui/mounts",
 
 			DisplayAttrs: &framework.DisplayAttributes{
@@ -2293,7 +2279,7 @@ func (b *SystemBackend) internalPaths() []*framework.Path {
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.ReadOperation: &framework.PathOperation{
-					Callback: pathInternalUINamespacesRead(b),
+					Callback: b.pathInternalUINamespacesRead,
 					Summary:  "Backwards compatibility is not guaranteed for this API",
 					Responses: map[int][]framework.Response{
 						http.StatusOK: {{
@@ -4010,6 +3996,29 @@ func (b *SystemBackend) policyPaths() []*framework.Path {
 					Type:        framework.TypeBool,
 					Description: "List ACL policies",
 					Query:       true,
+				},
+			},
+			Operations: map[logical.Operation]framework.OperationHandler{
+				logical.ListOperation: &framework.PathOperation{
+					Callback: b.handlePoliciesDetailedAclList(),
+					Summary:  "List ACL policies with detailed information.",
+				},
+			},
+			HelpSynopsis:    strings.TrimSpace(sysHelp["policies"][0]),
+			HelpDescription: strings.TrimSpace(sysHelp["policies"][1]),
+		},
+
+		{
+			Pattern: "policies/detailed/acl/(?P<name>.+)",
+			Fields: map[string]*framework.FieldSchema{
+				"list": {
+					Type:        framework.TypeBool,
+					Description: "List ACL policies",
+					Query:       true,
+				},
+				"name": {
+					Type:        framework.TypeString,
+					Description: strings.TrimSpace(sysHelp["policy-name"][0]),
 				},
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{

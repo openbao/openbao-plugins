@@ -32,8 +32,13 @@ import (
 	"github.com/openbao/openbao/sdk/v2/helper/consts"
 	"github.com/openbao/openbao/sdk/v2/helper/identitytpl"
 	"github.com/openbao/openbao/sdk/v2/logical"
-	"github.com/patrickmn/go-cache"
 	"golang.org/x/crypto/ed25519"
+	"zgo.at/zcache/v2"
+)
+
+const (
+	nextRunKey                = "nextRun"
+	jwksCacheControlMaxAgeKey = "jwksCacheControlMaxAge"
 )
 
 type oidcConfig struct {
@@ -86,6 +91,16 @@ type idToken struct {
 	CodeHash        string `json:"c_hash"`    // Authorization code hash value
 }
 
+type accessToken struct {
+	Namespace string `json:"namespace"`     // Namespace of issuer
+	Issuer    string `json:"iss"`           // api_addr or custom Issuer
+	Subject   string `json:"sub"`           // Entity ID
+	Audience  string `json:"aud"`           // Role or client ID will be used here.
+	Expiry    int64  `json:"exp"`           // Expiration, as determined by the role or client.
+	IssuedAt  int64  `json:"iat"`           // Time of token creation
+	JTI       string `json:"jti,omitempty"` // Token-ID für Replay Protection
+}
+
 // discovery contains a subset of the required elements of OIDC discovery needed
 // for JWT verification libraries to use the .well-known endpoint.
 //
@@ -98,9 +113,9 @@ type discovery struct {
 	IDTokenAlgs   []string `json:"id_token_signing_alg_values_supported"`
 }
 
-// oidcCache is a thin wrapper around go-cache to partition by namespace
+// oidcCache is a thin wrapper around zcache to partition by namespace
 type oidcCache struct {
-	c *cache.Cache
+	c *zcache.Cache[string, any]
 }
 
 var errNilNamespace = errors.New("nil namespace in oidc cache request")
@@ -131,9 +146,6 @@ var (
 		string(jose.EdDSA),
 	}
 )
-
-// pseudo-namespace for cache items that don't belong to any real namespace.
-var noNamespace = &namespace.Namespace{ID: "__NO_NAMESPACE"}
 
 func oidcPaths(i *IdentityStore) []*framework.Path {
 	return []*framework.Path{
@@ -525,7 +537,7 @@ func (i *IdentityStore) getOIDCConfig(ctx context.Context, s logical.Storage) (*
 
 	c.effectiveIssuer += "/v1/" + ns.Path + issuerPath
 
-	if err := i.oidcCache.SetDefault(ns, "config", &c); err != nil {
+	if err := i.oidcCache.Set(ns, "config", &c); err != nil {
 		return nil, err
 	}
 
@@ -1036,7 +1048,7 @@ func (i *IdentityStore) getNamedKey(ctx context.Context, s logical.Storage, name
 	}
 
 	// Cache the key
-	if err := i.oidcCache.SetDefault(ns, namedKeyCachePrefix+name, &key); err != nil {
+	if err := i.oidcCache.Set(ns, namedKeyCachePrefix+name, &key); err != nil {
 		i.logger.Warn("failed to cache key", "error", err)
 	}
 
@@ -1065,6 +1077,32 @@ func (tok *idToken) generatePayload(logger hclog.Logger, templates ...string) ([
 	}
 	if len(tok.CodeHash) > 0 {
 		output["c_hash"] = tok.CodeHash
+	}
+
+	// Merge each of the populated JSON templates into output
+	err := mergeJSONTemplates(logger, output, templates...)
+	if err != nil {
+		logger.Error("failed to populate templates for ID token generation", "error", err)
+		return nil, err
+	}
+
+	payload, err := json.Marshal(output)
+	if err != nil {
+		return nil, err
+	}
+
+	return payload, nil
+}
+
+func (tok *accessToken) generatePayload(logger hclog.Logger, templates ...string) ([]byte, error) {
+	output := map[string]interface{}{
+		"iss":       tok.Issuer,
+		"namespace": tok.Namespace,
+		"sub":       tok.Subject,
+		"aud":       tok.Audience,
+		"exp":       tok.Expiry,
+		"iat":       tok.IssuedAt,
+		"jti":       tok.JTI,
 	}
 
 	// Merge each of the populated JSON templates into output
@@ -1244,7 +1282,7 @@ func (i *IdentityStore) pathOIDCCreateUpdateRole(ctx context.Context, req *logic
 
 		for key := range tmp {
 			if slices.Contains(reservedClaims, key) {
-				return logical.ErrorResponse(`top level key %q not allowed. Restricted keys: %s`,
+				return logical.ErrorResponse("top level key %q not allowed. Restricted keys: %s",
 					key, strings.Join(reservedClaims, ", ")), nil
 			}
 		}
@@ -1395,7 +1433,7 @@ func (i *IdentityStore) pathOIDCDiscovery(ctx context.Context, req *logical.Requ
 			return nil, err
 		}
 
-		if err := i.oidcCache.SetDefault(ns, "discoveryResponse", data); err != nil {
+		if err := i.oidcCache.Set(ns, "discoveryResponse", data); err != nil {
 			return nil, err
 		}
 	}
@@ -1414,10 +1452,10 @@ func (i *IdentityStore) pathOIDCDiscovery(ctx context.Context, req *logical.Requ
 
 // getKeysCacheControlHeader returns the cache control header for all public
 // keys at the .well-known/keys endpoint
-func (i *IdentityStore) getKeysCacheControlHeader() (string, error) {
+func (i *IdentityStore) getKeysCacheControlHeader(ns *namespace.Namespace) (string, error) {
 	// if jwksCacheControlMaxAge is set use that, otherwise fall back on the
 	// more conservative nextRun values
-	jwksCacheControlMaxAge, ok, err := i.oidcCache.Get(noNamespace, "jwksCacheControlMaxAge")
+	jwksCacheControlMaxAge, ok, err := i.oidcCache.Get(ns, jwksCacheControlMaxAgeKey)
 	if err != nil {
 		return "", err
 	}
@@ -1429,7 +1467,7 @@ func (i *IdentityStore) getKeysCacheControlHeader() (string, error) {
 		return fmt.Sprintf("max-age=%.0f", durationInSeconds), nil
 	}
 
-	nextRun, ok, err := i.oidcCache.Get(noNamespace, "nextRun")
+	nextRun, ok, err := i.oidcCache.Get(ns, nextRunKey)
 	if err != nil {
 		return "", err
 	}
@@ -1439,7 +1477,7 @@ func (i *IdentityStore) getKeysCacheControlHeader() (string, error) {
 		expireAt := nextRun.(time.Time)
 		if expireAt.After(now) {
 			i.Logger().Debug("use nextRun value for Cache Control header", "nextRun", nextRun)
-			expireInSeconds := expireAt.Sub(time.Now()).Seconds()
+			expireInSeconds := time.Until(expireAt).Seconds()
 			return fmt.Sprintf("max-age=%.0f", expireInSeconds), nil
 		}
 	}
@@ -1474,7 +1512,7 @@ func (i *IdentityStore) pathOIDCReadPublicKeys(ctx context.Context, req *logical
 			return nil, err
 		}
 
-		if err := i.oidcCache.SetDefault(ns, "jwksResponse", data); err != nil {
+		if err := i.oidcCache.Set(ns, "jwksResponse", data); err != nil {
 			return nil, err
 		}
 	}
@@ -1493,7 +1531,7 @@ func (i *IdentityStore) pathOIDCReadPublicKeys(ctx context.Context, req *logical
 		return nil, err
 	}
 	if len(keys) > 0 {
-		header, err := i.getKeysCacheControlHeader()
+		header, err := i.getKeysCacheControlHeader(ns)
 		if err != nil {
 			return nil, err
 		}
@@ -1799,7 +1837,7 @@ func (i *IdentityStore) generatePublicJWKS(ctx context.Context, s logical.Storag
 		jwks.Keys = append(jwks.Keys, *key)
 	}
 
-	if err := i.oidcCache.SetDefault(ns, "jwks", jwks); err != nil {
+	if err := i.oidcCache.Set(ns, "jwks", jwks); err != nil {
 		return nil, err
 	}
 
@@ -1984,12 +2022,23 @@ func (i *IdentityStore) oidcKeyRotation(ctx context.Context, s logical.Storage) 
 // oidcPeriodFunc is invoked by the backend's periodFunc and runs regular key
 // rotations and expiration actions.
 func (i *IdentityStore) oidcPeriodicFunc(ctx context.Context) {
+	ns, err := namespace.FromContext(ctx)
+	if err != nil {
+		i.Logger().Error("identity store periodic function called without namespace", "error", err)
+		return
+	}
+
+	if ns.Tainted {
+		i.logger.Info("skipping OIDC periodic function for tainted namespace", "namespace", ns.Path)
+		return
+	}
+
 	var nextRun time.Time
 	now := time.Now()
 
-	v, ok, err := i.oidcCache.Get(noNamespace, "nextRun")
+	v, ok, err := i.oidcCache.Get(ns, nextRunKey)
 	if err != nil {
-		i.Logger().Error("error reading oidc cache", "err", err)
+		i.Logger().Error("error reading oidc cache", "namespace", ns.Path, "err", err)
 		return
 	}
 
@@ -2001,78 +2050,69 @@ func (i *IdentityStore) oidcPeriodicFunc(ctx context.Context) {
 	// be run at any time safely, but there is no need to invoke them (which
 	// might be somewhat expensive if there are many roles/keys) if we're not
 	// past any rotation/expiration TTLs.
-	if now.Equal(nextRun) || now.After(nextRun) {
-		// Initialize to a fairly distant next run time. This will be brought in
-		// based on key rotation times.
-		nextRun = now.Add(24 * time.Hour)
-		minJwksClientCacheDuration := time.Duration(math.MaxInt64)
+	if now.Before(nextRun) {
+		return
+	}
 
-		allNs, err := i.namespacer.ListNamespaces(ctx)
-		if err != nil {
-			i.Logger().Error("error listing namespaces", "err", err)
+	nextRun = now.Add(24 * time.Hour)
+	minJwksClientCacheDuration := time.Duration(math.MaxInt64)
+
+	nsPath := ns.Path
+	s := i.router.MatchingStorageByAPIPath(ctx, nsPath+"identity/oidc")
+	if s == nil {
+		return
+	}
+
+	nextRotation, jwksClientCacheDuration, err := i.oidcKeyRotation(ctx, s)
+	if err != nil {
+		i.Logger().Warn("error rotating OIDC keys", "namespace", ns.Path, "err", err)
+	}
+
+	nextExpiration, err := i.expireOIDCPublicKeys(ctx, s)
+	if err != nil {
+		i.Logger().Warn("error expiring OIDC public keys", "namespace", ns.Path, "err", err)
+	}
+
+	if err := i.oidcCache.Flush(ns); err != nil {
+		i.Logger().Error("error flushing oidc cache", "namespace", ns.Path, "err", err)
+	}
+
+	// re-run at the soonest expiration or rotation time
+	if nextRotation.Before(nextRun) {
+		nextRun = nextRotation
+	}
+
+	if nextExpiration.Before(nextRun) {
+		nextRun = nextExpiration
+	}
+
+	if jwksClientCacheDuration < minJwksClientCacheDuration {
+		minJwksClientCacheDuration = jwksClientCacheDuration
+	}
+
+	if err := i.oidcCache.Set(ns, nextRunKey, nextRun); err != nil {
+		i.Logger().Error("error setting oidc nextRun cache", "namespace", ns.Path, "err", err)
+	}
+
+	if minJwksClientCacheDuration < math.MaxInt64 {
+		// the OIDC JWKS endpoint returns a Cache-Control HTTP header time between
+		// 0 and the minimum verificationTTL or minimum rotationPeriod out of all
+		// keys, whichever value is lower.
+		//
+		// This smooths calls from services validating JWTs to Vault, while
+		// ensuring that operators can assert that servers honoring the
+		// Cache-Control header will always have a superset of all valid keys, and
+		// not trust any keys longer than a jwksCacheControlMaxAge duration after a
+		// key is rotated out of signing use
+		if err := i.oidcCache.Set(ns, jwksCacheControlMaxAgeKey, minJwksClientCacheDuration); err != nil {
+			i.Logger().Error("error setting jwksCacheControlMaxAge in oidc cache", "err", err)
 		}
-		for _, ns := range allNs {
-			nsPath := ns.Path
-
-			s := i.router.MatchingStorageByAPIPath(ctx, nsPath+"identity/oidc")
-
-			if s == nil {
-				continue
-			}
-
-			nextRotation, jwksClientCacheDuration, err := i.oidcKeyRotation(ctx, s)
-			if err != nil {
-				i.Logger().Warn("error rotating OIDC keys", "err", err)
-			}
-
-			nextExpiration, err := i.expireOIDCPublicKeys(ctx, s)
-			if err != nil {
-				i.Logger().Warn("error expiring OIDC public keys", "err", err)
-			}
-
-			if err := i.oidcCache.Flush(ns); err != nil {
-				i.Logger().Error("error flushing oidc cache", "err", err)
-			}
-
-			// re-run at the soonest expiration or rotation time
-			if nextRotation.Before(nextRun) {
-				nextRun = nextRotation
-			}
-
-			if nextExpiration.Before(nextRun) {
-				nextRun = nextExpiration
-			}
-
-			if jwksClientCacheDuration < minJwksClientCacheDuration {
-				minJwksClientCacheDuration = jwksClientCacheDuration
-			}
-		}
-
-		if err := i.oidcCache.SetDefault(noNamespace, "nextRun", nextRun); err != nil {
-			i.Logger().Error("error setting oidc cache", "err", err)
-		}
-
-		if minJwksClientCacheDuration < math.MaxInt64 {
-			// the OIDC JWKS endpoint returns a Cache-Control HTTP header time between
-			// 0 and the minimum verificationTTL or minimum rotationPeriod out of all
-			// keys, whichever value is lower.
-			//
-			// This smooths calls from services validating JWTs to Vault, while
-			// ensuring that operators can assert that servers honoring the
-			// Cache-Control header will always have a superset of all valid keys, and
-			// not trust any keys longer than a jwksCacheControlMaxAge duration after a
-			// key is rotated out of signing use
-			if err := i.oidcCache.SetDefault(noNamespace, "jwksCacheControlMaxAge", minJwksClientCacheDuration); err != nil {
-				i.Logger().Error("error setting jwksCacheControlMaxAge in oidc cache", "err", err)
-			}
-		}
-
 	}
 }
 
 func newOIDCCache(defaultExpiration, cleanupInterval time.Duration) *oidcCache {
 	return &oidcCache{
-		c: cache.New(defaultExpiration, cleanupInterval),
+		c: zcache.New[string, any](defaultExpiration, cleanupInterval),
 	}
 }
 
@@ -2088,11 +2128,11 @@ func (c *oidcCache) Get(ns *namespace.Namespace, key string) (interface{}, bool,
 	return v, found, nil
 }
 
-func (c *oidcCache) SetDefault(ns *namespace.Namespace, key string, obj interface{}) error {
+func (c *oidcCache) Set(ns *namespace.Namespace, key string, obj interface{}) error {
 	if ns == nil {
 		return errNilNamespace
 	}
-	c.c.SetDefault(c.nskey(ns, key), obj)
+	c.c.Set(c.nskey(ns, key), obj)
 
 	return nil
 }
@@ -2113,7 +2153,7 @@ func (c *oidcCache) Flush(ns *namespace.Namespace) error {
 
 	// Remove all items from the provided namespace as well as the shared, "no namespace" section.
 	for itemKey := range c.c.Items() {
-		if isTargetNamespacedKey(itemKey, []string{noNamespace.ID, ns.ID}) {
+		if isTargetNamespacedKey(itemKey, ns.ID) {
 			c.c.Delete(itemKey)
 		}
 	}
@@ -2123,7 +2163,7 @@ func (c *oidcCache) Flush(ns *namespace.Namespace) error {
 
 // isTargetNamespacedKey returns true for a properly constructed namespaced key (<version>:<nsID>:<key>)
 // where <nsID> matches any targeted nsID
-func isTargetNamespacedKey(nskey string, nsTargets []string) bool {
+func isTargetNamespacedKey(nskey string, nsTarget string) bool {
 	split := strings.Split(nskey, ":")
-	return len(split) >= 3 && slices.Contains(nsTargets, split[1])
+	return len(split) >= 3 && nsTarget == split[1]
 }

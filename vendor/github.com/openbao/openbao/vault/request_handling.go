@@ -14,15 +14,15 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/errwrap"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-secure-stdlib/strutil"
 	"github.com/hashicorp/go-sockaddr"
 	"github.com/hashicorp/go-uuid"
-	uberAtomic "go.uber.org/atomic"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/openbao/openbao/api/v2"
@@ -56,6 +56,15 @@ var (
 	// DefaultMaxRequestDuration is the amount of time we'll wait for a request
 	// to complete, unless overridden on a per-handler basis
 	DefaultMaxRequestDuration = 90 * time.Second
+
+	// DefaultMaxJsonMemory is the estimated amount of memory consumed by
+	// the output representation of the JSON request body, unless overridden on
+	// a per-listener basis.
+	DefaultMaxJsonMemory = int64(32*1024*1024 + 512*1024)
+
+	// DefaultMaxJsonStrings is the number of separate JSON strings
+	// allowed in a request body, unless overridden on a per-listener basis.
+	DefaultMaxJsonStrings = int64(1000)
 
 	ErrNoApplicablePolicies = errors.New("no applicable policies")
 	ErrPolicyNotExist       = errors.New("policy does not exist")
@@ -124,7 +133,7 @@ type HandlerProperties struct {
 	AllListeners          []listenerutil.Listener
 	DisablePrintableCheck bool
 	RecoveryMode          bool
-	RecoveryToken         *uberAtomic.String
+	RecoveryToken         *atomic.Value
 }
 
 // fetchEntityAndDerivedPolicies returns the entity object for the given entity
@@ -229,9 +238,7 @@ func (c *Core) getApplicableGroupPolicies(ctx context.Context, tokenNS *namespac
 
 	if tokenNS.Path == policyNS.Path {
 		// Same namespace - add all and continue
-		for _, policyName := range nsPolicies {
-			filteredPolicies = append(filteredPolicies, policyName)
-		}
+		filteredPolicies = append(filteredPolicies, nsPolicies...)
 		return filteredPolicies, nil
 	}
 
@@ -405,6 +412,9 @@ func (c *Core) CheckToken(ctx context.Context, req *logical.Request, unauth bool
 		// unauth, we just have no information to attach to the request, so
 		// ignore errors...this was best-effort anyways
 		if err != nil && !unauth {
+			if c.standby.Load() {
+				return nil, acl, te, entity, logical.ErrPerfStandbyPleaseForward
+			}
 			return nil, acl, te, entity, err
 		}
 	}
@@ -414,6 +424,9 @@ func (c *Core) CheckToken(ctx context.Context, req *logical.Request, unauth bool
 		return nil, acl, te, entity, logical.ErrPermissionDenied
 	}
 	if te != nil && te.EntityID != "" && entity == nil {
+		if c.standby.Load() {
+			return nil, acl, te, entity, logical.ErrPerfStandbyPleaseForward
+		}
 		c.logger.Warn("permission denied as the entity on the token is invalid")
 		return nil, acl, te, entity, logical.ErrPermissionDenied
 	}
@@ -566,11 +579,11 @@ func (c *Core) switchedLockHandleRequest(httpCtx context.Context, req *logical.R
 	if c.Sealed() {
 		return nil, consts.ErrSealed
 	}
-	if c.standby {
-		return nil, consts.ErrStandby
-	}
 
 	if c.activeContext == nil || c.activeContext.Err() != nil {
+		if c.standby.Load() {
+			return nil, logical.ErrPerfStandbyPleaseForward
+		}
 		return nil, errors.New("active context canceled after getting state lock")
 	}
 
@@ -604,7 +617,7 @@ func (c *Core) switchedLockHandleRequest(httpCtx context.Context, req *logical.R
 			switch req.Path {
 			case "sys/namespaces/api-lock/unlock":
 			default:
-				return logical.ErrorResponse(fmt.Sprintf("API access to this namespace has been locked by an administrator - %q must be unlocked to gain access.", lockedNS.Path)), logical.ErrLockedNamespace
+				return logical.ErrorResponse("API access to this namespace has been locked by an administrator - %q must be unlocked to gain access.", lockedNS.Path), logical.ErrLockedNamespace
 			}
 		}
 
@@ -671,8 +684,12 @@ func (c *Core) handleInlineAuth(ctx context.Context, req *logical.Request, nsHea
 		Storage:      req.Storage,
 		Connection:   req.Connection,
 		Headers:      req.Headers,
+		MFACreds:     req.MFACreds,
 		IsInlineAuth: true,
 	}
+
+	// Remove MFA credentials from the main request.
+	req.MFACreds = nil
 
 	// Find the optional operation; this defaults to Update if missing.
 	authOperation, present := req.Headers[consts.InlineAuthOperationHeaderName]
@@ -810,6 +827,12 @@ func (c *Core) handleCancelableRequest(ctx context.Context, req *logical.Request
 		return nil, err
 	}
 
+	// Always forward requests that are using a limited use count token.
+	if c.standby.Load() && req.ClientTokenRemainingUses > 0 {
+		// Prevent forwarding on local-only requests.
+		return nil, logical.ErrPerfStandbyPleaseForward
+	}
+
 	var requestBodyToken string
 	var returnRequestAuthToken bool
 
@@ -840,7 +863,7 @@ func (c *Core) handleCancelableRequest(ctx context.Context, req *logical.Request
 			// be revoked after the call. So we have to do the validation here.
 			valid, err := c.validateWrappingToken(ctx, req)
 			if err != nil {
-				return logical.ErrorResponse(fmt.Sprintf("error validating wrapping token: %s", err.Error())), logical.ErrPermissionDenied
+				return logical.ErrorResponse("error validating wrapping token: %s", err.Error()), logical.ErrPermissionDenied
 			}
 			if !valid {
 				return nil, consts.ErrInvalidWrappingToken
@@ -880,6 +903,9 @@ func (c *Core) handleCancelableRequest(ctx context.Context, req *logical.Request
 				// should receive a 403 bad token error like they do for all other invalid tokens, unless the error
 				// specifies that we should forward the request or retry the request.
 				if err != nil {
+					if logical.ShouldForward(err) {
+						return nil, err
+					}
 					return logical.ErrorResponse("bad token"), logical.ErrPermissionDenied
 				}
 				req.Data["token"] = token
@@ -927,7 +953,7 @@ func (c *Core) handleCancelableRequest(ctx context.Context, req *logical.Request
 	// Instead, we return an error since we cannot be sure if we have an
 	// active token store to validate the provided token.
 	case strings.HasPrefix(req.Path, "sys/metrics"):
-		if c.standby {
+		if c.standby.Load() && !c.StandbyReadsEnabled() {
 			return nil, ErrCannotForwardLocalOnly
 		}
 	}
@@ -1057,7 +1083,7 @@ func (c *Core) handleCancelableRequest(ctx context.Context, req *logical.Request
 		return nil, ErrInternalError
 	}
 
-	return
+	return resp, err
 }
 
 func (c *Core) doRouting(ctx context.Context, req *logical.Request) (*logical.Response, error) {
@@ -1092,7 +1118,7 @@ func (c *Core) handleRequest(ctx context.Context, req *logical.Request) (retResp
 	if err != nil {
 		c.logger.Error("failed to get namespace from context", "error", err)
 		retErr = multierror.Append(retErr, ErrInternalError)
-		return
+		return retResp, retAuth, retErr
 	}
 
 	// Validate the token
@@ -1633,7 +1659,7 @@ func (c *Core) handleLoginRequest(ctx context.Context, req *logical.Request) (re
 	if err != nil {
 		c.logger.Error("failed to get namespace from context", "error", err)
 		retErr = multierror.Append(retErr, ErrInternalError)
-		return
+		return retResp, retAuth, retErr
 	}
 	// If the response generated an authentication, then generate the token
 	if resp != nil && resp.Auth != nil && req.Path != "sys/mfa/validate" {
@@ -1890,18 +1916,18 @@ func (c *Core) LoginCreateToken(ctx context.Context, ns *namespace.Namespace, re
 			return false, logical.ErrorResponse("auth methods cannot create root tokens"), logical.ErrInvalidRequest
 		}
 		if slices.Contains(nonAssignablePolicies, policy) {
-			return false, logical.ErrorResponse(fmt.Sprintf("cannot assign policy %q", policy)), logical.ErrInvalidRequest
+			return false, logical.ErrorResponse("cannot assign policy %q", policy), logical.ErrInvalidRequest
 		}
 	}
 
 	leaseGenerated := false
 	te, err := c.RegisterAuth(ctx, tokenTTL, reqPath, auth, role, !isInlineAuth, userLockoutInfo)
-	switch {
-	case err == nil:
+	switch err {
+	case nil:
 		if auth.TokenType != logical.TokenTypeBatch {
 			leaseGenerated = true
 		}
-	case err == ErrInternalError:
+	case ErrInternalError:
 		return false, nil, err
 	default:
 		return false, logical.ErrorResponse(err.Error()), logical.ErrInvalidRequest
@@ -2230,6 +2256,10 @@ func (c *Core) RegisterAuth(ctx context.Context, tokenTTL time.Duration, path st
 		return nil, ErrInternalError
 	}
 
+	if c.standby.Load() && persistToken {
+		return nil, logical.ErrPerfStandbyPleaseForward
+	}
+
 	if err := c.tokenStore.create(ctx, &te, persistToken); err != nil {
 		c.logger.Error("failed to create token", "error", err)
 		return nil, ErrInternalError
@@ -2384,6 +2414,9 @@ func (c *Core) PopulateTokenEntry(ctx context.Context, req *logical.Request) err
 	// decodes the SSCT, and it may need the original SSCT to check state.
 	te, err := c.LookupToken(ctx, token)
 	if err != nil {
+		if errors.Is(err, logical.ErrPerfStandbyPleaseForward) {
+			return err
+		}
 		// If we have two dots but the second char is a dot it's a vault
 		// token of the form s.SOMETHING.nsid, not a JWT
 		if !IsJWT(token) {

@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/errwrap"
 	memdb "github.com/hashicorp/go-memdb"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-secure-stdlib/strutil"
 	uuid "github.com/hashicorp/go-uuid"
 	"github.com/openbao/openbao/helper/identity"
@@ -46,6 +46,11 @@ func (c *Core) loadIdentityStoreArtifacts(ctx context.Context) error {
 		}
 
 		for _, ns := range allNs {
+			if ns.Tainted {
+				c.logger.Info("skipping loading entities for tainted namespace", "ns", ns.ID)
+				continue
+			}
+
 			nsCtx := namespace.ContextWithNamespace(ctx, ns)
 
 			if err := c.identityStore.loadEntities(nsCtx); err != nil {
@@ -478,17 +483,7 @@ func (i *IdentityStore) upsertEntityInTxn(ctx context.Context, txn *memdb.Txn, e
 		default:
 			i.logger.Warn("alias is already tied to a different entity; these entities are being merged", "alias_id", alias.ID, "other_entity_id", aliasByFactors.CanonicalID, "entity_aliases", entity.Aliases, "alias_by_factors", aliasByFactors)
 
-			respErr, intErr := i.mergeEntityAsPartOfUpsert(ctx, txn, entity, aliasByFactors.CanonicalID, persist)
-			switch {
-			case respErr != nil:
-				return respErr
-			case intErr != nil:
-				return intErr
-			}
-
-			// The entity and aliases will be loaded into memdb and persisted
-			// as a result of the merge, so we are done here
-			return nil
+			return i.mergeEntityAsPartOfUpsert(ctx, txn, entity, aliasByFactors.CanonicalID, persist)
 		}
 
 		if slices.Contains(aliasFactors, i.sanitizeName(alias.Name)+alias.MountAccessor) {
@@ -1440,7 +1435,16 @@ func (i *IdentityStore) sanitizeAndUpsertGroup(ctx context.Context, group *ident
 		// Remove group ID from the parent group IDs
 		currentMemberGroup.ParentGroupIDs = strutil.StrListDelete(currentMemberGroup.ParentGroupIDs, group.ID)
 
-		err = i.UpsertGroupInTxn(ctx, txn, currentMemberGroup, true)
+		currentMemberCtx := ctx
+		if currentMemberGroup.NamespaceID != group.NamespaceID { // possible when using unsafe_cross_namespace_identity
+			ns, err := i.namespacer.NamespaceByID(currentMemberCtx, currentMemberGroup.NamespaceID)
+			if err != nil {
+				return err
+			}
+			currentMemberCtx = namespace.ContextWithNamespace(currentMemberCtx, ns)
+		}
+
+		err = i.UpsertGroupInTxn(currentMemberCtx, txn, currentMemberGroup, true)
 		if err != nil {
 			return err
 		}
@@ -1494,9 +1498,18 @@ func (i *IdentityStore) sanitizeAndUpsertGroup(ctx context.Context, group *ident
 
 		memberGroup.ParentGroupIDs = append(memberGroup.ParentGroupIDs, group.ID)
 
+		memberCtx := ctx
+		if memberGroup.NamespaceID != group.NamespaceID { // possible when using unsafe_cross_namespace_identity
+			ns, err := i.namespacer.NamespaceByID(memberCtx, memberGroup.NamespaceID)
+			if err != nil {
+				return err
+			}
+			memberCtx = namespace.ContextWithNamespace(memberCtx, ns)
+		}
+
 		// This technically is not upsert. It is only update, only the method
 		// name is upsert here.
-		err = i.UpsertGroupInTxn(ctx, txn, memberGroup, true)
+		err = i.UpsertGroupInTxn(memberCtx, txn, memberGroup, true)
 		if err != nil {
 			// Ideally we would want to revert the whole operation in case of
 			// errors while persisting in member groups. But there is no
@@ -1693,6 +1706,16 @@ func (i *IdentityStore) UpsertGroupInTxn(ctx context.Context, txn *memdb.Txn, gr
 		return errors.New("group is nil")
 	}
 
+	{
+		ns, err := namespace.FromContext(ctx)
+		if err != nil {
+			return err
+		}
+		if ns.ID != group.NamespaceID {
+			return fmt.Errorf("group namespace id %q does not match context namespace %q", group.NamespaceID, ns.ID)
+		}
+	}
+
 	// Increment the modify index of the group
 	group.ModifyIndex++
 
@@ -1733,14 +1756,8 @@ func (i *IdentityStore) UpsertGroupInTxn(ctx context.Context, txn *memdb.Txn, gr
 			Message: groupAsAny,
 		}
 
-		sent, err := i.groupUpdater.SendGroupUpdate(ctx, group)
-		if err != nil {
+		if err := i.groupPacker(ctx).PutItem(ctx, item); err != nil {
 			return err
-		}
-		if !sent {
-			if err := i.groupPacker(ctx).PutItem(ctx, item); err != nil {
-				return err
-			}
 		}
 	}
 

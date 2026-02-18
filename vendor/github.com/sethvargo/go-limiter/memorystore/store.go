@@ -57,6 +57,11 @@ type Config struct {
 	// memory consumption for performance as it limits the number of times the map
 	// needs to expand. The default value is 4096.
 	InitialAlloc int
+
+	// DisablePurge disables the purge operation. WARNING: this will cause
+	// unbounded memory growth. Do not enable unless you have a fixed number of
+	// buckets.
+	DisablePurge bool
 }
 
 // New creates an in-memory rate limiter that uses a bucketing model to limit
@@ -102,7 +107,11 @@ func New(c *Config) (limiter.Store, error) {
 		data:   make(map[string]*bucket, initialAlloc),
 		stopCh: make(chan struct{}),
 	}
-	go s.purge()
+
+	if !c.DisablePurge {
+		go s.purge()
+	}
+
 	return s, nil
 }
 
@@ -173,12 +182,19 @@ func (s *store) Set(ctx context.Context, key string, tokens uint64, interval tim
 
 // Burst adds the provided value to the bucket's currently available tokens.
 func (s *store) Burst(ctx context.Context, key string, tokens uint64) error {
-	s.dataLock.Lock()
+	s.dataLock.RLock()
 	if b, ok := s.data[key]; ok {
-		b.lock.Lock()
+		s.dataLock.RUnlock()
+		b.burst(tokens)
+		return nil
+	}
+	s.dataLock.RUnlock()
+
+	s.dataLock.Lock()
+	// check again just in case
+	if b, ok := s.data[key]; ok {
 		s.dataLock.Unlock()
-		b.availableTokens = b.availableTokens + tokens
-		b.lock.Unlock()
+		b.burst(tokens)
 		return nil
 	}
 
@@ -225,18 +241,33 @@ func (s *store) purge() {
 		case <-ticker.C:
 		}
 
-		s.dataLock.Lock()
+		s.dataLock.RLock()
 		now := fasttime.Now()
+		var deletes []string
 		for k, b := range s.data {
-			b.lock.Lock()
+			b.lock.RLock()
 			lastTime := b.startTime + (b.lastTick * uint64(b.interval))
-			b.lock.Unlock()
+			b.lock.RUnlock()
+
+			// There's a very rare edge case where the server clock is reset between
+			// the call to fasttime.Now() above and when this bucket is locked. This
+			// is more likely when there are many buckets, since this function will
+			// take longer to run.
+			if lastTime > now {
+				lastTime = now
+			}
 
 			if now-lastTime > s.sweepMinTTL {
-				delete(s.data, k)
+				deletes = append(deletes, k)
 			}
 		}
-		s.dataLock.Unlock()
+		s.dataLock.RUnlock()
+
+		for _, k := range deletes {
+			s.dataLock.Lock()
+			delete(s.data, k)
+			s.dataLock.Unlock()
+		}
 	}
 }
 
@@ -261,7 +292,7 @@ type bucket struct {
 	lastTick uint64
 
 	// lock guards the mutable fields.
-	lock sync.Mutex
+	lock sync.RWMutex
 }
 
 // newBucket creates a new bucket from the given tokens and interval.
@@ -277,8 +308,8 @@ func newBucket(tokens uint64, interval time.Duration) *bucket {
 
 // get returns information about the bucket.
 func (b *bucket) get() (tokens uint64, remaining uint64, retErr error) {
-	b.lock.Lock()
-	defer b.lock.Unlock()
+	b.lock.RLock()
+	defer b.lock.RUnlock()
 
 	tokens = b.maxTokens
 	remaining = b.availableTokens
@@ -323,6 +354,13 @@ func (b *bucket) take() (tokens uint64, remaining uint64, reset uint64, ok bool,
 	}
 
 	return
+}
+
+// burst adds the specified number of tokens to the bucket's available tokens in a thread-safe manner.
+func (b *bucket) burst(tokens uint64) {
+	b.lock.Lock()
+	b.availableTokens = b.availableTokens + tokens
+	b.lock.Unlock()
 }
 
 // tick is the total number of times the current interval has occurred between

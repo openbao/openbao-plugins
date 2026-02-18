@@ -3,7 +3,7 @@ package mdns
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net"
 	"strconv"
@@ -40,7 +40,7 @@ func (p *Provider) Addrs(args map[string]string, l *log.Logger) ([]string, error
 
 	// default to null logger
 	if l == nil {
-		l = log.New(ioutil.Discard, "", 0)
+		l = log.New(io.Discard, "", 0)
 	}
 
 	// init params
@@ -49,7 +49,7 @@ func (p *Provider) Addrs(args map[string]string, l *log.Logger) ([]string, error
 	// validate and set service record
 	if args["service"] == "" {
 		return nil, fmt.Errorf("discover-mdns: Service record not provided." +
-			"  Please specify a service record for the mDNS lookup.")
+			"  Please specify a service record for the mDNS lookup")
 	}
 	params.Service = args["service"]
 

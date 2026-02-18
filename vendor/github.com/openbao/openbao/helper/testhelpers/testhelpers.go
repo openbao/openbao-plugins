@@ -17,7 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/armon/go-metrics"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	raftlib "github.com/hashicorp/raft"
 	"github.com/mitchellh/go-testing-interface"
 	"github.com/openbao/openbao/api/v2"
@@ -130,7 +130,7 @@ func EnsureCoreSealed(t testing.T, core *vault.TestClusterCore) {
 		if time.Now().After(timeout) {
 			t.Fatal("timeout waiting for core to seal")
 		}
-		if core.Core.Sealed() {
+		if core.Sealed() {
 			break
 		}
 		time.Sleep(250 * time.Millisecond)
@@ -289,7 +289,7 @@ func WaitForNCoresUnsealed(t testing.T, cluster *vault.TestCluster, n int) {
 	for i := 0; i < 30; i++ {
 		unsealed := 0
 		for _, core := range cluster.Cores {
-			if !core.Core.Sealed() {
+			if !core.Sealed() {
 				unsealed++
 			}
 		}
@@ -327,7 +327,7 @@ func WaitForNCoresSealed(t testing.T, cluster *vault.TestCluster, n int) {
 	for i := 0; i < 60; i++ {
 		sealed := 0
 		for _, core := range cluster.Cores {
-			if core.Core.Sealed() {
+			if core.Sealed() {
 				sealed++
 			}
 		}
@@ -345,7 +345,7 @@ func WaitForActiveNode(t testing.T, cluster *vault.TestCluster) *vault.TestClust
 	t.Helper()
 	for i := 0; i < 60; i++ {
 		for _, core := range cluster.Cores {
-			if standby, _ := core.Core.Standby(); !standby {
+			if standby := core.Standby(); !standby {
 				return core
 			}
 		}
@@ -360,10 +360,10 @@ func WaitForActiveNode(t testing.T, cluster *vault.TestCluster) *vault.TestClust
 func WaitForStandbyNode(t testing.T, core *vault.TestClusterCore) {
 	t.Helper()
 	for i := 0; i < 30; i++ {
-		if isLeader, _, clusterAddr, _ := core.Core.Leader(); isLeader != true && clusterAddr != "" {
+		if isLeader, _, clusterAddr, _ := core.Leader(); !isLeader && clusterAddr != "" {
 			return
 		}
-		if core.Core.ActiveNodeReplicationState() == 0 {
+		if core.ActiveNodeReplicationState() == 0 {
 			return
 		}
 
@@ -516,7 +516,7 @@ func (p *HardcodedServerAddressProvider) ServerAddr(id raftlib.ServerID) (raftli
 func NewHardcodedServerAddressProvider(numCores, baseClusterPort int) raftlib.ServerAddressProvider {
 	entries := make(map[raftlib.ServerID]raftlib.ServerAddress)
 
-	for i := 0; i < numCores; i++ {
+	for i := range numCores {
 		id := fmt.Sprintf("core-%d", i)
 		addr := fmt.Sprintf("127.0.0.1:%d", baseClusterPort+i)
 		entries[raftlib.ServerID(id)] = raftlib.ServerAddress(addr)
@@ -540,13 +540,13 @@ func VerifyRaftConfiguration(core *vault.TestClusterCore, numCores int) error {
 
 	servers := config.Servers
 	if len(servers) != numCores {
-		return fmt.Errorf("Found %d servers, not %d", len(servers), numCores)
+		return fmt.Errorf("found %d servers, not %d", len(servers), numCores)
 	}
 
 	leaders := 0
 	for i, s := range servers {
 		if s.NodeID != fmt.Sprintf("core-%d", i) {
-			return fmt.Errorf("Found unexpected node ID %q", s.NodeID)
+			return fmt.Errorf("found unexpected node ID %q", s.NodeID)
 		}
 		if s.Leader {
 			leaders++
@@ -554,7 +554,7 @@ func VerifyRaftConfiguration(core *vault.TestClusterCore, numCores int) error {
 	}
 
 	if leaders != 1 {
-		return fmt.Errorf("Found %d leaders", leaders)
+		return fmt.Errorf("found %d leaders", leaders)
 	}
 
 	return nil
@@ -568,7 +568,7 @@ func WaitForRaftApply(t testing.T, core *vault.TestClusterCore, index uint64) {
 	t.Helper()
 
 	backend := core.UnderlyingRawStorage.(*raft.RaftBackend)
-	for i := 0; i < 30; i++ {
+	for range 30 {
 		if backend.AppliedIndex() >= index {
 			return
 		}
@@ -582,13 +582,9 @@ func WaitForRaftApply(t testing.T, core *vault.TestClusterCore, index uint64) {
 // AwaitLeader waits for one of the cluster's nodes to become leader.
 func AwaitLeader(t testing.T, cluster *vault.TestCluster) (int, error) {
 	timeout := time.Now().Add(60 * time.Second)
-	for {
-		if time.Now().After(timeout) {
-			break
-		}
-
+	for time.Now().Before(timeout) {
 		for i, core := range cluster.Cores {
-			if core.Core.Sealed() {
+			if core.Sealed() {
 				continue
 			}
 
@@ -624,12 +620,22 @@ func GenerateDebugLogs(t testing.T, client *api.Client) chan struct{} {
 					},
 				})
 				if err != nil {
-					t.Fatal(err)
+					select {
+					case <-stopCh:
+						return
+					default:
+						t.Fatal(err)
+					}
 				}
 
 				err = client.Sys().Unmount("foo")
 				if err != nil {
-					t.Fatal(err)
+					select {
+					case <-stopCh:
+						return
+					default:
+						t.Fatal(err)
+					}
 				}
 			}
 		}
@@ -696,11 +702,11 @@ func SysMetricsReq(client *api.Client, cluster *vault.TestCluster, unauth bool) 
 		r.Headers.Set("X-Vault-Token", cluster.RootToken)
 	}
 	var data SysMetricsJSON
-	resp, err := client.RawRequestWithContext(context.Background(), r)
+	resp, err := client.RawRequest(r)
 	if err != nil {
 		return nil, err
 	}
-	bodyBytes, err := io.ReadAll(resp.Response.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -1038,7 +1044,7 @@ func WaitForNodesExcludingSelectedStandbys(t testing.T, cluster *vault.TestClust
 			continue
 		}
 
-		if standby, _ := core.Core.Standby(); standby {
+		if standby := core.Standby(); standby {
 			WaitForStandbyNode(t, core)
 		}
 	}
