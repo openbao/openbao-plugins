@@ -1,8 +1,9 @@
 PLUGIN_PREFIX := openbao-plugin
-PLUGINS := $(subst /,-,$(wildcard auth/* secrets/* databases/*))
+PLUGIN_TYPES := auth secrets database kms
+PLUGINS := $(subst /,-,$(wildcard $(foreach t,$(PLUGIN_TYPES),$(t)/*)))
 PLUGIN := $(firstword $(PLUGINS))
 REGISTRY := ghcr.io/openbao
-VERSION := $(shell git describe --tags --match "$(PLUGIN)-*" | cut -d- -f3-)
+VERSION := $(shell (git describe --tags --match "$(PLUGIN)-*" 2>/dev/null || echo "v0.0.0") | cut -d- -f3-)
 
 TARGETS := \
     linux_amd64_v1 \
@@ -28,6 +29,21 @@ TARGETS := \
     windows_arm_6 \
     windows_arm64_v8
 
+CGO_PLUGINS := \
+	kms-pkcs11
+
+ifneq ($(filter $(PLUGIN),$(CGO_PLUGINS)),)
+CGO_ENABLED := 1
+# We don't want to modify TARGETS itself such that arbitrary targets can still
+# be used with CGO locally, but below are the ones vetted for releases.
+CI_TARGETS := \
+	linux_amd64_v1 \
+	linux_arm64_v8
+else
+CGO_ENABLED := 0
+CI_TARGETS := $(TARGETS)
+endif
+
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
 TARGET := $(filter $(GOOS)_$(GOARCH)%,$(TARGETS))
@@ -37,6 +53,8 @@ define set_vars
   ifeq ($1, linux_amd64_v1)
     GOOS := linux
     GOARCH := amd64
+    CC := x86_64-linux-gnu-gcc
+    CGO_PACKAGES := gcc-x86_64-linux-gnu
   else ifeq ($1, linux_arm_6)
     GOOS := linux
     GOARCH := arm
@@ -44,6 +62,8 @@ define set_vars
   else ifeq ($1, linux_arm64_v8)
     GOOS := linux
     GOARCH := arm64
+    CC := aarch64-linux-gnu-gcc
+    CGO_PACKAGES := gcc-aarch64-linux-gnu
   else ifeq ($1, linux_ppc64le)
     GOOS := linux
     GOARCH := ppc64le
@@ -113,13 +133,25 @@ ARCHIVES := $(subst bin/,dist/,$(addsuffix .tar.gz,$(filter-out bin/$(PLUGIN_PRE
 SIGNATURES := $(ARCHIVES:=.sig)
 SBOMS := $(ARCHIVES:=.spdx.sbom.json)
 
-.PHONY: ci-matrix ci-targets image push
+.PHONY: ci-build-matrix ci-test-matrix ci-targets cgo-packages image push
 
-ci-matrix:
-	@echo -n "$(PLUGINS)"  | jq -Rscr 'split(" ") | "plugins=\(.)"'
+ci-build-matrix:
+	@printf "$(PLUGINS)" | jq -Rscr 'split(" ") | "plugins=\(.)"'
+
+# Save jobs by excluding KMS plugins as their tests are not in this repository.
+ci-test-matrix:
+	@$(MAKE) --no-print-directory ci-build-matrix PLUGIN_TYPES='auth secrets database'
 
 ci-targets:
-	@echo -n "$(TARGETS)" | jq -Rscr 'split(" ") | "targets=\(.)"'
+	@printf "$(CI_TARGETS)" | jq -Rscr 'split(" ") | "targets=\(.)"'
+
+ifeq ($(CGO_ENABLED),1)
+cgo-packages:
+	$(eval $(call set_vars,$(TARGET)))
+	sudo apt-get install -y $(CGO_PACKAGES)
+else
+cgo-packages:
+endif
 
 bin dist:
 	@mkdir -p $@
@@ -156,7 +188,7 @@ dist/%.spdx.sbom.json: dist/% | dist
 $(BINARIES): bin/$(PLUGIN_PREFIX)-$(PLUGIN)_%: | bin
 	$(eval $(call set_vars,$*))
 	@echo "building $@"
-	@GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) CGO_ENABLED=0 go build  -o $@ -ldflags '-s -w -X github.com/openbao/openbao-plugins/$(subst -,/,$(PLUGIN)).pluginVersion=$(VERSION)' ./$(subst -,/,$(PLUGIN))/cmd
+	@GOOS=$(GOOS) GOARCH=$(GOARCH) GOARM=$(GOARM) CGO_ENABLED=$(CGO_ENABLED) CC=$(CC) go build  -o $@ -ldflags '-s -w -X github.com/openbao/openbao-plugins/$(subst -,/,$(PLUGIN)).pluginVersion=$(VERSION)' ./$(subst -,/,$(PLUGIN))/cmd
 
 $(PLUGINS): %:
 	@$(MAKE) --no-print-directory build PLUGIN=$*

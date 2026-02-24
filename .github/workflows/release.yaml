@@ -35,6 +35,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: Install packages
+        run: |
+          make cgo-packages PLUGIN=$(echo ${{github.ref_name}} | cut -d- -f 1-2) TARGET=${{ matrix.target }}
       - name: Build plugin
         run: |
           make build PLUGIN=$(echo ${{github.ref_name}} | cut -d- -f 1-2) TARGET=${{ matrix.target }} VERSION=$(echo ${{github.ref_name}} | cut -d- -f 3)
