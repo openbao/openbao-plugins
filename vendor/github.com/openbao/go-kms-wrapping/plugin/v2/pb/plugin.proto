@@ -1,0 +1,74 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+syntax = "proto3";
+
+package pb;
+option go_package = "github.com/openbao/go-kms-wrapping/plugin/v2/pb";
+
+import "types.proto";
+
+message SetConfigRequest {
+  wrapping.Options options = 20;
+}
+message SetConfigResponse {
+  string wrapper_id = 1;
+  wrapping.WrapperConfig wrapper_config = 10;
+}
+
+message TypeRequest {
+  string wrapper_id = 1;
+}
+message TypeResponse {
+  string type = 10;
+}
+
+message KeyIdRequest {
+  string wrapper_id = 1;
+}
+message KeyIdResponse {
+  string key_id = 10 [json_name = "key_id"];
+}
+
+message EncryptRequest {
+  string wrapper_id = 1;
+  bytes plaintext = 10;
+  wrapping.Options options = 20;
+}
+message EncryptResponse {
+  wrapping.BlobInfo ciphertext = 10;
+}
+
+message DecryptRequest {
+  string wrapper_id = 1;
+  wrapping.BlobInfo ciphertext = 10;
+  wrapping.Options options = 20;
+}
+message DecryptResponse {
+  bytes plaintext = 10;
+}
+
+message InitRequest {
+  string wrapper_id = 1;
+  wrapping.Options options = 20;
+}
+message InitResponse {}
+
+message FinalizeRequest {
+  string wrapper_id = 1;
+  wrapping.Options options = 20;
+}
+message FinalizeResponse {}
+
+service Wrapper {
+  rpc SetConfig(SetConfigRequest) returns (SetConfigResponse);
+
+  rpc Type(TypeRequest) returns (TypeResponse);
+  rpc KeyId(KeyIdRequest) returns (KeyIdResponse);
+
+  rpc Encrypt(EncryptRequest) returns (EncryptResponse);
+  rpc Decrypt(DecryptRequest) returns (DecryptResponse);
+
+  rpc Init(InitRequest) returns (InitResponse);
+  rpc Finalize(FinalizeRequest) returns (FinalizeResponse);
+}

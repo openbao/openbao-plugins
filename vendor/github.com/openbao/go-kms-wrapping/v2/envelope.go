@@ -33,28 +33,14 @@ func EnvelopeEncrypt(plaintext []byte, opt ...Option) (*EnvelopeInfo, error) {
 		return nil, err
 	}
 
-	var iv []byte
-	if opts.WithIv != nil {
-		if len(opts.WithIv) != 12 {
-			return nil, fmt.Errorf("invalid IV provided: expected 12 bytes, got %d", len(opts.WithIv))
-		}
-		iv = opts.WithIv
-	} else {
-		iv, err = uuid.GenerateRandomBytes(12)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	aead, err := aeadEncrypter(key)
 	if err != nil {
 		return nil, err
 	}
 
 	return &EnvelopeInfo{
-		Ciphertext: aead.Seal(nil, iv, plaintext, opts.WithAad),
+		Ciphertext: aead.Seal(nil, nil, plaintext, opts.WithAad),
 		Key:        key,
-		Iv:         iv,
 	}, nil
 }
 
@@ -82,7 +68,7 @@ func EnvelopeDecrypt(data *EnvelopeInfo, opt ...Option) ([]byte, error) {
 		return nil, err
 	}
 
-	return aead.Open(nil, data.Iv, data.Ciphertext, opts.WithAad)
+	return aead.Open(nil, nil, data.Ciphertext, opts.WithAad)
 }
 
 func aeadEncrypter(key []byte) (cipher.AEAD, error) {
@@ -92,7 +78,7 @@ func aeadEncrypter(key []byte) (cipher.AEAD, error) {
 	}
 
 	// Create the GCM mode AEAD
-	gcm, err := cipher.NewGCM(aesCipher)
+	gcm, err := cipher.NewGCMWithRandomNonce(aesCipher)
 	if err != nil {
 		return nil, errors.New("failed to initialize GCM mode")
 	}
