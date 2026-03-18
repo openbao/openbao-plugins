@@ -34,14 +34,11 @@ CGO_PLUGINS := \
 
 ifneq ($(filter $(PLUGIN),$(CGO_PLUGINS)),)
 CGO_ENABLED := 1
-# We don't want to modify TARGETS itself such that arbitrary targets can still
-# be used with CGO locally, but below are the ones vetted for releases.
-CI_TARGETS := \
+TARGETS := \
 	linux_amd64_v1 \
 	linux_arm64_v8
 else
 CGO_ENABLED := 0
-CI_TARGETS := $(TARGETS)
 endif
 
 GOOS := $(shell go env GOOS)
@@ -54,7 +51,6 @@ define set_vars
     GOOS := linux
     GOARCH := amd64
     CC := x86_64-linux-gnu-gcc
-    CGO_PACKAGES := gcc-x86_64-linux-gnu
   else ifeq ($1, linux_arm_6)
     GOOS := linux
     GOARCH := arm
@@ -143,7 +139,7 @@ ci-test-matrix:
 	@$(MAKE) --no-print-directory ci-build-matrix PLUGIN_TYPES='auth secrets database'
 
 ci-targets:
-	@printf "$(CI_TARGETS)" | jq -Rscr 'split(" ") | "targets=\(.)"'
+	@printf "$(TARGETS)" | jq -Rscr 'split(" ") | "targets=\(.)"'
 
 ifeq ($(CGO_ENABLED),1)
 cgo-packages:
