@@ -25,8 +25,9 @@ Advantages:
 | Storage key | Token ID | Identity entity ID |
 | Survives token renewal / rotation | ❌ | ✅ |
 | Shared across tokens for same user | ❌ | ✅ |
-| Requires an entity | No | **Yes** |
-| Works with root token | Yes | ❌ (by design) |
+| Requires an entity |  ❌ | ✅ |
+| Works with root token | ✅ | ❌ (by design) |
+| Cannot be accessed by any other user/entity, including root | ❌ | ✅ |
 
 ---
 

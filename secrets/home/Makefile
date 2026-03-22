@@ -1,5 +1,5 @@
 BINARY    := home-engine
-CMD       := ./cmd/home-engine
+CMD       := ./cmd
 GOFLAGS   := -trimpath
 LDFLAGS   := -s -w
 
