@@ -24,7 +24,7 @@ package main
 import (
 	"os"
 
-	backend "github.com/openbao/openbao-home-engine"
+	backend "github.com/openbao/openbao-plugins/secrets/home"
 	"github.com/openbao/openbao/api/v2"
 	"github.com/openbao/openbao/sdk/v2/plugin"
 )
