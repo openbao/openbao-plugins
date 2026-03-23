@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/openbao/openbao-home-engine/backend"
+	backend "github.com/openbao/openbao-plugins/secrets/home"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
