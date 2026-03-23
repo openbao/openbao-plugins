@@ -12,8 +12,8 @@ import (
 
 const operationPrefixConsul = "consul"
 
-// ReportedVersion is used to report a specific version to Vault.
-var ReportedVersion = ""
+// pluginVersion is used to report a specific version to Vault.
+var pluginVersion = ""
 
 func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend, error) {
 	b := Backend()
@@ -43,7 +43,7 @@ func Backend() *backend {
 			secretToken(&b),
 		},
 		BackendType:    logical.TypeLogical,
-		RunningVersion: ReportedVersion,
+		RunningVersion: pluginVersion,
 	}
 
 	return &b
