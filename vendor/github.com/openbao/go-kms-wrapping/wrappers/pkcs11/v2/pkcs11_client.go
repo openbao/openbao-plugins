@@ -146,19 +146,6 @@ func newPkcs11Client(opts *options) (*Pkcs11Client, *wrapping.WrapperConfig, err
 	}
 
 	switch {
-	case api.ReadBaoVariable(EnvHsmWrapperKeyId) != "" && !opts.Options.WithDisallowEnvVars:
-		keyId = api.ReadBaoVariable(EnvHsmWrapperKeyId)
-	case opts.withKeyId != "":
-		keyId = opts.withKeyId
-	default:
-		keyId = ""
-	}
-	// Remove the 0x prefix.
-	if strings.HasPrefix(keyId, "0x") {
-		keyId = keyId[2:]
-	}
-
-	switch {
 	case api.ReadBaoVariable(EnvHsmWrapperPin) != "" && !opts.Options.WithDisallowEnvVars:
 		pin = api.ReadBaoVariable(EnvHsmWrapperPin)
 	case opts.withPin != "":
@@ -168,12 +155,24 @@ func newPkcs11Client(opts *options) (*Pkcs11Client, *wrapping.WrapperConfig, err
 	}
 
 	switch {
+	case api.ReadBaoVariable(EnvHsmWrapperKeyId) != "" && !opts.Options.WithDisallowEnvVars:
+		keyId = api.ReadBaoVariable(EnvHsmWrapperKeyId)
+	case opts.withKeyId != "":
+		keyId = opts.withKeyId
+	}
+
+	// Remove the 0x prefix.
+	strings.TrimPrefix(keyId, "0x")
+
+	switch {
 	case api.ReadBaoVariable(EnvHsmWrapperKeyLabel) != "" && !opts.Options.WithDisallowEnvVars:
 		keyLabel = api.ReadBaoVariable(EnvHsmWrapperKeyLabel)
 	case opts.withKeyLabel != "":
 		keyLabel = opts.withKeyLabel
-	default:
-		return nil, nil, fmt.Errorf("key label is required")
+	}
+
+	if keyId == "" && keyLabel == "" {
+		return nil, nil, fmt.Errorf("key id or key label required")
 	}
 
 	switch {

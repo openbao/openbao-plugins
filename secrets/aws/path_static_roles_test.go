@@ -8,9 +8,10 @@ import (
 
 	"github.com/openbao/openbao/sdk/v2/queue"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/hashicorp/go-secure-stdlib/awsutil"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+	"github.com/hashicorp/go-secure-stdlib/awsutil/v2"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
@@ -31,17 +32,17 @@ func TestStaticRolesValidation(t *testing.T) {
 		{
 			name: "all good",
 			opts: []awsutil.MockIAMOption{
-				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iam.User{UserName: aws.String("jane-doe"), UserId: aws.String("unique-id")}}),
+				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("jane-doe"), UserId: aws.String("unique-id")}}),
 				awsutil.WithCreateAccessKeyOutput(&iam.CreateAccessKeyOutput{
-					AccessKey: &iam.AccessKey{
+					AccessKey: &iamtypes.AccessKey{
 						AccessKeyId:     aws.String("abcdefghijklmnopqrstuvwxyz"),
 						SecretAccessKey: aws.String("zyxwvutsrqponmlkjihgfedcba"),
 						UserName:        aws.String("jane-doe"),
 					},
 				}),
 				awsutil.WithListAccessKeysOutput(&iam.ListAccessKeysOutput{
-					AccessKeyMetadata: []*iam.AccessKeyMetadata{},
-					IsTruncated:       aws.Bool(false),
+					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{},
+					IsTruncated:       false,
 				}),
 			},
 			requestData: map[string]interface{}{
@@ -65,7 +66,7 @@ func TestStaticRolesValidation(t *testing.T) {
 		{
 			name: "user mismatch",
 			opts: []awsutil.MockIAMOption{
-				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iam.User{UserName: aws.String("ms-impostor"), UserId: aws.String("fake-id")}}),
+				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("ms-impostor"), UserId: aws.String("fake-id")}}),
 			},
 			requestData: map[string]interface{}{
 				"name":            "test",
@@ -77,7 +78,7 @@ func TestStaticRolesValidation(t *testing.T) {
 		{
 			name: "bad rotation period",
 			opts: []awsutil.MockIAMOption{
-				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iam.User{UserName: aws.String("jane-doe"), UserId: aws.String("unique-id")}}),
+				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("jane-doe"), UserId: aws.String("unique-id")}}),
 			},
 			requestData: map[string]interface{}{
 				"name":            "test",
@@ -95,7 +96,7 @@ func TestStaticRolesValidation(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			b.iamClient = miam
+			b.iamClient = &iamClientMock{miam}
 			if err := b.Setup(bgCTX, config); err != nil {
 				t.Fatal(err)
 			}
@@ -131,13 +132,13 @@ func TestStaticRolesWrite(t *testing.T) {
 		{
 			name: "happy path",
 			opts: []awsutil.MockIAMOption{
-				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iam.User{UserName: aws.String("jane-doe"), UserId: aws.String("unique-id")}}),
+				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("jane-doe"), UserId: aws.String("unique-id")}}),
 				awsutil.WithListAccessKeysOutput(&iam.ListAccessKeysOutput{
-					AccessKeyMetadata: []*iam.AccessKeyMetadata{},
-					IsTruncated:       aws.Bool(false),
+					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{},
+					IsTruncated:       false,
 				}),
 				awsutil.WithCreateAccessKeyOutput(&iam.CreateAccessKeyOutput{
-					AccessKey: &iam.AccessKey{
+					AccessKey: &iamtypes.AccessKey{
 						AccessKeyId:     aws.String("abcdefghijklmnopqrstuvwxyz"),
 						SecretAccessKey: aws.String("zyxwvutsrqponmlkjihgfedcba"),
 						UserName:        aws.String("jane-doe"),
@@ -167,13 +168,13 @@ func TestStaticRolesWrite(t *testing.T) {
 		{
 			name: "update existing user",
 			opts: []awsutil.MockIAMOption{
-				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iam.User{UserName: aws.String("john-doe"), UserId: aws.String("unique-id")}}),
+				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("john-doe"), UserId: aws.String("unique-id")}}),
 				awsutil.WithListAccessKeysOutput(&iam.ListAccessKeysOutput{
-					AccessKeyMetadata: []*iam.AccessKeyMetadata{},
-					IsTruncated:       aws.Bool(false),
+					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{},
+					IsTruncated:       false,
 				}),
 				awsutil.WithCreateAccessKeyOutput(&iam.CreateAccessKeyOutput{
-					AccessKey: &iam.AccessKey{
+					AccessKey: &iamtypes.AccessKey{
 						AccessKeyId:     aws.String("abcdefghijklmnopqrstuvwxyz"),
 						SecretAccessKey: aws.String("zyxwvutsrqponmlkjihgfedcba"),
 						UserName:        aws.String("john-doe"),
@@ -205,7 +206,7 @@ func TestStaticRolesWrite(t *testing.T) {
 			}
 
 			b := Backend(config)
-			b.iamClient = miam
+			b.iamClient = &iamClientMock{miam}
 			if err := b.Setup(bgCTX, config); err != nil {
 				t.Fatal(err)
 			}
@@ -399,7 +400,7 @@ func TestStaticRoleDelete(t *testing.T) {
 			}
 
 			b := Backend(config)
-			b.iamClient = miam
+			b.iamClient = &iamClientMock{miam}
 
 			// put in storage
 			staticRole := staticRoleEntry{

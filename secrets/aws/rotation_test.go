@@ -6,11 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
-
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/hashicorp/go-secure-stdlib/awsutil"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+	"github.com/hashicorp/go-secure-stdlib/awsutil/v2"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/openbao/openbao/sdk/v2/queue"
 )
@@ -115,19 +114,19 @@ func TestRotation(t *testing.T) {
 				miam, err := awsutil.NewMockIAM(
 					// blank list for existing user
 					awsutil.WithListAccessKeysOutput(&iam.ListAccessKeysOutput{
-						AccessKeyMetadata: []*iam.AccessKeyMetadata{
+						AccessKeyMetadata: []iamtypes.AccessKeyMetadata{
 							{},
 						},
 					}),
 					// initial key to store
 					awsutil.WithCreateAccessKeyOutput(&iam.CreateAccessKeyOutput{
-						AccessKey: &iam.AccessKey{
+						AccessKey: &iamtypes.AccessKey{
 							AccessKeyId:     aws.String(ak),
 							SecretAccessKey: aws.String(oldSecret),
 						},
 					}),
 					awsutil.WithGetUserOutput(&iam.GetUserOutput{
-						User: &iam.User{
+						User: &iamtypes.User{
 							UserId:   aws.String(cred.config.ID),
 							UserName: aws.String(cred.config.Username),
 						},
@@ -136,7 +135,7 @@ func TestRotation(t *testing.T) {
 				if err != nil {
 					t.Fatalf("couldn't initialze mock IAM handler: %s", err)
 				}
-				b.iamClient = miam
+				b.iamClient = &iamClientMock{miam}
 
 				err = b.createCredential(bgCTX, config.StorageView, cred.config, true)
 				if err != nil {
@@ -158,7 +157,7 @@ func TestRotation(t *testing.T) {
 			miam, err := awsutil.NewMockIAM(
 				// old key
 				awsutil.WithListAccessKeysOutput(&iam.ListAccessKeysOutput{
-					AccessKeyMetadata: []*iam.AccessKeyMetadata{
+					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{
 						{
 							AccessKeyId: aws.String(ak),
 						},
@@ -166,13 +165,13 @@ func TestRotation(t *testing.T) {
 				}),
 				// new key
 				awsutil.WithCreateAccessKeyOutput(&iam.CreateAccessKeyOutput{
-					AccessKey: &iam.AccessKey{
+					AccessKey: &iamtypes.AccessKey{
 						AccessKeyId:     aws.String(ak),
 						SecretAccessKey: aws.String(newSecret),
 					},
 				}),
 				awsutil.WithGetUserOutput(&iam.GetUserOutput{
-					User: &iam.User{
+					User: &iamtypes.User{
 						UserId:   aws.String("unique-id"),
 						UserName: aws.String("jane-doe"),
 					},
@@ -181,7 +180,7 @@ func TestRotation(t *testing.T) {
 			if err != nil {
 				t.Fatalf("couldn't initialze mock IAM handler: %s", err)
 			}
-			b.iamClient = miam
+			b.iamClient = &iamClientMock{miam}
 
 			req := &logical.Request{
 				Storage: config.StorageView,
@@ -214,13 +213,13 @@ func TestRotation(t *testing.T) {
 }
 
 type fakeIAM struct {
-	iamiface.IAMAPI
+	IAMAPI
 	delReqs []*iam.DeleteAccessKeyInput
 }
 
-func (f *fakeIAM) DeleteAccessKey(r *iam.DeleteAccessKeyInput) (*iam.DeleteAccessKeyOutput, error) {
-	f.delReqs = append(f.delReqs, r)
-	return f.IAMAPI.DeleteAccessKey(r)
+func (f *fakeIAM) DeleteAccessKey(ctx context.Context, params *iam.DeleteAccessKeyInput, optFns ...func(*iam.Options)) (*iam.DeleteAccessKeyOutput, error) {
+	f.delReqs = append(f.delReqs, params)
+	return f.IAMAPI.DeleteAccessKey(ctx, params, optFns...)
 }
 
 // TestCreateCredential verifies that credential creation firstly only deletes credentials if it needs to (i.e., two
@@ -239,18 +238,18 @@ func TestCreateCredential(t *testing.T) {
 			id:       "unique-id",
 			opts: []awsutil.MockIAMOption{
 				awsutil.WithListAccessKeysOutput(&iam.ListAccessKeysOutput{
-					AccessKeyMetadata: []*iam.AccessKeyMetadata{},
+					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{},
 				}),
 				// delete should _not_ be called
 				awsutil.WithDeleteAccessKeyError(errors.New("should not have been called")),
 				awsutil.WithCreateAccessKeyOutput(&iam.CreateAccessKeyOutput{
-					AccessKey: &iam.AccessKey{
+					AccessKey: &iamtypes.AccessKey{
 						AccessKeyId:     aws.String("key"),
 						SecretAccessKey: aws.String("itsasecret"),
 					},
 				}),
 				awsutil.WithGetUserOutput(&iam.GetUserOutput{
-					User: &iam.User{
+					User: &iamtypes.User{
 						UserId:   aws.String("unique-id"),
 						UserName: aws.String("jane-doe"),
 					},
@@ -263,20 +262,20 @@ func TestCreateCredential(t *testing.T) {
 			id:       "unique-id",
 			opts: []awsutil.MockIAMOption{
 				awsutil.WithListAccessKeysOutput(&iam.ListAccessKeysOutput{
-					AccessKeyMetadata: []*iam.AccessKeyMetadata{
+					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{
 						{AccessKeyId: aws.String("foo"), CreateDate: aws.Time(time.Now())},
 					},
 				}),
 				// delete should _not_ be called
 				awsutil.WithDeleteAccessKeyError(errors.New("should not have been called")),
 				awsutil.WithCreateAccessKeyOutput(&iam.CreateAccessKeyOutput{
-					AccessKey: &iam.AccessKey{
+					AccessKey: &iamtypes.AccessKey{
 						AccessKeyId:     aws.String("key"),
 						SecretAccessKey: aws.String("itsasecret"),
 					},
 				}),
 				awsutil.WithGetUserOutput(&iam.GetUserOutput{
-					User: &iam.User{
+					User: &iamtypes.User{
 						UserId:   aws.String("unique-id"),
 						UserName: aws.String("jane-doe"),
 					},
@@ -290,19 +289,19 @@ func TestCreateCredential(t *testing.T) {
 			deletedKey: "foo",
 			opts: []awsutil.MockIAMOption{
 				awsutil.WithListAccessKeysOutput(&iam.ListAccessKeysOutput{
-					AccessKeyMetadata: []*iam.AccessKeyMetadata{
+					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{
 						{AccessKeyId: aws.String("foo"), CreateDate: aws.Time(time.Time{})},
 						{AccessKeyId: aws.String("bar"), CreateDate: aws.Time(time.Now())},
 					},
 				}),
 				awsutil.WithCreateAccessKeyOutput(&iam.CreateAccessKeyOutput{
-					AccessKey: &iam.AccessKey{
+					AccessKey: &iamtypes.AccessKey{
 						AccessKeyId:     aws.String("key"),
 						SecretAccessKey: aws.String("itsasecret"),
 					},
 				}),
 				awsutil.WithGetUserOutput(&iam.GetUserOutput{
-					User: &iam.User{
+					User: &iamtypes.User{
 						UserId:   aws.String("unique-id"),
 						UserName: aws.String("jane-doe"),
 					},
@@ -323,7 +322,7 @@ func TestCreateCredential(t *testing.T) {
 				t.Fatal(err)
 			}
 			fiam := &fakeIAM{
-				IAMAPI: miam,
+				IAMAPI: &iamClientMock{miam},
 			}
 
 			b := Backend(config)

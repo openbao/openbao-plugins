@@ -9,14 +9,16 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/hashicorp/go-secure-stdlib/awsutil"
+	"github.com/hashicorp/go-secure-stdlib/awsutil/v2"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/helper/template"
 	"github.com/openbao/openbao/sdk/v2/logical"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+	ststypes "github.com/aws/aws-sdk-go-v2/service/sts/types"
 	"github.com/hashicorp/errwrap"
 )
 
@@ -95,7 +97,7 @@ func genUsername(displayName, policyName, userType, usernameTemplate string) (re
 
 func (b *backend) getFederationToken(ctx context.Context, s logical.Storage,
 	displayName, policyName, policy string, policyARNs []string,
-	iamGroups []string, lifeTimeInSeconds int64) (*logical.Response, error,
+	iamGroups []string, lifeTimeInSeconds int32) (*logical.Response, error,
 ) {
 	groupPolicies, groupPolicyARNs, err := b.getGroupPolicies(ctx, s, iamGroups)
 	if err != nil {
@@ -153,7 +155,7 @@ func (b *backend) getFederationToken(ctx context.Context, s logical.Storage,
 		return logical.ErrorResponse("must specify at least one of policy_arns or policy_document with %s credential_type", federationTokenCred), nil
 	}
 
-	tokenResp, err := stsClient.GetFederationTokenWithContext(ctx, getTokenInput)
+	tokenResp, err := stsClient.GetFederationToken(ctx, getTokenInput)
 	if err != nil {
 		return logical.ErrorResponse("Error generating STS keys: %s", err), awsutil.CheckAWSError(err)
 	}
@@ -184,7 +186,7 @@ func (b *backend) getFederationToken(ctx context.Context, s logical.Storage,
 
 func (b *backend) assumeRole(ctx context.Context, s logical.Storage,
 	displayName, roleName, roleArn, policy string, policyARNs []string,
-	iamGroups []string, lifeTimeInSeconds int64, roleSessionName string, externalID string) (*logical.Response, error,
+	iamGroups []string, lifeTimeInSeconds int32, roleSessionName string, externalID string) (*logical.Response, error,
 ) {
 
 	// grab any IAM group policies associated with the vault role, both inline
@@ -237,15 +239,15 @@ func (b *backend) assumeRole(ctx context.Context, s logical.Storage,
 		DurationSeconds: &lifeTimeInSeconds,
 	}
 	if policy != "" {
-		assumeRoleInput.SetPolicy(policy)
+		assumeRoleInput.Policy = aws.String(policy)
 	}
 	if len(policyARNs) > 0 {
-		assumeRoleInput.SetPolicyArns(convertPolicyARNs(policyARNs))
+		assumeRoleInput.PolicyArns = convertPolicyARNs(policyARNs)
 	}
 	if externalID != "" {
-		assumeRoleInput.SetExternalId(externalID)
+		assumeRoleInput.ExternalId = aws.String(externalID)
 	}
-	tokenResp, err := stsClient.AssumeRoleWithContext(ctx, assumeRoleInput)
+	tokenResp, err := stsClient.AssumeRole(ctx, assumeRoleInput)
 	if err != nil {
 		return logical.ErrorResponse("Error assuming role: %s", err), awsutil.CheckAWSError(err)
 	}
@@ -344,7 +346,7 @@ func (b *backend) secretAccessKeysCreate(
 	}
 
 	// Create the user
-	_, err = iamClient.CreateUserWithContext(ctx, createUserRequest)
+	_, err = iamClient.CreateUser(ctx, createUserRequest)
 	if err != nil {
 		if walErr := framework.DeleteWAL(ctx, s, walID); walErr != nil {
 			iamErr := fmt.Errorf("error creating IAM user: %w", err)
@@ -355,7 +357,7 @@ func (b *backend) secretAccessKeysCreate(
 
 	for _, arn := range role.PolicyArns {
 		// Attach existing policy against user
-		_, err = iamClient.AttachUserPolicyWithContext(ctx, &iam.AttachUserPolicyInput{
+		_, err = iamClient.AttachUserPolicy(ctx, &iam.AttachUserPolicyInput{
 			UserName:  aws.String(username),
 			PolicyArn: aws.String(arn),
 		})
@@ -366,7 +368,7 @@ func (b *backend) secretAccessKeysCreate(
 	}
 	if role.PolicyDocument != "" {
 		// Add new inline user policy against user
-		_, err = iamClient.PutUserPolicyWithContext(ctx, &iam.PutUserPolicyInput{
+		_, err = iamClient.PutUserPolicy(ctx, &iam.PutUserPolicyInput{
 			UserName:       aws.String(username),
 			PolicyName:     aws.String(policyName),
 			PolicyDocument: aws.String(role.PolicyDocument),
@@ -378,7 +380,7 @@ func (b *backend) secretAccessKeysCreate(
 
 	for _, group := range role.IAMGroups {
 		// Add user to IAM groups
-		_, err = iamClient.AddUserToGroupWithContext(ctx, &iam.AddUserToGroupInput{
+		_, err = iamClient.AddUserToGroup(ctx, &iam.AddUserToGroupInput{
 			UserName:  aws.String(username),
 			GroupName: aws.String(group),
 		})
@@ -387,17 +389,17 @@ func (b *backend) secretAccessKeysCreate(
 		}
 	}
 
-	var tags []*iam.Tag
+	var tags []iamtypes.Tag
 	for key, value := range role.IAMTags {
 		// This assignment needs to be done in order to create unique addresses for
 		// these variables. Without doing so, all the tags will be copies of the last
 		// tag listed in the role.
 		k, v := key, value
-		tags = append(tags, &iam.Tag{Key: &k, Value: &v})
+		tags = append(tags, iamtypes.Tag{Key: &k, Value: &v})
 	}
 
 	if len(tags) > 0 {
-		_, err = iamClient.TagUserWithContext(ctx, &iam.TagUserInput{
+		_, err = iamClient.TagUser(ctx, &iam.TagUserInput{
 			Tags:     tags,
 			UserName: &username,
 		})
@@ -408,7 +410,7 @@ func (b *backend) secretAccessKeysCreate(
 	}
 
 	// Create the keys
-	keyResp, err := iamClient.CreateAccessKeyWithContext(ctx, &iam.CreateAccessKeyInput{
+	keyResp, err := iamClient.CreateAccessKey(ctx, &iam.CreateAccessKeyInput{
 		UserName: aws.String(username),
 	})
 	if err != nil {
@@ -512,11 +514,11 @@ func normalizeDisplayName(displayName string) string {
 	return re.ReplaceAllString(displayName, "_")
 }
 
-func convertPolicyARNs(policyARNs []string) []*sts.PolicyDescriptorType {
+func convertPolicyARNs(policyARNs []string) []ststypes.PolicyDescriptorType {
 	size := len(policyARNs)
-	retval := make([]*sts.PolicyDescriptorType, size, size)
+	retval := make([]ststypes.PolicyDescriptorType, size, size)
 	for i, arn := range policyARNs {
-		retval[i] = &sts.PolicyDescriptorType{
+		retval[i] = ststypes.PolicyDescriptorType{
 			Arn: aws.String(arn),
 		}
 	}

@@ -5,13 +5,14 @@ package aws
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/hashicorp/go-secure-stdlib/strutil"
 	"github.com/mitchellh/mapstructure"
 	"github.com/openbao/openbao/sdk/v2/framework"
@@ -83,22 +84,22 @@ func (b *backend) pathCredsRead(ctx context.Context, req *logical.Request, d *fr
 			"Role %q not found", roleName)), nil
 	}
 
-	var ttl int64
+	var ttl int32
 	ttlRaw, ok := d.GetOk("ttl")
 	switch {
 	case ok:
-		ttl = int64(ttlRaw.(int))
+		ttl = int32(ttlRaw.(int))
 	case role.DefaultSTSTTL > 0:
-		ttl = int64(role.DefaultSTSTTL.Seconds())
+		ttl = int32(role.DefaultSTSTTL.Seconds())
 	default:
-		ttl = int64(d.Get("ttl").(int))
+		ttl = int32(d.Get("ttl").(int))
 	}
 
-	var maxTTL int64
+	var maxTTL int32
 	if role.MaxSTSTTL > 0 {
-		maxTTL = int64(role.MaxSTSTTL.Seconds())
+		maxTTL = int32(role.MaxSTSTTL.Seconds())
 	} else {
-		maxTTL = int64(b.System().MaxLeaseTTL().Seconds())
+		maxTTL = int32(b.System().MaxLeaseTTL().Seconds())
 	}
 
 	if ttl > maxTTL {
@@ -174,9 +175,9 @@ func (b *backend) pathUserRollback(ctx context.Context, req *logical.Request, _k
 	}
 
 	// Get information about this user
-	groupsResp, err := client.ListGroupsForUserWithContext(ctx, &iam.ListGroupsForUserInput{
+	groupsResp, err := client.ListGroupsForUser(ctx, &iam.ListGroupsForUserInput{
 		UserName: aws.String(username),
-		MaxItems: aws.Int64(1000),
+		MaxItems: aws.Int32(1000),
 	})
 	if err != nil {
 		// This isn't guaranteed to be perfect; for example, an IAM user
@@ -198,13 +199,9 @@ func (b *backend) pathUserRollback(ctx context.Context, req *logical.Request, _k
 		// Vault to leak the secret, which would be a Very Bad Thing to allow.
 		// So we make sure that, if there's an associated lease, it must be at
 		// least 5 minutes old as well.
-		if aerr, ok := err.(awserr.Error); ok {
-			acceptMissingIamUsers := false
+		var aerr *iamtypes.NoSuchEntityException
+		if errors.As(err, &aerr) {
 			if req.Secret == nil || time.Since(req.Secret.IssueTime) > time.Duration(minAwsUserRollbackAge) {
-				// WAL rollback
-				acceptMissingIamUsers = true
-			}
-			if aerr.Code() == iam.ErrCodeNoSuchEntityException && acceptMissingIamUsers {
 				return nil
 			}
 		}
@@ -213,9 +210,9 @@ func (b *backend) pathUserRollback(ctx context.Context, req *logical.Request, _k
 	groups := groupsResp.Groups
 
 	// Inline (user) policies
-	policiesResp, err := client.ListUserPoliciesWithContext(ctx, &iam.ListUserPoliciesInput{
+	policiesResp, err := client.ListUserPolicies(ctx, &iam.ListUserPoliciesInput{
 		UserName: aws.String(username),
-		MaxItems: aws.Int64(1000),
+		MaxItems: aws.Int32(1000),
 	})
 	if err != nil {
 		return err
@@ -223,18 +220,18 @@ func (b *backend) pathUserRollback(ctx context.Context, req *logical.Request, _k
 	policies := policiesResp.PolicyNames
 
 	// Attached managed policies
-	manPoliciesResp, err := client.ListAttachedUserPoliciesWithContext(ctx, &iam.ListAttachedUserPoliciesInput{
+	manPoliciesResp, err := client.ListAttachedUserPolicies(ctx, &iam.ListAttachedUserPoliciesInput{
 		UserName: aws.String(username),
-		MaxItems: aws.Int64(1000),
+		MaxItems: aws.Int32(1000),
 	})
 	if err != nil {
 		return err
 	}
 	manPolicies := manPoliciesResp.AttachedPolicies
 
-	keysResp, err := client.ListAccessKeysWithContext(ctx, &iam.ListAccessKeysInput{
+	keysResp, err := client.ListAccessKeys(ctx, &iam.ListAccessKeysInput{
 		UserName: aws.String(username),
-		MaxItems: aws.Int64(1000),
+		MaxItems: aws.Int32(1000),
 	})
 	if err != nil {
 		return err
@@ -243,7 +240,7 @@ func (b *backend) pathUserRollback(ctx context.Context, req *logical.Request, _k
 
 	// Revoke all keys
 	for _, k := range keys {
-		_, err = client.DeleteAccessKeyWithContext(ctx, &iam.DeleteAccessKeyInput{
+		_, err = client.DeleteAccessKey(ctx, &iam.DeleteAccessKeyInput{
 			AccessKeyId: k.AccessKeyId,
 			UserName:    aws.String(username),
 		})
@@ -254,7 +251,7 @@ func (b *backend) pathUserRollback(ctx context.Context, req *logical.Request, _k
 
 	// Detach managed policies
 	for _, p := range manPolicies {
-		_, err = client.DetachUserPolicyWithContext(ctx, &iam.DetachUserPolicyInput{
+		_, err = client.DetachUserPolicy(ctx, &iam.DetachUserPolicyInput{
 			UserName:  aws.String(username),
 			PolicyArn: p.PolicyArn,
 		})
@@ -265,9 +262,9 @@ func (b *backend) pathUserRollback(ctx context.Context, req *logical.Request, _k
 
 	// Delete any inline (user) policies
 	for _, p := range policies {
-		_, err = client.DeleteUserPolicyWithContext(ctx, &iam.DeleteUserPolicyInput{
+		_, err = client.DeleteUserPolicy(ctx, &iam.DeleteUserPolicyInput{
 			UserName:   aws.String(username),
-			PolicyName: p,
+			PolicyName: aws.String(p),
 		})
 		if err != nil {
 			return err
@@ -276,7 +273,7 @@ func (b *backend) pathUserRollback(ctx context.Context, req *logical.Request, _k
 
 	// Remove the user from all their groups
 	for _, g := range groups {
-		_, err = client.RemoveUserFromGroupWithContext(ctx, &iam.RemoveUserFromGroupInput{
+		_, err = client.RemoveUserFromGroup(ctx, &iam.RemoveUserFromGroupInput{
 			GroupName: g.GroupName,
 			UserName:  aws.String(username),
 		})
@@ -286,7 +283,7 @@ func (b *backend) pathUserRollback(ctx context.Context, req *logical.Request, _k
 	}
 
 	// Delete the user
-	_, err = client.DeleteUserWithContext(ctx, &iam.DeleteUserInput{
+	_, err = client.DeleteUser(ctx, &iam.DeleteUserInput{
 		UserName: aws.String(username),
 	})
 	if err != nil {

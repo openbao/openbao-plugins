@@ -6,7 +6,6 @@ package aws
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
@@ -51,7 +50,6 @@ func pathConfigRoot(b *backend) *framework.Path {
 			},
 			"max_retries": {
 				Type:        framework.TypeInt,
-				Default:     aws.UseServiceDefaultRetries,
 				Description: "Maximum number of retries for recoverable exceptions of AWS APIs",
 			},
 			"username_template": {

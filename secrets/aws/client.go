@@ -8,21 +8,19 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-secure-stdlib/awsutil"
+	"github.com/hashicorp/go-secure-stdlib/awsutil/v2"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
 // NOTE: The caller is required to ensure that b.clientMutex is at least read locked
 func getRootConfig(ctx context.Context, s logical.Storage, clientType string, logger hclog.Logger) (*aws.Config, error) {
 	credsConfig := &awsutil.CredentialsConfig{}
-	var endpoint string
-	var maxRetries int = aws.UseServiceDefaultRetries
+	var endpoint *string
 
 	entry, err := s.Get(ctx, "config/root")
 	if err != nil {
@@ -37,12 +35,12 @@ func getRootConfig(ctx context.Context, s logical.Storage, clientType string, lo
 		credsConfig.AccessKey = config.AccessKey
 		credsConfig.SecretKey = config.SecretKey
 		credsConfig.Region = config.Region
-		maxRetries = config.MaxRetries
+		credsConfig.MaxRetries = aws.Int(config.MaxRetries)
 		switch {
 		case clientType == "iam" && config.IAMEndpoint != "":
-			endpoint = *aws.String(config.IAMEndpoint)
+			endpoint = aws.String(config.IAMEndpoint)
 		case clientType == "sts" && config.STSEndpoint != "":
-			endpoint = *aws.String(config.STSEndpoint)
+			endpoint = aws.String(config.STSEndpoint)
 		}
 
 		if clientType == "sts" && config.STSRegion != "" {
@@ -64,46 +62,34 @@ func getRootConfig(ctx context.Context, s logical.Storage, clientType string, lo
 
 	credsConfig.Logger = logger
 
-	creds, err := credsConfig.GenerateCredentialChain()
+	creds, err := credsConfig.GenerateCredentialChain(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &aws.Config{
-		Credentials: creds,
-		Region:      aws.String(credsConfig.Region),
-		Endpoint:    &endpoint,
-		HTTPClient:  cleanhttp.DefaultClient(),
-		MaxRetries:  aws.Int(maxRetries),
-	}, nil
+	creds.BaseEndpoint = endpoint
+
+	return creds, nil
 }
 
-func nonCachedClientIAM(ctx context.Context, s logical.Storage, logger hclog.Logger) (*iam.IAM, error) {
+func nonCachedClientIAM(ctx context.Context, s logical.Storage, logger hclog.Logger) (*iam.Client, error) {
 	awsConfig, err := getRootConfig(ctx, s, "iam", logger)
 	if err != nil {
 		return nil, err
 	}
-	sess, err := session.NewSession(awsConfig)
-	if err != nil {
-		return nil, err
-	}
-	client := iam.New(sess)
+	client := iam.NewFromConfig(*awsConfig)
 	if client == nil {
 		return nil, fmt.Errorf("could not obtain iam client")
 	}
 	return client, nil
 }
 
-func nonCachedClientSTS(ctx context.Context, s logical.Storage, logger hclog.Logger) (*sts.STS, error) {
+func nonCachedClientSTS(ctx context.Context, s logical.Storage, logger hclog.Logger) (*sts.Client, error) {
 	awsConfig, err := getRootConfig(ctx, s, "sts", logger)
 	if err != nil {
 		return nil, err
 	}
-	sess, err := session.NewSession(awsConfig)
-	if err != nil {
-		return nil, err
-	}
-	client := sts.New(sess)
+	client := sts.NewFromConfig(*awsConfig)
 	if client == nil {
 		return nil, fmt.Errorf("could not obtain sts client")
 	}
