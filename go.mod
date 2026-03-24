@@ -69,6 +69,7 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/atomic v1.11.0
+	go.uber.org/mock v0.6.0
 	golang.org/x/oauth2 v0.32.0
 	google.golang.org/api v0.246.0
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822
@@ -335,3 +336,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+tool go.uber.org/mock/mockgen

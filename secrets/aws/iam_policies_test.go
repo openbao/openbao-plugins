@@ -12,6 +12,7 @@ import (
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
 
 const ec2DescribePolicy = `{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Action": ["ec2:DescribeInstances"], "Resource": "*"}]}`
@@ -21,25 +22,6 @@ const ec2AllPolicy = `{"Version": "2012-10-17","Statement": [{"Effect": "Allow",
 
 // ec2SingleStatement is an example of the Statement portion containing a single statement that's not a list
 const ec2SingleStatement = `{"Version": "2012-10-17", "Statement": {"Effect": "Allow", "Action": ["ec2:DescribeInstances"], "Resource": "*"}}`
-
-type mockGroupIAMClient struct {
-	IAMAPI
-	ListAttachedGroupPoliciesResp iam.ListAttachedGroupPoliciesOutput
-	ListGroupPoliciesResp         iam.ListGroupPoliciesOutput
-	GetGroupPolicyResp            iam.GetGroupPolicyOutput
-}
-
-func (m mockGroupIAMClient) ListAttachedGroupPolicies(ctx context.Context, params *iam.ListAttachedGroupPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListAttachedGroupPoliciesOutput, error) {
-	return &m.ListAttachedGroupPoliciesResp, nil
-}
-
-func (m mockGroupIAMClient) ListGroupPolicies(ctx context.Context, params *iam.ListGroupPoliciesInput, optFns ...func(*iam.Options)) (*iam.ListGroupPoliciesOutput, error) {
-	return &m.ListGroupPoliciesResp, nil
-}
-
-func (m mockGroupIAMClient) GetGroupPolicy(ctx context.Context, params *iam.GetGroupPolicyInput, optFns ...func(*iam.Options)) (*iam.GetGroupPolicyOutput, error) {
-	return &m.GetGroupPolicyResp, nil
-}
 
 func Test_getGroupPolicies(t *testing.T) {
 	t.Parallel()
@@ -144,11 +126,11 @@ func Test_getGroupPolicies(t *testing.T) {
 			if err := b.Setup(context.Background(), config); err != nil {
 				t.Fatal(err)
 			}
-			b.iamClient = &mockGroupIAMClient{
-				ListAttachedGroupPoliciesResp: tc.listAGPResp,
-				ListGroupPoliciesResp:         tc.listGPResp,
-				GetGroupPolicyResp:            tc.getGPResp,
-			}
+			mock := NewMockIAMAPI(gomock.NewController(t))
+			mock.EXPECT().ListAttachedGroupPolicies(gomock.Any(), gomock.Any()).AnyTimes().Return(&tc.listAGPResp, nil)
+			mock.EXPECT().ListGroupPolicies(gomock.Any(), gomock.Any()).AnyTimes().Return(&tc.listGPResp, nil)
+			mock.EXPECT().GetGroupPolicy(gomock.Any(), gomock.Any()).AnyTimes().Return(&tc.getGPResp, nil)
+			b.iamClient = mock
 
 			// run the test and compare results
 			groupPolicies, groupPolicyARNs, err := b.getGroupPolicies(context.TODO(), config.StorageView, tc.iamGroupArg)

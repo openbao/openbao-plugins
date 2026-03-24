@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/openbao/openbao/sdk/v2/queue"
+	"go.uber.org/mock/gomock"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
-	"github.com/hashicorp/go-secure-stdlib/awsutil/v2"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
@@ -25,25 +25,25 @@ func TestStaticRolesValidation(t *testing.T) {
 
 	cases := []struct {
 		name        string
-		opts        []awsutil.MockIAMOption
+		mockCalls   func(expect *MockIAMAPIMockRecorder)
 		requestData map[string]interface{}
 		isError     bool
 	}{
 		{
 			name: "all good",
-			opts: []awsutil.MockIAMOption{
-				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("jane-doe"), UserId: aws.String("unique-id")}}),
-				awsutil.WithCreateAccessKeyOutput(&iam.CreateAccessKeyOutput{
+			mockCalls: func(expect *MockIAMAPIMockRecorder) {
+				expect.GetUser(gomock.Any(), gomock.Any()).Times(2).Return(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("jane-doe"), UserId: aws.String("unique-id")}}, nil)
+				expect.CreateAccessKey(gomock.Any(), gomock.Any()).Return(&iam.CreateAccessKeyOutput{
 					AccessKey: &iamtypes.AccessKey{
 						AccessKeyId:     aws.String("abcdefghijklmnopqrstuvwxyz"),
 						SecretAccessKey: aws.String("zyxwvutsrqponmlkjihgfedcba"),
 						UserName:        aws.String("jane-doe"),
 					},
-				}),
-				awsutil.WithListAccessKeysOutput(&iam.ListAccessKeysOutput{
+				}, nil)
+				expect.ListAccessKeys(gomock.Any(), gomock.Any()).Return(&iam.ListAccessKeysOutput{
 					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{},
 					IsTruncated:       false,
-				}),
+				}, nil)
 			},
 			requestData: map[string]interface{}{
 				"name":            "test",
@@ -53,8 +53,8 @@ func TestStaticRolesValidation(t *testing.T) {
 		},
 		{
 			name: "bad user",
-			opts: []awsutil.MockIAMOption{
-				awsutil.WithGetUserError(errors.New("oh no")),
+			mockCalls: func(expect *MockIAMAPIMockRecorder) {
+				expect.GetUser(gomock.Any(), gomock.Any()).Return(nil, errors.New("oh no"))
 			},
 			requestData: map[string]interface{}{
 				"name":            "test",
@@ -65,8 +65,8 @@ func TestStaticRolesValidation(t *testing.T) {
 		},
 		{
 			name: "user mismatch",
-			opts: []awsutil.MockIAMOption{
-				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("ms-impostor"), UserId: aws.String("fake-id")}}),
+			mockCalls: func(expect *MockIAMAPIMockRecorder) {
+				expect.GetUser(gomock.Any(), gomock.Any()).Return(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("ms-impostor"), UserId: aws.String("fake-id")}}, nil)
 			},
 			requestData: map[string]interface{}{
 				"name":            "test",
@@ -77,8 +77,8 @@ func TestStaticRolesValidation(t *testing.T) {
 		},
 		{
 			name: "bad rotation period",
-			opts: []awsutil.MockIAMOption{
-				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("jane-doe"), UserId: aws.String("unique-id")}}),
+			mockCalls: func(expect *MockIAMAPIMockRecorder) {
+				expect.GetUser(gomock.Any(), gomock.Any()).Return(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("jane-doe"), UserId: aws.String("unique-id")}}, nil)
 			},
 			requestData: map[string]interface{}{
 				"name":            "test",
@@ -92,11 +92,9 @@ func TestStaticRolesValidation(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			b := Backend(config)
-			miam, err := awsutil.NewMockIAM(c.opts...)(nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			b.iamClient = &iamClientMock{miam}
+			mock := NewMockIAMAPI(gomock.NewController(t))
+			c.mockCalls(mock.EXPECT())
+			b.iamClient = mock
 			if err := b.Setup(bgCTX, config); err != nil {
 				t.Fatal(err)
 			}
@@ -106,7 +104,7 @@ func TestStaticRolesValidation(t *testing.T) {
 				Data:      c.requestData,
 				Path:      "static-roles/test",
 			}
-			_, err = b.pathStaticRolesWrite(bgCTX, req, staticRoleFieldData(req.Data))
+			_, err := b.pathStaticRolesWrite(bgCTX, req, staticRoleFieldData(req.Data))
 			if c.isError && err == nil {
 				t.Fatal("expected an error but didn't get one")
 			} else if !c.isError && err != nil {
@@ -123,7 +121,7 @@ func TestStaticRolesWrite(t *testing.T) {
 
 	cases := []struct {
 		name          string
-		opts          []awsutil.MockIAMOption
+		mockCalls     func(expect *MockIAMAPIMockRecorder)
 		data          map[string]interface{}
 		expectedError bool
 		findUser      bool
@@ -131,19 +129,19 @@ func TestStaticRolesWrite(t *testing.T) {
 	}{
 		{
 			name: "happy path",
-			opts: []awsutil.MockIAMOption{
-				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("jane-doe"), UserId: aws.String("unique-id")}}),
-				awsutil.WithListAccessKeysOutput(&iam.ListAccessKeysOutput{
+			mockCalls: func(expect *MockIAMAPIMockRecorder) {
+				expect.GetUser(gomock.Any(), gomock.Any()).Times(2).Return(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("jane-doe"), UserId: aws.String("unique-id")}}, nil)
+				expect.ListAccessKeys(gomock.Any(), gomock.Any()).Return(&iam.ListAccessKeysOutput{
 					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{},
 					IsTruncated:       false,
-				}),
-				awsutil.WithCreateAccessKeyOutput(&iam.CreateAccessKeyOutput{
+				}, nil)
+				expect.CreateAccessKey(gomock.Any(), gomock.Any()).Return(&iam.CreateAccessKeyOutput{
 					AccessKey: &iamtypes.AccessKey{
 						AccessKeyId:     aws.String("abcdefghijklmnopqrstuvwxyz"),
 						SecretAccessKey: aws.String("zyxwvutsrqponmlkjihgfedcba"),
 						UserName:        aws.String("jane-doe"),
 					},
-				}),
+				}, nil)
 			},
 			data: map[string]interface{}{
 				"name":            "test",
@@ -155,8 +153,8 @@ func TestStaticRolesWrite(t *testing.T) {
 		},
 		{
 			name: "no aws user",
-			opts: []awsutil.MockIAMOption{
-				awsutil.WithGetUserError(errors.New("no such user, etc etc")),
+			mockCalls: func(expect *MockIAMAPIMockRecorder) {
+				expect.GetUser(gomock.Any(), gomock.Any()).Return(nil, errors.New("no such user, etc etc"))
 			},
 			data: map[string]interface{}{
 				"name":            "test",
@@ -167,19 +165,19 @@ func TestStaticRolesWrite(t *testing.T) {
 		},
 		{
 			name: "update existing user",
-			opts: []awsutil.MockIAMOption{
-				awsutil.WithGetUserOutput(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("john-doe"), UserId: aws.String("unique-id")}}),
-				awsutil.WithListAccessKeysOutput(&iam.ListAccessKeysOutput{
+			mockCalls: func(expect *MockIAMAPIMockRecorder) {
+				expect.GetUser(gomock.Any(), gomock.Any()).Return(&iam.GetUserOutput{User: &iamtypes.User{UserName: aws.String("john-doe"), UserId: aws.String("unique-id")}}, nil)
+				expect.ListAccessKeys(gomock.Any(), gomock.Any()).Return(&iam.ListAccessKeysOutput{
 					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{},
 					IsTruncated:       false,
-				}),
-				awsutil.WithCreateAccessKeyOutput(&iam.CreateAccessKeyOutput{
+				}, nil)
+				expect.CreateAccessKey(gomock.Any(), gomock.Any()).Return(&iam.CreateAccessKeyOutput{
 					AccessKey: &iamtypes.AccessKey{
 						AccessKeyId:     aws.String("abcdefghijklmnopqrstuvwxyz"),
 						SecretAccessKey: aws.String("zyxwvutsrqponmlkjihgfedcba"),
 						UserName:        aws.String("john-doe"),
 					},
-				}),
+				}, nil)
 			},
 			data: map[string]interface{}{
 				"name":            "johnny",
@@ -198,15 +196,10 @@ func TestStaticRolesWrite(t *testing.T) {
 			config := logical.TestBackendConfig()
 			config.StorageView = &logical.InmemStorage{}
 
-			miam, err := awsutil.NewMockIAM(
-				c.opts...,
-			)(nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-
 			b := Backend(config)
-			b.iamClient = &iamClientMock{miam}
+			mock := NewMockIAMAPI(gomock.NewController(t))
+			c.mockCalls(mock.EXPECT())
+			b.iamClient = mock
 			if err := b.Setup(bgCTX, config); err != nil {
 				t.Fatal(err)
 			}
@@ -387,20 +380,16 @@ func TestStaticRoleDelete(t *testing.T) {
 			config := logical.TestBackendConfig()
 			config.StorageView = &logical.InmemStorage{}
 
-			// fake an IAM
-			var iamfunc awsutil.IAMAPIFunc
-			if !c.found {
-				iamfunc = awsutil.NewMockIAM(awsutil.WithDeleteAccessKeyError(errors.New("shouldn't have called delete")))
-			} else {
-				iamfunc = awsutil.NewMockIAM()
-			}
-			miam, err := iamfunc(nil)
-			if err != nil {
-				t.Fatalf("couldn't initialize mockiam: %s", err)
-			}
-
 			b := Backend(config)
-			b.iamClient = &iamClientMock{miam}
+			mock := NewMockIAMAPI(gomock.NewController(t))
+			b.iamClient = mock
+
+			if c.found {
+				mock.EXPECT().DeleteAccessKey(gomock.Any(), eq(&iam.DeleteAccessKeyInput{
+					AccessKeyId: aws.String("jane-does-key"),
+					UserName:    aws.String("jane-doe"),
+				}))
+			}
 
 			// put in storage
 			staticRole := staticRoleEntry{
@@ -417,8 +406,19 @@ func TestStaticRoleDelete(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			entry, err = logical.StorageEntryJSON(formatCredsStoragePath(staticRole.Name), awsCredentials{
+				AccessKeyID: "jane-does-key",
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = config.StorageView.Put(bgCTX, entry)
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			l, err := config.StorageView.List(bgCTX, "")
-			if err != nil || len(l) != 1 {
+			if err != nil || len(l) != 2 {
 				t.Fatalf("couldn't add an entry to storage during test setup: %s", err)
 			}
 
@@ -455,7 +455,7 @@ func TestStaticRoleDelete(t *testing.T) {
 			}
 			if c.found && len(l) != 0 {
 				t.Fatal("size of role storage is non zero after delete")
-			} else if !c.found && len(l) != 1 {
+			} else if !c.found && len(l) != 2 {
 				t.Fatal("size of role storage changed after what should have been no deletion")
 			}
 

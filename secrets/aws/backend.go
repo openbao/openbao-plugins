@@ -30,6 +30,7 @@ type STSAPI interface {
 	GetFederationToken(ctx context.Context, params *sts.GetFederationTokenInput, optFns ...func(*sts.Options)) (*sts.GetFederationTokenOutput, error)
 }
 
+//go:generate go tool go.uber.org/mock/mockgen -typed -destination=iam_mock_test.go -package=aws . IAMAPI
 type IAMAPI interface {
 	AddUserToGroup(ctx context.Context, params *iam.AddUserToGroupInput, optFns ...func(*iam.Options)) (*iam.AddUserToGroupOutput, error)
 	AttachUserPolicy(ctx context.Context, params *iam.AttachUserPolicyInput, optFns ...func(*iam.Options)) (*iam.AttachUserPolicyOutput, error)
