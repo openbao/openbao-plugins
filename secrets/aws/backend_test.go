@@ -29,6 +29,7 @@ import (
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/mitchellh/mapstructure"
 	logicaltest "github.com/openbao/openbao-plugins/internal/logical"
+	mock_aws "github.com/openbao/openbao-plugins/secrets/aws/internal/mock"
 	"github.com/openbao/openbao/helper/testhelpers"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"go.uber.org/mock/gomock"
@@ -163,7 +164,7 @@ func TestBackend_throttled(t *testing.T) {
 
 	// Mock the IAM API call to return a throttled response to the CreateUser API
 	// call
-	mockClient := NewMockIAMAPI(gomock.NewController(t))
+	mockClient := mock_aws.NewMockIAMAPI(gomock.NewController(t))
 	mockClient.EXPECT().
 		CreateUser(gomock.Any(), gomock.Any()).
 		Return(nil, &iamtypes.LimitExceededException{

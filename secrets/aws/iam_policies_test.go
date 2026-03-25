@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+	mock_aws "github.com/openbao/openbao-plugins/secrets/aws/internal/mock"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -126,7 +127,7 @@ func Test_getGroupPolicies(t *testing.T) {
 			if err := b.Setup(context.Background(), config); err != nil {
 				t.Fatal(err)
 			}
-			mock := NewMockIAMAPI(gomock.NewController(t))
+			mock := mock_aws.NewMockIAMAPI(gomock.NewController(t))
 			mock.EXPECT().ListAttachedGroupPolicies(gomock.Any(), gomock.Any()).AnyTimes().Return(&tc.listAGPResp, nil)
 			mock.EXPECT().ListGroupPolicies(gomock.Any(), gomock.Any()).AnyTimes().Return(&tc.listGPResp, nil)
 			mock.EXPECT().GetGroupPolicy(gomock.Any(), gomock.Any()).AnyTimes().Return(&tc.getGPResp, nil)

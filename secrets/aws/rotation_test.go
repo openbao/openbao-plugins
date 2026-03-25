@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
+	mock_aws "github.com/openbao/openbao-plugins/secrets/aws/internal/mock"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/openbao/openbao/sdk/v2/queue"
 	"go.uber.org/mock/gomock"
@@ -110,7 +111,7 @@ func TestRotation(t *testing.T) {
 
 				// all the creds will be the same for every user, but that's okay
 				// since what we care about is whether they changed on a single-user basis.
-				mock := NewMockIAMAPI(gomock.NewController(t))
+				mock := mock_aws.NewMockIAMAPI(gomock.NewController(t))
 				mock.EXPECT().GetUser(gomock.Any(), gomock.Any()).Return(&iam.GetUserOutput{
 					User: &iamtypes.User{
 						UserId:   aws.String(cred.config.ID),
@@ -147,7 +148,7 @@ func TestRotation(t *testing.T) {
 			}
 
 			// update aws responses, same argument for why it's okay every cred will be the same
-			mock := NewMockIAMAPI(gomock.NewController(t))
+			mock := mock_aws.NewMockIAMAPI(gomock.NewController(t))
 			for _, cred := range c.creds {
 				if cred.changed {
 					mock.EXPECT().GetUser(gomock.Any(), gomock.Any()).Return(&iam.GetUserOutput{
@@ -209,13 +210,13 @@ func TestCreateCredential(t *testing.T) {
 		name      string
 		username  string
 		id        string
-		mockCalls func(expect *MockIAMAPIMockRecorder)
+		mockCalls func(expect *mock_aws.MockIAMAPIMockRecorder)
 	}{
 		{
 			name:     "zero keys",
 			username: "jane-doe",
 			id:       "unique-id",
-			mockCalls: func(expect *MockIAMAPIMockRecorder) {
+			mockCalls: func(expect *mock_aws.MockIAMAPIMockRecorder) {
 				expect.ListAccessKeys(gomock.Any(), gomock.Any()).Return(&iam.ListAccessKeysOutput{
 					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{},
 				}, nil)
@@ -231,7 +232,7 @@ func TestCreateCredential(t *testing.T) {
 			name:     "one key",
 			username: "jane-doe",
 			id:       "unique-id",
-			mockCalls: func(expect *MockIAMAPIMockRecorder) {
+			mockCalls: func(expect *mock_aws.MockIAMAPIMockRecorder) {
 				expect.ListAccessKeys(gomock.Any(), gomock.Any()).Return(&iam.ListAccessKeysOutput{
 					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{
 						{AccessKeyId: aws.String("foo"), CreateDate: aws.Time(time.Now())},
@@ -249,14 +250,14 @@ func TestCreateCredential(t *testing.T) {
 			name:     "two keys",
 			username: "jane-doe",
 			id:       "unique-id",
-			mockCalls: func(expect *MockIAMAPIMockRecorder) {
+			mockCalls: func(expect *mock_aws.MockIAMAPIMockRecorder) {
 				expect.ListAccessKeys(gomock.Any(), gomock.Any()).Return(&iam.ListAccessKeysOutput{
 					AccessKeyMetadata: []iamtypes.AccessKeyMetadata{
 						{AccessKeyId: aws.String("foo"), CreateDate: aws.Time(time.Time{})},
 						{AccessKeyId: aws.String("bar"), CreateDate: aws.Time(time.Now())},
 					},
 				}, nil)
-				expect.DeleteAccessKey(gomock.Any(), eq(&iam.DeleteAccessKeyInput{
+				expect.DeleteAccessKey(gomock.Any(), mock_aws.Eq(&iam.DeleteAccessKeyInput{
 					AccessKeyId: aws.String("foo"),
 				}))
 				expect.CreateAccessKey(gomock.Any(), gomock.Any()).Return(&iam.CreateAccessKeyOutput{
@@ -275,7 +276,7 @@ func TestCreateCredential(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			b := Backend(config)
-			mock := NewMockIAMAPI(gomock.NewController(t))
+			mock := mock_aws.NewMockIAMAPI(gomock.NewController(t))
 			mock.EXPECT().GetUser(gomock.Any(), gomock.Any()).Return(&iam.GetUserOutput{
 				User: &iamtypes.User{
 					UserId:   aws.String(c.id),
