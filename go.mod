@@ -20,7 +20,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/iam v1.38.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.95.1
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.16
-	github.com/aws/smithy-go v1.24.0
+	github.com/aws/smithy-go v1.24.2
 	github.com/coreos/go-oidc/v3 v3.12.0
 	github.com/fatih/structs v1.1.0
 	github.com/gammazero/workerpool v1.1.3
@@ -113,7 +113,7 @@ require (
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.4 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.8 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.30 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.17 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.17 // indirect
