@@ -235,6 +235,10 @@ func (b *backend) pathConfigStsCreateUpdate(ctx context.Context, req *logical.Re
 		return nil, err
 	}
 
+	// flush cached clients
+	b.flushCachedEC2Clients()
+	b.flushCachedIAMClients()
+
 	return nil, nil
 }
 
@@ -247,6 +251,10 @@ func (b *backend) pathConfigStsDelete(ctx context.Context, req *logical.Request,
 	if accountID == "" {
 		return logical.ErrorResponse("missing account id"), nil
 	}
+
+	// flush cached clients
+	b.flushCachedEC2Clients()
+	b.flushCachedIAMClients()
 
 	return nil, req.Storage.Delete(ctx, "config/sts/"+accountID)
 }

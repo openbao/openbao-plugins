@@ -272,7 +272,7 @@ func (b *backend) cleanup(ctx context.Context) {
 
 func (b *backend) invalidate(ctx context.Context, key string) {
 	switch {
-	case key == "config/client":
+	case key == "config/client", strings.HasPrefix(key, "config/sts/"):
 		b.configMutex.Lock()
 		defer b.configMutex.Unlock()
 		b.flushCachedEC2Clients()
