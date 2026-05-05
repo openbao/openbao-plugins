@@ -57,6 +57,7 @@ require (
 	github.com/openbao/go-kms-wrapping/wrappers/gcpckms/v2 v2.2.0
 	github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.2.0
 	github.com/openbao/go-kms-wrapping/wrappers/pkcs11/v2 v2.5.1
+	github.com/openbao/go-kms-wrapping/wrappers/tcloudpublickms/v2 v2.0.0-20260603114728-af8b1885827f
 	github.com/openbao/openbao/api/v2 v2.5.1
 	github.com/openbao/openbao/sdk/v2 v2.5.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
@@ -174,6 +175,7 @@ require (
 	github.com/openbao/go-kms-wrapping/entropy/v2 v2.1.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
+	github.com/opentelekomcloud/gophertelekomcloud v0.9.5 // indirect
 	github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b // indirect
 	github.com/oracle/oci-go-sdk/v60 v60.0.0 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
@@ -203,6 +205,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 

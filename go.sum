@@ -472,6 +472,8 @@ github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.2.0 h1:SGCAKG5+0xX0ZcsZ
 github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.2.0/go.mod h1:0uT6B3D6rtzheWaVTxAUXOrrLHrMOxwrdcR/lbG2djs=
 github.com/openbao/go-kms-wrapping/wrappers/pkcs11/v2 v2.5.1 h1:RlHxh3QU9qjhw86pjURQ5VIA/qjlM3g/Zk/6DSgcpnE=
 github.com/openbao/go-kms-wrapping/wrappers/pkcs11/v2 v2.5.1/go.mod h1:nlp9DTlZJai6Zr4No0frVgqnFJRKwbJ+P/mA5v1OKvU=
+github.com/openbao/go-kms-wrapping/wrappers/tcloudpublickms/v2 v2.0.0-20260603114728-af8b1885827f h1:Q6gU3F3OUdF/S2w/kELQuLAMRPbtV9PJeVtc4ofjBao=
+github.com/openbao/go-kms-wrapping/wrappers/tcloudpublickms/v2 v2.0.0-20260603114728-af8b1885827f/go.mod h1:8HKyId6HFJiOekGBltanliJPlXc4CrhCO+uYafgziPU=
 github.com/openbao/openbao/api/v2 v2.5.1 h1:Br79D6L20SbAa5P7xqENxmvv8LyI4HoKosPy7klhn4o=
 github.com/openbao/openbao/api/v2 v2.5.1/go.mod h1:Dh5un77tqGgMbmlVEqjqN+8/dMyUohnkaQVg/wXW0Ig=
 github.com/openbao/openbao/sdk/v2 v2.5.1 h1:XUOsAh9/gKfTkoergOLQPdXh9jma5N9nvS6GvjqIwzk=
@@ -480,6 +482,8 @@ github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=
 github.com/opencontainers/image-spec v1.1.1/go.mod h1:qpqAh3Dmcf36wStyyWU+kCeDgrGnAve2nCC8+7h8Q0M=
+github.com/opentelekomcloud/gophertelekomcloud v0.9.5 h1:wJMqv0xU6CcTVZAWVw2qig1j/hn7+5eulpF0A7LGWo0=
+github.com/opentelekomcloud/gophertelekomcloud v0.9.5/go.mod h1:la8cQVYopRoEbNe2L7HlGTdLxUQOwIqHp1VHtjE/5qA=
 github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b h1:FfH+VrHHk6Lxt9HdVS0PXzSXFyS2NbZKXv33FYPol0A=
 github.com/opentracing/opentracing-go v1.2.1-0.20220228012449-10b1cf09e00b/go.mod h1:AC62GU6hc0BrNm+9RK9VSiwa/EUe1bkIeFORAMcHvJU=
 github.com/oracle/oci-go-sdk/v60 v60.0.0 h1:EJAWjEi4SY5Raha6iUzq4LTQ0uM5YFw/wat/L1ehIEM=
