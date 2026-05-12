@@ -7,16 +7,6 @@ description: |-
 
 # LDAP auth method
 
-:::warning
-
-**Note**: This engine can use external X.509 certificates as part of TLS or signature validation.
-   Verifying signatures against X.509 certificates that use SHA-1 is deprecated and is no longer
-   usable without a workaround. See the
-   [deprecation FAQ](../deprecation/faq.mdx#q-what-is-the-impact-of-removing-support-for-x509-certificates-with-signatures-that-use-sha-1)
-   for more information.
-
-:::
-
 The `ldap` auth method allows authentication using an existing LDAP
 server and user/password credentials. This allows OpenBao to be integrated
 into environments using LDAP without duplicating the user/pass configuration
