@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/go-gcp-common/gcputil"
 	"github.com/openbao/openbao/sdk/v2/framework"
+	"github.com/openbao/openbao/sdk/v2/helper/consts"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"google.golang.org/api/iam/v1"
 )
@@ -161,6 +162,12 @@ func (b *backend) createServiceAccountKeySecret(ctx context.Context, s logical.S
 	}
 	if cfg == nil {
 		cfg = &config{}
+	}
+
+	// basic request validation is now done, but before we actually connect
+	// to GCP lets check, if we can even persist the lease in the end
+	if b.System().ReplicationState().HasState(consts.ReplicationPerformanceStandby) {
+		return nil, logical.ErrReadOnly
 	}
 
 	iamC, err := b.IAMAdminClient(s)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/go-secure-stdlib/awsutil/v2"
 	"github.com/openbao/openbao/sdk/v2/framework"
+	"github.com/openbao/openbao/sdk/v2/helper/consts"
 	"github.com/openbao/openbao/sdk/v2/helper/template"
 	"github.com/openbao/openbao/sdk/v2/logical"
 
@@ -114,6 +115,12 @@ func (b *backend) getFederationToken(ctx context.Context, s logical.Storage,
 		policyARNs = append(policyARNs, groupPolicyARNs...)
 	}
 
+	// basic request validation is now done, but before we actually connect
+	// to AWS lets check, if we can even persist the lease in the end
+	if b.System().ReplicationState().HasState(consts.ReplicationPerformanceStandby) {
+		return nil, logical.ErrReadOnly
+	}
+
 	stsClient, err := b.clientSTS(ctx, s)
 	if err != nil {
 		return logical.ErrorResponse(err.Error()), nil
@@ -204,6 +211,12 @@ func (b *backend) assumeRole(ctx context.Context, s logical.Storage,
 	}
 	if len(groupPolicyARNs) > 0 {
 		policyARNs = append(policyARNs, groupPolicyARNs...)
+	}
+
+	// basic request validation is now done, but before we actually connect
+	// to AWS lets check, if we can even persist the lease in the end
+	if b.System().ReplicationState().HasState(consts.ReplicationPerformanceStandby) {
+		return nil, logical.ErrReadOnly
 	}
 
 	stsClient, err := b.clientSTS(ctx, s)
