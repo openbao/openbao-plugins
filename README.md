@@ -18,7 +18,7 @@ Prebuilt binaries for these plugins are available in the [Releases](https://gith
 
 ### Database Plugins
 
-_None available at this time._
+- **Typesense** - Generate Typesense API keys with granular permissions.
 
 ### Secrets Plugins
 
