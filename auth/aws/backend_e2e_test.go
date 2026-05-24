@@ -8,10 +8,8 @@ import (
 	"testing"
 	"time"
 
-	vaulthttp "github.com/openbao/openbao-plugins/internal/http"
 	"github.com/openbao/openbao/api/v2"
 	"github.com/openbao/openbao/sdk/v2/logical"
-	"github.com/openbao/openbao/vault"
 )
 
 func TestBackend_E2E_Initialize(t *testing.T) {

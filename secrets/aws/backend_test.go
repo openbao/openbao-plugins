@@ -28,9 +28,7 @@ import (
 	"github.com/aws/smithy-go"
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	"github.com/mitchellh/mapstructure"
-	logicaltest "github.com/openbao/openbao-plugins/internal/logical"
 	mock_aws "github.com/openbao/openbao-plugins/secrets/aws/internal/mock"
-	"github.com/openbao/openbao/helper/testhelpers"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"go.uber.org/mock/gomock"
 )
