@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-secure-stdlib/awsutil"
 	"github.com/hashicorp/go-secure-stdlib/strutil"
+	"github.com/openbao/openbao-plugins/internal/logicaltest"
 	"github.com/openbao/openbao/sdk/v2/helper/logging"
 	"github.com/openbao/openbao/sdk/v2/helper/policyutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
@@ -997,7 +998,7 @@ func TestAwsVersion(t *testing.T) {
 // passing, rather than the region being randomly chosen tying to the one in the
 // test through luck.
 func TestRoleResolutionWithSTSEndpointConfigured(t *testing.T) {
-	if enabled := os.Getenv(vlttesting.TestEnvVar); enabled == "" {
+	if enabled := os.Getenv(logicaltest.TestEnvVar); enabled == "" {
 		t.Skip()
 	}
 

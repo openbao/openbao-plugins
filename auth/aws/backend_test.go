@@ -17,6 +17,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/openbao/openbao-plugins/internal/logicaltest"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/helper/policyutil"
 	"github.com/openbao/openbao/sdk/v2/logical"
@@ -523,8 +524,8 @@ func TestBackend_ConfigClient(t *testing.T) {
 	}
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		AcceptanceTest:    false,
-		CredentialBackend: b,
+		AcceptanceTest: false,
+		Backend:        b,
 		Steps: []logicaltest.TestStep{
 			stepCreate,
 			stepInvalidAccessKey,
