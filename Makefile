@@ -26,7 +26,6 @@ TARGETS := \
     openbsd_arm_6 \
     openbsd_arm64_v8 \
     windows_amd64_v1 \
-    windows_arm_6 \
     windows_arm64_v8
 
 CGO_PLUGINS := \
@@ -169,9 +168,9 @@ dist/%.zip: bin/% | dist
 	@echo "archiving $@"
 	@zip -qj $@ LICENSE $^
 
-dist/checksums-$(PLUGIN).txt: $(ARCHIVES) | dist
+dist/checksums-$(PLUGIN).txt: $(BINARIES) $(ARCHIVES) | dist
 	@echo "creating checksums $@"
-	@cd dist && sha256sum $(subst dist/,,$^) > checksums-$(PLUGIN).txt
+	@(env -C bin sha256sum $(notdir $(BINARIES)) && env -C dist sha256sum $(notdir $(ARCHIVES))) > $@
 
 dist/%.sig: dist/% | dist
 	@echo "signing $@"
