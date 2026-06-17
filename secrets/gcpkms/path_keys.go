@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/gammazero/workerpool"
-	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/hashicorp/errwrap"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"google.golang.org/api/iterator"
 	"google.golang.org/genproto/protobuf/field_mask"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	multierror "github.com/hashicorp/go-multierror"
 	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
@@ -339,12 +339,12 @@ func (b *backend) pathKeysWrite(ctx context.Context, req *logical.Request, d *fr
 		t := int64(v.(int))
 
 		ck.RotationSchedule = &kmspb.CryptoKey_RotationPeriod{
-			RotationPeriod: &duration.Duration{
+			RotationPeriod: &durationpb.Duration{
 				Seconds: int64(t),
 			},
 		}
 
-		ck.NextRotationTime = &timestamp.Timestamp{
+		ck.NextRotationTime = &timestamppb.Timestamp{
 			Seconds: time.Now().UTC().Add(time.Duration(t) * time.Second).Unix(),
 		}
 	}
