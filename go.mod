@@ -49,15 +49,15 @@ require (
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.2.1
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/openbao/go-kms-wrapping/plugin/v2 v2.2.1-0.20260318145607-5d6196b11a58
-	github.com/openbao/go-kms-wrapping/v2 v2.6.0
-	github.com/openbao/go-kms-wrapping/wrappers/alicloudkms/v2 v2.2.0
-	github.com/openbao/go-kms-wrapping/wrappers/awskms/v2 v2.3.0
-	github.com/openbao/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.2.0
-	github.com/openbao/go-kms-wrapping/wrappers/gcpckms/v2 v2.2.0
-	github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.2.0
-	github.com/openbao/go-kms-wrapping/wrappers/pkcs11/v2 v2.5.1
-	github.com/openbao/go-kms-wrapping/wrappers/tcloudpublickms/v2 v2.0.0-20260603114728-af8b1885827f
+	github.com/openbao/go-kms-wrapping/plugin/v2 v2.3.0
+	github.com/openbao/go-kms-wrapping/v2 v2.8.0
+	github.com/openbao/go-kms-wrapping/wrappers/alicloudkms/v2 v2.3.0
+	github.com/openbao/go-kms-wrapping/wrappers/awskms/v2 v2.4.0
+	github.com/openbao/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.4.0
+	github.com/openbao/go-kms-wrapping/wrappers/gcpckms/v2 v2.3.0
+	github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.3.0
+	github.com/openbao/go-kms-wrapping/wrappers/pkcs11/v2 v2.6.0
+	github.com/openbao/go-kms-wrapping/wrappers/tcloudpublickms/v2 v2.0.0
 	github.com/openbao/openbao/api/v2 v2.5.1
 	github.com/openbao/openbao/sdk/v2 v2.5.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
