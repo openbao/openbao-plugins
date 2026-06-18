@@ -2,6 +2,8 @@ module github.com/openbao/openbao-plugins
 
 go 1.25.0
 
+toolchain go1.26.4
+
 require (
 	cloud.google.com/go/compute/metadata v0.9.0
 	cloud.google.com/go/kms v1.22.0
