@@ -1,14 +1,4 @@
----
-layout: api
-page_title: MongoDB - Database - Secrets Engines - HTTP API
-description: >-
-  The MongoDB plugin for Vault's database secrets engine generates database
-  credentials to access MongoDB servers.
----
-
 # MongoDB database plugin HTTP API
-
-@include 'x509-sha1-deprecation.mdx'
 
 The MongoDB database plugin is one of the supported plugins for the database
 secrets engine. This plugin generates database credentials dynamically based on
@@ -17,8 +7,8 @@ configured roles for the MongoDB database.
 ## Configure connection
 
 In addition to the parameters defined by the [Database
-Backend](/vault/api-docs/secret/databases#configure-connection), this plugin
-has a number of parameters to further configure a connection.
+Backend](https://openbao.org/api-docs/secret/databases/#configure-connection),
+this plugin has a number of parameters to further configure a connection.
 
 | Method | Path                     |
 | :----- | :----------------------- |
@@ -37,23 +27,26 @@ has a number of parameters to further configure a connection.
   object, or a base64-encoded serialized JSON object. The JSON payload values
   map to the values in the [Safe][mgo-safe] struct from the mgo driver.
 
-- `username` `(string: "")` - The root credential username used in the connection URL.
+- `username` `(string: "")` - The root credential username used in the
+  connection URL.
 
-- `password` `(string: "")` - The root credential password used in the connection URL.
+- `password` `(string: "")` - The root credential password used in the
+  connection URL.
 
-- `tls_certificate_key` `(string: "")` - x509 certificate for connecting to the database.
-  This must be a PEM encoded version of the private key and the certificate combined.
+- `tls_certificate_key` `(string: "")` - x509 certificate for connecting to the
+  database. This must be a PEM encoded version of the private key and the
+  certificate combined.
 
-- `tls_ca` `(string: "")` - x509 CA file for validating the certificate presented by the
-  MongoDB server. Must be PEM encoded.
+- `tls_ca` `(string: "")` - x509 CA file for validating the certificate
+  presented by the MongoDB server. Must be PEM encoded.
 
-- `username_template` `(string)` - [Template](/vault/docs/concepts/username-templating) describing how
-  dynamic usernames are generated.
+- `username_template` `(string)` - [Template][username-templating] describing
+  how dynamic usernames are generated.
 
 <details>
 <summary><b>Default Username Template</b></summary>
 
-```
+```gotmpl
 {{ printf "v-%s-%s-%s-%s" (.DisplayName | truncate 15) (.RoleName | truncate 15) (random 20) (unix_time) | replace "." "-"  | truncate 100 }}
 ```
 
@@ -103,7 +96,8 @@ $ curl \
 Statements are configured during role creation and are used by the plugin to
 determine what is sent to the database on user creation, renewing, and
 revocation. For more information on configuring roles see the [Role
-API](/vault/api-docs/secret/databases#create-role) in the database secrets engine docs.
+API](https://openbao.org/api-docs/secret/databases/#create-role) in the database
+secrets engine docs.
 
 ### Parameters
 
@@ -111,14 +105,14 @@ The following are the statements used by this plugin. If not mentioned in this
 list the plugin does not support that statement type.
 
 - `creation_statements` `(string: <required>)` – Specifies the database
-  statements executed to create and configure a user. Must be a
-  serialized JSON object, or a base64-encoded serialized JSON object.
-  The object can optionally contain a `db` string for session connection,
-  and must contain a `roles` array. This array contains objects that holds
-  a `role`, and an optional `db` value, and is similar to the BSON document that
-  is accepted by MongoDB's `roles` field. Vault will transform this array into
-  such format. For more information regarding the `roles` field, refer to
-  [MongoDB's documentation](https://docs.mongodb.com/manual/reference/method/db.createUser/).
+  statements executed to create and configure a user. Must be a serialized JSON
+  object, or a base64-encoded serialized JSON object. The object can optionally
+  contain a `db` string for session connection, and must contain a `roles`
+  array. This array contains objects that holds a `role`, and an optional `db`
+  value, and is similar to the BSON document that is accepted by MongoDB's
+  `roles` field. The plugin will transform this array into such format. For more
+  information regarding the `roles` field, refer to [MongoDB's
+  documentation](https://docs.mongodb.com/manual/reference/method/db.createUser/).
 
 - `revocation_statements` `(string: "")` – Specifies the database statements to
   be executed to revoke a user. Must be a serialized JSON object, or a base64-encoded
@@ -143,9 +137,10 @@ list the plugin does not support that statement type.
 
 ```json
 {
-  "db": "vault-db"
+  "db": "bao-db"
 }
 ```
 
 [mongodb-write-concern]: https://docs.mongodb.com/manual/reference/write-concern/
 [mgo-safe]: https://godoc.org/gopkg.in/mgo.v2#Safe
+[username-templating]: https://openbao.org/docs/concepts/username-templating/

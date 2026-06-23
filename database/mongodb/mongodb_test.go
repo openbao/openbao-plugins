@@ -8,6 +8,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"maps"
 	"net/http"
 	"reflect"
 	"strings"
@@ -17,11 +18,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/hashicorp/vault/helper/testhelpers/certhelpers"
-	"github.com/hashicorp/vault/helper/testhelpers/mongodb"
-	dbplugin "github.com/hashicorp/vault/sdk/database/dbplugin/v5"
-	dbtesting "github.com/hashicorp/vault/sdk/database/dbplugin/v5/testing"
+	mongodb "github.com/openbao/openbao-plugins/database/mongodb/testhelpers"
+	dbplugin "github.com/openbao/openbao/sdk/v2/database/dbplugin/v5"
+	dbtesting "github.com/openbao/openbao/sdk/v2/database/dbplugin/v5/testing"
 	"github.com/stretchr/testify/require"
+	"github.com/tsaarni/certyaml"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -33,18 +34,18 @@ const (
 )
 
 func TestMongoDB_Initialize(t *testing.T) {
-	cleanup, connURL := mongodb.PrepareTestContainer(t, "latest")
+	cleanup, connURL := mongodb.PrepareTestContainer(t, "latest", "")
 	defer cleanup()
 
 	db := new()
 	defer dbtesting.AssertClose(t, db)
 
-	config := map[string]interface{}{
+	config := map[string]any{
 		"connection_url": connURL,
 	}
 
 	// Make a copy since the original map could be modified by the Initialize call
-	expectedConfig := copyConfig(config)
+	expectedConfig := maps.Clone(config)
 
 	req := dbplugin.InitializeRequest{
 		Config:           config,
@@ -143,7 +144,7 @@ func TestNewUser_usernameTemplate(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			cleanup, connURL := mongodb.PrepareTestContainer(t, "latest")
+			cleanup, connURL := mongodb.PrepareTestContainer(t, "latest", "")
 			defer cleanup()
 
 			if name == "admin in test database username template" {
@@ -154,7 +155,7 @@ func TestNewUser_usernameTemplate(t *testing.T) {
 			defer dbtesting.AssertClose(t, db)
 
 			initReq := dbplugin.InitializeRequest{
-				Config: map[string]interface{}{
+				Config: map[string]any{
 					"connection_url":    connURL,
 					"username_template": test.usernameTemplate,
 				},
@@ -162,8 +163,7 @@ func TestNewUser_usernameTemplate(t *testing.T) {
 			}
 			dbtesting.AssertInitialize(t, db, initReq)
 
-			ctx := context.Background()
-			newUserResp, err := db.NewUser(ctx, test.newUserReq)
+			newUserResp, err := db.NewUser(t.Context(), test.newUserReq)
 			require.NoError(t, err)
 			require.Regexp(t, test.expectedUsernameRegex, newUserResp.Username)
 
@@ -173,14 +173,14 @@ func TestNewUser_usernameTemplate(t *testing.T) {
 }
 
 func TestMongoDB_CreateUser(t *testing.T) {
-	cleanup, connURL := mongodb.PrepareTestContainer(t, "latest")
+	cleanup, connURL := mongodb.PrepareTestContainer(t, "latest", "")
 	defer cleanup()
 
 	db := new()
 	defer dbtesting.AssertClose(t, db)
 
 	initReq := dbplugin.InitializeRequest{
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"connection_url": connURL,
 		},
 		VerifyConnection: true,
@@ -205,11 +205,11 @@ func TestMongoDB_CreateUser(t *testing.T) {
 }
 
 func TestMongoDB_CreateUser_writeConcern(t *testing.T) {
-	cleanup, connURL := mongodb.PrepareTestContainer(t, "latest")
+	cleanup, connURL := mongodb.PrepareTestContainer(t, "latest", "")
 	defer cleanup()
 
 	initReq := dbplugin.InitializeRequest{
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"connection_url": connURL,
 			"write_concern":  `{ "wmode": "majority", "wtimeout": 5000 }`,
 		},
@@ -239,14 +239,14 @@ func TestMongoDB_CreateUser_writeConcern(t *testing.T) {
 }
 
 func TestMongoDB_DeleteUser(t *testing.T) {
-	cleanup, connURL := mongodb.PrepareTestContainer(t, "latest")
+	cleanup, connURL := mongodb.PrepareTestContainer(t, "latest", "")
 	defer cleanup()
 
 	db := new()
 	defer dbtesting.AssertClose(t, db)
 
 	initReq := dbplugin.InitializeRequest{
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"connection_url": connURL,
 		},
 		VerifyConnection: true,
@@ -276,10 +276,12 @@ func TestMongoDB_DeleteUser(t *testing.T) {
 	dbtesting.AssertDeleteUser(t, db, delReq)
 
 	assertCredsDoNotExist(t, createResp.Username, password, connURL)
+
+	dbtesting.AssertDeleteUser(t, db, delReq) // delete again, see: https://openbao.org/docs/plugins/plugin-authors-guide/#revoke-operations-should-ignore-not-found-errors
 }
 
 func TestMongoDB_UpdateUser_Password(t *testing.T) {
-	cleanup, connURL := mongodb.PrepareTestContainer(t, "latest")
+	cleanup, connURL := mongodb.PrepareTestContainer(t, "latest", "")
 	defer cleanup()
 
 	// The docker test method PrepareTestContainer defaults to a database "test"
@@ -289,7 +291,7 @@ func TestMongoDB_UpdateUser_Password(t *testing.T) {
 	defer dbtesting.AssertClose(t, db)
 
 	initReq := dbplugin.InitializeRequest{
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"connection_url": connURL,
 		},
 		VerifyConnection: true,
@@ -315,7 +317,7 @@ func TestMongoDB_UpdateUser_Password(t *testing.T) {
 }
 
 func TestMongoDB_RotateRoot_NonAdminDB(t *testing.T) {
-	cleanup, connURL := mongodb.PrepareTestContainer(t, "latest")
+	cleanup, connURL := mongodb.PrepareTestContainer(t, "latest", "")
 	defer cleanup()
 
 	connURL = connURL + "/test?authSource=test"
@@ -323,7 +325,7 @@ func TestMongoDB_RotateRoot_NonAdminDB(t *testing.T) {
 	defer dbtesting.AssertClose(t, db)
 
 	initReq := dbplugin.InitializeRequest{
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"connection_url": connURL,
 		},
 		VerifyConnection: true,
@@ -348,15 +350,26 @@ func TestMongoDB_RotateRoot_NonAdminDB(t *testing.T) {
 }
 
 func TestGetTLSAuth(t *testing.T) {
-	ca := certhelpers.NewCert(t,
-		certhelpers.CommonName("certificate authority"),
-		certhelpers.IsCA(true),
-		certhelpers.SelfSign(),
-	)
-	cert := certhelpers.NewCert(t,
-		certhelpers.CommonName("test cert"),
-		certhelpers.Parent(ca),
-	)
+	TRUE := true
+	ca := &certyaml.Certificate{
+		Subject: "cn=certificate authority",
+		IsCA:    &TRUE,
+	}
+	cert := &certyaml.Certificate{
+		Subject:         "cn=test cert",
+		SubjectAltNames: []string{"DNS:localhost"},
+		Issuer:          ca,
+	}
+
+	certPem, keyPem, err := cert.PEM()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tlsCert, err := tls.X509KeyPair(certPem, keyPem)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	type testCase struct {
 		username   string
@@ -385,24 +398,24 @@ func TestGetTLSAuth(t *testing.T) {
 			expectErr:  true,
 		},
 		"good ca": {
-			tlsCAData: cert.Pem,
+			tlsCAData: cert.CertPEM(),
 
 			expectOpts: options.Client().
 				SetTLSConfig(
 					&tls.Config{
-						RootCAs: appendToCertPool(t, x509.NewCertPool(), cert.Pem),
+						RootCAs: appendToCertPool(t, x509.NewCertPool(), certPem),
 					},
 				),
 			expectErr: false,
 		},
 		"good key": {
 			username:   "unittest",
-			tlsKeyData: cert.CombinedPEM(),
+			tlsKeyData: fmt.Appendln(certPem, string(keyPem)),
 
 			expectOpts: options.Client().
 				SetTLSConfig(
 					&tls.Config{
-						Certificates: []tls.Certificate{cert.TLSCert},
+						Certificates: []tls.Certificate{tlsCert},
 					},
 				).
 				SetAuth(options.Credential{
@@ -468,7 +481,8 @@ func assertDeepEqual(t *testing.T, a, b *options.ClientOptions) {
 func createDBUser(t testing.TB, connURL, db, username, password string) {
 	t.Helper()
 
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(connURL))
 	if err != nil {
 		t.Fatal(err)
@@ -477,7 +491,7 @@ func createDBUser(t testing.TB, connURL, db, username, password string) {
 	createUserCmd := &createUserCommand{
 		Username: username,
 		Password: password,
-		Roles:    []interface{}{},
+		Roles:    []any{},
 	}
 	result := client.Database(db).RunCommand(ctx, createUserCmd, nil)
 	if result.Err() != nil {
@@ -492,7 +506,8 @@ func assertCredsExist(t testing.TB, username, password, connURL string) {
 
 	connURL = strings.Replace(connURL, "mongodb://", fmt.Sprintf("mongodb://%s:%s@", username, password), 1)
 
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(connURL))
 	if err != nil {
 		t.Fatalf("Failed to connect to mongo: %s", err)
@@ -509,7 +524,8 @@ func assertCredsDoNotExist(t testing.TB, username, password, connURL string) {
 
 	connURL = strings.Replace(connURL, "mongodb://", fmt.Sprintf("mongodb://%s:%s@", username, password), 1)
 
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(connURL))
 	if err != nil {
 		return // Creds don't exist as expected
@@ -520,12 +536,4 @@ func assertCredsDoNotExist(t testing.TB, username, password, connURL string) {
 		return // Creds don't exist as expected
 	}
 	t.Fatalf("User %q exists and was able to authenticate", username)
-}
-
-func copyConfig(config map[string]interface{}) map[string]interface{} {
-	newConfig := map[string]interface{}{}
-	for k, v := range config {
-		newConfig[k] = v
-	}
-	return newConfig
 }

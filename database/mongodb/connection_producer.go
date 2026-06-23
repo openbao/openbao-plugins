@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/vault/sdk/database/helper/connutil"
-	"github.com/hashicorp/vault/sdk/database/helper/dbutil"
 	"github.com/mitchellh/mapstructure"
+	"github.com/openbao/openbao/sdk/v2/database/helper/connutil"
+	"github.com/openbao/openbao/sdk/v2/database/helper/dbutil"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -39,7 +39,7 @@ type mongoDBConnectionProducer struct {
 	ServerSelectionTimeout time.Duration `json:"server_selection_timeout" structs:"-" mapstructure:"server_selection_timeout"`
 
 	Initialized   bool
-	RawConfig     map[string]interface{}
+	RawConfig     map[string]any
 	Type          string
 	clientOptions *options.ClientOptions
 	client        *mongo.Client
@@ -55,7 +55,7 @@ type writeConcern struct {
 	J        bool   // Sync via the journal if present
 }
 
-func (c *mongoDBConnectionProducer) loadConfig(cfg map[string]interface{}) error {
+func (c *mongoDBConnectionProducer) loadConfig(cfg map[string]any) error {
 	err := mapstructure.WeakDecode(cfg, c)
 	if err != nil {
 		return err
@@ -93,8 +93,8 @@ func (c *mongoDBConnectionProducer) Connection(ctx context.Context) (*mongo.Clie
 		return nil, connutil.ErrNotInitialized
 	}
 
-	c.Mutex.Lock()
-	defer c.Mutex.Unlock()
+	c.Lock()
+	defer c.Unlock()
 
 	if c.client != nil {
 		if err := c.client.Ping(ctx, readpref.Primary()); err == nil {

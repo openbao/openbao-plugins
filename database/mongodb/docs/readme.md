@@ -9,50 +9,48 @@ description: |-
 
 # MongoDB database secrets engine
 
-@include 'x509-sha1-deprecation.mdx'
-
 MongoDB is one of the supported plugins for the database secrets engine. This
 plugin generates database credentials dynamically based on configured roles for
 the MongoDB database and also supports
-[Static Roles](/vault/docs/secrets/databases#static-roles).
+[Static Roles](https://openbao.org/docs/secrets/databases/#static-roles).
 
-See the [database secrets engine](/vault/docs/secrets/databases) docs for
-more information about setting up the database secrets engine.
+See the [database secrets engine](https://openbao.org/docs/secrets/databases/)
+docs for more information about setting up the database secrets engine.
 
 ## Capabilities
 
 | Plugin Name               | Root Credential Rotation | Dynamic Roles | Static Roles | Username Customization |
 | ------------------------- | ------------------------ | ------------- | ------------ | ---------------------- |
-| `mongodb-database-plugin` | Yes                      | Yes           | Yes          | Yes (1.7+)             |
+| `mongodb-database-plugin` | Yes                      | Yes           | Yes          | Yes                    |
 
 ## Setup
 
 1.  Enable the database secrets engine if it is not already enabled:
 
     ```text
-    $ vault secrets enable database
+    $ bao secrets enable database
     Success! Enabled the database secrets engine at: database/
     ```
 
     By default, the secrets engine will enable at the name of the engine. To
     enable the secrets engine at a different path, use the `-path` argument.
 
-1.  Configure Vault with the proper plugin and connection information:
+1.  Configure OpenBao with the proper plugin and connection information:
 
     ```text
-    $ vault write database/config/my-mongodb-database \
+    $ bao write database/config/my-mongodb-database \
         plugin_name=mongodb-database-plugin \
         allowed_roles="my-role" \
         connection_url="mongodb://{{username}}:{{password}}@mongodb.acme.com:27017/admin?tls=true" \
-        username="vaultuser" \
-        password="vaultpass!"
+        username="baouser" \
+        password="baopass!"
     ```
 
-1.  Configure a role that maps a name in Vault to a MongoDB command that executes and
-    creates the database credential:
+1. Configure a role that maps a name in OpenBao to a MongoDB command that
+    executes and creates the database credential:
 
     ```text
-    $ vault write database/roles/my-role \
+    $ bao write database/roles/my-role \
         db_name=my-mongodb-database \
         creation_statements='{ "db": "admin", "roles": [{ "role": "readWrite" }, {"role": "read", "db": "foo"}] }' \
         default_ttl="1h" \
@@ -62,21 +60,21 @@ more information about setting up the database secrets engine.
 
 ## Usage
 
-After the secrets engine is configured and a user/machine has a Vault token with
-the proper permission, it can generate credentials.
+After the secrets engine is configured and a user/machine has a OpenBao token
+with the proper permission, it can generate credentials.
 
 1.  Generate a new credential by reading from the `/creds` endpoint with the name
     of the role:
 
     ```text
-    $ vault read database/creds/my-role
+    $ bao read database/creds/my-role
     Key                Value
     ---                -----
     lease_id           database/creds/my-role/2f6a614c-4aa2-7b19-24b9-ad944a8d4de6
     lease_duration     1h
     lease_renewable    true
     password           LEm-lcDJ2k0Hi05FvizN
-    username           v-vaultuser-my-role-ItceCZHlp0YGn90Puy9Z-1602542024
+    username           v-baouser-my-role-ItceCZHlp0YGn90Puy9Z-1602542024
     ```
 
 ## Client x509 certificate authentication
@@ -86,7 +84,7 @@ This plugin supports using MongoDB's [x509 Client-side Certificate Authenticatio
 To use this authentication mechanism, configure the plugin:
 
 ```shell-session
-$ vault write database/config/my-mongodb-database \
+$ bao write database/config/my-mongodb-database \
     plugin_name=mongodb-database-plugin \
     allowed_roles="my-role" \
     connection_url="mongodb://@mongodb.acme.com:27017/admin" \
@@ -94,22 +92,20 @@ $ vault write database/config/my-mongodb-database \
     tls_ca=@/path/to/client.ca
 ```
 
-Note: `tls_certificate_key` and `tls_ca` map to [`tlsCertificateKeyFile`](https://docs.mongodb.com/manual/reference/program/mongo/#cmdoption-mongo-tlscertificatekeyfile)
-and [`tlsCAFile`](https://docs.mongodb.com/manual/reference/program/mongo/#cmdoption-mongo-tlscafile) configuration options
-from MongoDB with the exception that the Vault parameters are the contents of those files, not filenames. As such,
-the two options are independent of each other. See the [MongoDB Configuration Options](https://docs.mongodb.com/manual/reference/program/mongo/)
-for more information.
-
-## Tutorial
-
-Refer to [Database Secrets Engine with
-MongoDB](/vault/tutorials/db-credentials/database-mongodb) for a
-step-by-step tutorial.
+Note: `tls_certificate_key` and `tls_ca` map to [`tlsCertificateKeyFile`][] and
+[`tlsCAFile`][] configuration options from MongoDB Shell (`mongosh`) with the
+exception that the OpenBao parameters are the contents of those files, not
+filenames. As such, the two options are independent of each other.
 
 ## API
 
 The full list of configurable options can be seen in the [MongoDB database
-plugin API](/vault/api-docs/secret/databases/mongodb) page.
+plugin API](./api/readme.md)page.
 
 For more information on the database secrets engine's HTTP API please see the
-[Database secrets engine API](/vault/api-docs/secret/databases) page.
+[Database secrets engine API](https://openbao.org/api-docs/secret/databases/)
+page.
+
+
+[`tlsCertificateKeyFile`]: https://www.mongodb.com/docs/mongodb-shell/reference/options/#std-option-mongosh.--tlsCertificateKeyFile
+[`tlsCAFile`]: https://www.mongodb.com/docs/mongodb-shell/reference/options/#std-option-mongosh.--tlsCAFile

@@ -8,52 +8,56 @@ import (
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
-	"github.com/hashicorp/vault/sdk/helper/docker"
+	"github.com/openbao/openbao/sdk/v2/helper/docker"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-// PrepareTestContainer calls PrepareTestContainerWithDatabase without a
-// database name value, which results in configuring a database named "test"
-func PrepareTestContainer(t *testing.T, version string) (cleanup func(), retURL string) {
-	return PrepareTestContainerWithDatabase(t, version, "")
-}
-
-// PrepareTestContainerWithDatabase configures a test container with a given
-// database name, to test non-test/admin database configurations
-func PrepareTestContainerWithDatabase(t *testing.T, version, dbName string) (func(), string) {
+func PrepareTestContainer(t *testing.T, version, configDir string) (func(), string) {
 	if os.Getenv("MONGODB_URL") != "" {
 		return func() {}, os.Getenv("MONGODB_URL")
 	}
 
-	runner, err := docker.NewServiceRunner(docker.RunOptions{
+	runOptions := docker.RunOptions{
 		ContainerName: "mongo",
-		ImageRepo:     "docker.mirror.hashicorp.services/library/mongo",
+		ImageRepo:     "mongo",
 		ImageTag:      version,
 		Ports:         []string{"27017/tcp"},
-	})
+
+		OmitLogTimestamps: true, // mongodb server logs are already timestamped
+		LogConsumer: func(msg string) {
+			t.Log("[mongod]", msg)
+		},
+	}
+
+	if configDir != "" {
+		runOptions.Cmd = []string{"mongod", "--config", "/etc/mongo/mongod.conf"}
+		runOptions.CopyFromTo = map[string]string{
+			configDir: "/etc/mongo",
+		}
+	}
+
+	runner, err := docker.NewServiceRunner(runOptions)
 	if err != nil {
 		t.Fatalf("could not start docker mongo: %s", err)
 	}
 
-	svc, err := runner.StartService(context.Background(), func(ctx context.Context, host string, port int) (docker.ServiceConfig, error) {
+	svc, err := runner.StartService(t.Context(), func(ctx context.Context, host string, port int) (docker.ServiceConfig, error) {
 		connURL := fmt.Sprintf("mongodb://%s:%d", host, port)
-		if dbName != "" {
-			connURL = fmt.Sprintf("%s/%s", connURL, dbName)
-		}
 
-		ctx, _ = context.WithTimeout(context.Background(), 1*time.Minute)
 		client, err := mongo.Connect(ctx, options.Client().ApplyURI(connURL))
 		if err != nil {
 			return nil, err
 		}
 
-		err = client.Ping(ctx, readpref.Primary())
+		if err = client.Ping(ctx, readpref.Primary()); err != nil {
+			t.Fatal(err)
+		}
+
 		if err = client.Disconnect(ctx); err != nil {
-			t.Fatal()
+			t.Fatal(err)
 		}
 
 		return docker.NewServiceURLParse(connURL)

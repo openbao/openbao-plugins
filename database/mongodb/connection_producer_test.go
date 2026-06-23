@@ -6,52 +6,43 @@ package mongodb
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"net/url"
 	"os"
 	paths "path"
-	"path/filepath"
 	"reflect"
 	"sort"
 	"testing"
 	"time"
 
-	"github.com/hashicorp/vault/helper/testhelpers/certhelpers"
-	dbplugin "github.com/hashicorp/vault/sdk/database/dbplugin/v5"
-	"github.com/ory/dockertest"
+	mongodb "github.com/openbao/openbao-plugins/database/mongodb/testhelpers"
+	dbplugin "github.com/openbao/openbao/sdk/v2/database/dbplugin/v5"
+	"github.com/tsaarni/certyaml"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 func TestInit_clientTLS(t *testing.T) {
-	t.Skip("Skipping this test because CircleCI can't mount the files we need without further investigation: " +
-		"https://support.circleci.com/hc/en-us/articles/360007324514-How-can-I-mount-volumes-to-docker-containers-")
-
-	// Set up temp directory so we can mount it to the docker container
-	confDir := makeTempDir(t)
-	defer os.RemoveAll(confDir)
+	confDir := t.TempDir()
 
 	// Create certificates for Mongo authentication
-	caCert := certhelpers.NewCert(t,
-		certhelpers.CommonName("test certificate authority"),
-		certhelpers.IsCA(true),
-		certhelpers.SelfSign(),
-	)
-	serverCert := certhelpers.NewCert(t,
-		certhelpers.CommonName("server"),
-		certhelpers.DNS("localhost"),
-		certhelpers.Parent(caCert),
-	)
-	clientCert := certhelpers.NewCert(t,
-		certhelpers.CommonName("client"),
-		certhelpers.DNS("client"),
-		certhelpers.Parent(caCert),
-	)
+	TRUE := true
+	caCert := &certyaml.Certificate{
+		Subject: "CN=test certificate authority",
+		IsCA:    &TRUE,
+	}
+	serverCert := &certyaml.Certificate{
+		Subject:         "CN=server",
+		SubjectAltNames: []string{"DNS:localhost", "IP:127.0.0.1"},
+		Issuer:          caCert,
+	}
+	clientCert := &certyaml.Certificate{
+		Subject: "CN=client",
+		Issuer:  caCert,
+	}
 
-	writeFile(t, paths.Join(confDir, "ca.pem"), caCert.CombinedPEM(), 0o644)
-	writeFile(t, paths.Join(confDir, "server.pem"), serverCert.CombinedPEM(), 0o644)
-	writeFile(t, paths.Join(confDir, "client.pem"), clientCert.CombinedPEM(), 0o644)
+	writeFile(t, paths.Join(confDir, "ca.pem"), caCert.CertPEM(), 0o644)
+	writeFile(t, paths.Join(confDir, "server.pem"), fmt.Append(serverCert.KeyPEM(), "\n", string(serverCert.CertPEM())), 0o644)
+	writeFile(t, paths.Join(confDir, "client.pem"), fmt.Append(clientCert.KeyPEM(), "\n", string(clientCert.CertPEM())), 0o644)
 
 	// //////////////////////////////////////////////////////
 	// Set up Mongo config file
@@ -67,7 +58,7 @@ net:
 
 	// //////////////////////////////////////////////////////
 	// Start Mongo container
-	retURL, cleanup := startMongoWithTLS(t, "latest", confDir)
+	cleanup, retURL := mongodb.PrepareTestContainer(t, "latest", confDir)
 	defer cleanup()
 
 	// //////////////////////////////////////////////////////
@@ -81,16 +72,16 @@ net:
 	mongo := new()
 
 	initReq := dbplugin.InitializeRequest{
-		Config: map[string]interface{}{
+		Config: map[string]any{
 			"connection_url":      retURL,
 			"allowed_roles":       "*",
-			"tls_certificate_key": clientCert.CombinedPEM(),
-			"tls_ca":              caCert.Pem,
+			"tls_certificate_key": fmt.Appendln(clientCert.KeyPEM(), string(clientCert.CertPEM())),
+			"tls_ca":              caCert.CertPEM(),
 		},
 		VerifyConnection: true,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 
 	_, err := mongo.Initialize(ctx, initReq)
@@ -100,7 +91,7 @@ net:
 
 	// Initialization complete. The connection was established, but we need to ensure
 	// that we're connected as the right user
-	whoamiCmd := map[string]interface{}{
+	whoamiCmd := map[string]any{
 		"connectionStatus": 1,
 	}
 
@@ -117,7 +108,7 @@ net:
 		AuthInfo: authInfo{
 			AuthenticatedUsers: []user{
 				{
-					User: fmt.Sprintf("CN=%s", clientCert.Template.Subject.CommonName),
+					User: clientCert.Subject,
 					DB:   "$external",
 				},
 			},
@@ -151,88 +142,8 @@ net:
 	}
 }
 
-func makeTempDir(t *testing.T) (confDir string) {
-	confDir, err := ioutil.TempDir(".", "mongodb-test-data")
-	if err != nil {
-		t.Fatalf("Unable to make temp directory: %s", err)
-	}
-	// Convert the directory to an absolute path because docker needs it when mounting
-	confDir, err = filepath.Abs(filepath.Clean(confDir))
-	if err != nil {
-		t.Fatalf("Unable to determine where temp directory is on absolute path: %s", err)
-	}
-	return confDir
-}
-
-func startMongoWithTLS(t *testing.T, version string, confDir string) (retURL string, cleanup func()) {
-	if os.Getenv("MONGODB_URL") != "" {
-		return os.Getenv("MONGODB_URL"), func() {}
-	}
-
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		t.Fatalf("Failed to connect to docker: %s", err)
-	}
-	pool.MaxWait = 30 * time.Second
-
-	containerName := "mongo-unit-test"
-
-	// Remove previously running container if it is still running because cleanup failed
-	err = pool.RemoveContainerByName(containerName)
-	if err != nil {
-		t.Fatalf("Unable to remove old running containers: %s", err)
-	}
-
-	runOpts := &dockertest.RunOptions{
-		Name:       containerName,
-		Repository: "mongo",
-		Tag:        version,
-		Cmd:        []string{"mongod", "--config", "/etc/mongo/mongod.conf"},
-		// Mount the directory from local filesystem into the container
-		Mounts: []string{
-			fmt.Sprintf("%s:/etc/mongo", confDir),
-		},
-	}
-
-	resource, err := pool.RunWithOptions(runOpts)
-	if err != nil {
-		t.Fatalf("Could not start local mongo docker container: %s", err)
-	}
-	resource.Expire(30)
-
-	cleanup = func() {
-		err := pool.Purge(resource)
-		if err != nil {
-			t.Fatalf("Failed to cleanup local container: %s", err)
-		}
-	}
-
-	uri := url.URL{
-		Scheme: "mongodb",
-		Host:   fmt.Sprintf("localhost:%s", resource.GetPort("27017/tcp")),
-	}
-	retURL = uri.String()
-
-	// exponential backoff-retry
-	err = pool.Retry(func() error {
-		var err error
-		ctx, _ := context.WithTimeout(context.Background(), 1*time.Minute)
-		client, err := mongo.Connect(ctx, options.Client().ApplyURI(retURL))
-		if err = client.Disconnect(ctx); err != nil {
-			t.Fatal()
-		}
-		return client.Ping(ctx, readpref.Primary())
-	})
-	if err != nil {
-		cleanup()
-		t.Fatalf("Could not connect to mongo docker container: %s", err)
-	}
-
-	return retURL, cleanup
-}
-
 func connect(t *testing.T, uri string) (client *mongo.Client) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
@@ -248,15 +159,13 @@ func connect(t *testing.T, uri string) (client *mongo.Client) {
 	return client
 }
 
-func setUpX509User(t *testing.T, client *mongo.Client, cert certhelpers.Certificate) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func setUpX509User(t *testing.T, client *mongo.Client, cert *certyaml.Certificate) {
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 
-	username := fmt.Sprintf("CN=%s", cert.Template.Subject.CommonName)
-
 	cmd := &createUserCommand{
-		Username: username,
-		Roles: []interface{}{
+		Username: cert.Subject,
+		Roles: []any{
 			mongodbRole{
 				Role: "readWrite",
 				DB:   "test",
@@ -307,7 +216,7 @@ func (r roles) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func writeFile(t *testing.T, filename string, data []byte, perms os.FileMode) {
 	t.Helper()
 
-	err := ioutil.WriteFile(filename, data, perms)
+	err := os.WriteFile(filename, data, perms)
 	if err != nil {
 		t.Fatalf("Unable to write to file [%s]: %s", filename, err)
 	}
