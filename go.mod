@@ -54,7 +54,7 @@ require (
 	github.com/openbao/go-kms-wrapping/plugin/v2 v2.3.0
 	github.com/openbao/go-kms-wrapping/v2 v2.8.0
 	github.com/openbao/go-kms-wrapping/wrappers/alicloudkms/v2 v2.3.0
-	github.com/openbao/go-kms-wrapping/wrappers/awskms/v2 v2.4.0
+	github.com/openbao/go-kms-wrapping/wrappers/awskms/v2 v2.5.0
 	github.com/openbao/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.4.0
 	github.com/openbao/go-kms-wrapping/wrappers/gcpckms/v2 v2.3.0
 	github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.3.0
@@ -108,6 +108,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.11.15 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.21 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.21 // indirect
+	github.com/aws/aws-sdk-go-v2/service/kms v1.49.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.25.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.29.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect

@@ -123,6 +123,8 @@ github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.21 h1:c31//R3x
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.21/go.mod h1:r6+pf23ouCB718FUxaqzZdbpYFyDtehyZcmP5KL9FkA=
 github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.21 h1:ZlvrNcHSFFWURB8avufQq9gFsheUgjVD9536obIknfM=
 github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.21/go.mod h1:cv3TNhVrssKR0O/xxLJVRfd2oazSnZnkUeTf6ctUwfQ=
+github.com/aws/aws-sdk-go-v2/service/kms v1.49.5 h1:DKibav4XF66XSeaXcrn9GlWGHos6D/vJ4r7jsK7z5CE=
+github.com/aws/aws-sdk-go-v2/service/kms v1.49.5/go.mod h1:1SdcmEGUEQE1mrU2sIgeHtcMSxHuybhPvuEPANzIDfI=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.97.3 h1:HwxWTbTrIHm5qY+CAEur0s/figc3qwvLWsNkF4RPToo=
 github.com/aws/aws-sdk-go-v2/service/s3 v1.97.3/go.mod h1:uoA43SdFwacedBfSgfFSjjCvYe8aYBS7EnU5GZ/YKMM=
 github.com/aws/aws-sdk-go-v2/service/sso v1.25.0 h1:2U9sF8nKy7UgyEeLiZTRg6ShBS22z8UnYpV6aRFL0is=
@@ -472,8 +474,8 @@ github.com/openbao/go-kms-wrapping/v2 v2.8.0 h1:9gXkCmcMadJO2Ozf9TNTIInSqdOwAD6k
 github.com/openbao/go-kms-wrapping/v2 v2.8.0/go.mod h1:KyL1nfZM8SzLgMchvFU2F5jS/XlauD3TRCjmILLErh4=
 github.com/openbao/go-kms-wrapping/wrappers/alicloudkms/v2 v2.3.0 h1:RhTCVY+QnUNP/URMKz4kWYHt+6ppAYEC1LbOgt8l8d0=
 github.com/openbao/go-kms-wrapping/wrappers/alicloudkms/v2 v2.3.0/go.mod h1:3GLoNvJvwsFgr3rnohIVfE9GbpICJVvSACO/z/B1IgE=
-github.com/openbao/go-kms-wrapping/wrappers/awskms/v2 v2.4.0 h1:zCFjK+K1FhPDs4syRaeP2blaWBAPT8ach9nC4Dm+NX0=
-github.com/openbao/go-kms-wrapping/wrappers/awskms/v2 v2.4.0/go.mod h1:29P96w46obgVg1ywshBqBl6CtWWah7MKU8SaRX/SMag=
+github.com/openbao/go-kms-wrapping/wrappers/awskms/v2 v2.5.0 h1:Ez91i4H9PeuCJ9ASkWbt0sUItEkEVRkM7v97D5YaiEA=
+github.com/openbao/go-kms-wrapping/wrappers/awskms/v2 v2.5.0/go.mod h1:GRPzcV+98WK9iBsy8JkLVk0OnkF6UZ6e/TrRBUcuG5k=
 github.com/openbao/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.4.0 h1:zkQR5i9JWrMn/4+SWbDwZ0O7+5Sn4wVPthJv5uyMaxw=
 github.com/openbao/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.4.0/go.mod h1:/9svBFAZFOmgI3soK7c7iO9L508oPHnviWJimUhOGT8=
 github.com/openbao/go-kms-wrapping/wrappers/gcpckms/v2 v2.3.0 h1:Q8hNIhweSKaFptpODCSxOMCt5W+Z7feHOdhCzV+o9nE=
