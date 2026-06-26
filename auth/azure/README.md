@@ -1,0 +1,185 @@
+# OpenBao Plugin: Azure Auth Backend
+
+This is a standalone backend plugin for use with [OpenBao](https://www.github.com/openbao/openbao).
+This plugin allows for Azure Managed Service Identities to authenticate with OpenBao.
+
+## Getting Started
+
+This is an [OpenBao plugin](https://openbao.org/docs/plugins/)
+and is meant to work with OpenBao. This guide assumes you have already installed Openbao
+and have a basic understanding of how OpenBao works.
+
+Otherwise, first read this guide on how to [get started with
+OpenBao](https://openbao.org/docs/get-started/developer-qs/).
+
+To learn specifically about how plugins work, see documentation on [OpenBao plugins](https://openbao.org/docs/plugins/).
+
+## Security Model
+
+The current authentication model requires providing OpenBao with a token
+generated using Azure's Managed Service Identity, which can be used to make
+authenticated calls to Azure. This token should not typically be shared, but in
+order for Azure to be treated as a trusted third party, Openbao must validate
+something that Azure has cryptographically signed and that conveys the identity
+of the token holder.
+
+## Usage
+
+Please see [documentation for the plugin](./docs/index.md) in this repository.
+
+## Developing
+
+If you wish to work on this plugin, you'll first need
+[Go](https://www.golang.org) installed on your machine.
+
+### Build Plugin
+
+If you're developing for the first time, run `make bootstrap` to install the
+necessary tools. Bootstrap will also update repository name references if that
+has not been performed ever before.
+
+```sh
+$ make bootstrap
+```
+
+To compile a development version of this plugin, run `make` or `make dev`.
+This will put the plugin binary in the `bin` and `$GOPATH/bin` folders. `dev`
+mode will only generate the binary for your platform and is faster:
+
+```sh
+$ make dev
+```
+
+Put the plugin binary into a location of your choice. This directory
+will be specified as the [`plugin_directory`](https://openbao.org/docs/configuration/#parameters)
+in the OpenBao config used to start the server. It may also be specified
+via [`-dev-plugin-dir`](https://openbao.org/docs/commands/server/#command-options)
+if running OpenBao in dev mode.
+
+```hcl
+# config.hcl
+plugin_directory = "path/to/plugin/directory"
+...
+```
+
+### Register Plugin
+
+Start a OpenBao server with this config file:
+
+```sh
+$ bao server -dev -config=path/to/config.hcl ...
+...
+```
+
+Or start a OpenBao server in dev mode:
+
+```sh
+$ bao server -dev -dev-root-token-id=root -dev-plugin-dir="path/to/plugin/directory"
+```
+
+Once the server is started, register the plugin in the OpenBao server's [plugin catalog](https://openbao.org/docs/plugins/plugin-architecture/#plugin-catalog):
+
+```sh
+$ SHA256=$(openssl dgst -sha256 bin/openbao-plugin-auth-azure | cut -d ' ' -f2)
+$ bao plugin register \
+        -sha256=$SHA256 \
+        -command="openbao-plugin-auth-azure" \
+        auth azure-plugin
+...
+Success! Data written to: sys/plugins/catalog/azure-plugin
+```
+
+Finally, enable the auth method to use this plugin:
+
+```sh
+$ bao auth enable azure-plugin
+...
+
+Successfully enabled 'plugin' at 'azure-plugin'!
+```
+
+### Azure Environment Setup
+
+A Terraform [configuration](bootstrap/terraform) is included in this repository that
+automates provisioning of Azure resources necessary to configure and authenticate
+using the auth method. By default, the resources are created in `westus2`. See 
+[variables.tf](bootstrap/terraform/variables.tf) for the available variables.
+
+Before applying the Terraform configuration, you'll need to:
+
+1. [Authenticate](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs#authenticating-to-azure)
+   the Terraform provider to Azure
+2. Provide an SSH public key for access to the Azure VM via the `TF_VAR_ssh_public_key_path`
+   variable (defaults to `~/.ssh/id_rsa.pub`)
+
+The Terraform configuration will create:
+
+* A service principal with necessary role assignments
+* A virtual network, subnet, and security group with only SSH access from your local 
+  machine's public IP address
+* A linux virtual machine instance
+
+To provision the Azure resources, run the following:
+
+```sh
+$ make setup-env   
+```
+
+The `local_environment_setup.sh` file will be created in the `bootstrap/terraform`
+directory as a result of running `make setup-env`. This file contains environment
+variables needed to configure the auth method. The values can also be accessed
+via `terraform output`.
+
+To access the virtual machine via SSH:
+
+```sh
+ssh adminuser@${VM_IP_ADDRESS}
+```
+
+Once you're finished with plugin development, you can run the following to
+destroy the Azure resources:
+
+```sh
+$ make teardown-env   
+```
+
+### Configure Plugin
+
+A [scripted configuration](bootstrap/configure.sh) of the plugin is provided in
+this repository. You can use the script or manually configure the auth method
+using documentation.
+
+To apply the scripted configuration, first source the environment variables generated by
+the Azure environment setup:
+
+```sh
+$ source ./bootstrap/terraform/local_environment_setup.sh
+```
+
+Next, run the `make configure` target to register, enable, and configure the plugin with
+your local OpenBao instance. You can specify the plugin name, plugin directory, and mount
+path. Default values from the Makefile will be used if arguments aren't provided.
+
+```sh
+$ PLUGIN_NAME=openbao-plugin-auth-azure \
+  PLUGIN_DIR=$GOPATH/openbao-plugins \
+  PLUGIN_PATH=local-auth-azure \
+  make configure
+```
+
+### Tests
+
+If you are developing this plugin and want to verify it is still
+functioning, we recommend running the tests.
+
+To run the tests, invoke `make test`:
+
+```sh
+$ make test
+```
+
+You can also specify a `TESTARGS` variable to filter tests like so:
+
+```sh
+$ make test TESTARGS='--run=TestConfig'
+```
