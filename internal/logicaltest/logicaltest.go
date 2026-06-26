@@ -5,6 +5,9 @@ package logicaltest
 
 import (
 	"errors"
+	"fmt"
+	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/openbao/openbao/api/v2"
@@ -149,5 +152,69 @@ func Test(t *testing.T, c TestCase) {
 				s,
 			)
 		}
+	}
+}
+
+// TestCheckAuth is a helper to check that a request generated an
+// auth token with the proper policies.
+func TestCheckAuth(policies []string) func(*logical.Response) error {
+	return func(resp *logical.Response) error {
+		if resp == nil || resp.Auth == nil {
+			return errors.New("no auth in response")
+		}
+		expected := make([]string, len(policies))
+		copy(expected, policies)
+		sort.Strings(expected)
+		ret := make([]string, len(resp.Auth.Policies))
+		copy(ret, resp.Auth.Policies)
+		sort.Strings(ret)
+		if !reflect.DeepEqual(ret, expected) {
+			return fmt.Errorf("invalid policies: expected %#v, got %#v", expected, ret)
+		}
+
+		return nil
+	}
+}
+
+// TestCheckAuthEntityId is a helper to check that a request generated an
+// auth token with the expected entity_id.
+func TestCheckAuthEntityId(entity_id *string) func(*logical.Response) error {
+	return func(resp *logical.Response) error {
+		if resp == nil || resp.Auth == nil {
+			return errors.New("no auth in response")
+		}
+
+		if *entity_id == "" {
+			// If we don't know what the entity_id should be, just save it
+			*entity_id = resp.Auth.EntityID
+		} else if resp.Auth.EntityID != *entity_id {
+			return fmt.Errorf("entity_id %s does not match the expected value of %s", resp.Auth.EntityID, *entity_id)
+		}
+
+		return nil
+	}
+}
+
+// TestCheckAuthEntityAliasMetadataName is a helper to check that a request generated an
+// auth token with the expected alias metadata.
+func TestCheckAuthEntityAliasMetadataName(key string, value string) func(*logical.Response) error {
+	return func(resp *logical.Response) error {
+		if resp == nil || resp.Auth == nil {
+			return errors.New("no auth in response")
+		}
+
+		if key == "" || value == "" {
+			return errors.New("alias metadata key and value required")
+		}
+
+		name, ok := resp.Auth.Alias.Metadata[key]
+		if !ok {
+			return fmt.Errorf("metadata key %s does not exist, it should", key)
+		}
+
+		if name != value {
+			return fmt.Errorf("expected map value %s, got %s", value, name)
+		}
+		return nil
 	}
 }

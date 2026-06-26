@@ -16,9 +16,8 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-secure-stdlib/strutil"
-	"github.com/openbao/openbao/helper/namespace"
-	"github.com/openbao/openbao/helper/testhelpers/ldap"
-	logicaltest "github.com/openbao/openbao/helper/testhelpers/logical"
+	ldap "github.com/openbao/openbao-plugins/auth/ldap/testhelpers"
+	logicaltest "github.com/openbao/openbao-plugins/internal/logicaltest"
 	"github.com/openbao/openbao/sdk/v2/helper/ldaputil"
 	"github.com/openbao/openbao/sdk/v2/helper/policyutil"
 	"github.com/openbao/openbao/sdk/v2/helper/tokenutil"
@@ -39,7 +38,7 @@ func TestLdapAuthBackend_Listing(t *testing.T) {
 	b, storage := createBackendWithStorage(t)
 
 	// Create group "testgroup"
-	resp, err := b.HandleRequest(namespace.RootContext(t.Context()), &logical.Request{
+	resp, err := b.HandleRequest(t.Context(), &logical.Request{
 		Path:      "groups/testgroup",
 		Operation: logical.UpdateOperation,
 		Storage:   storage,
@@ -52,7 +51,7 @@ func TestLdapAuthBackend_Listing(t *testing.T) {
 	}
 
 	// Create group "nested/testgroup"
-	resp, err = b.HandleRequest(namespace.RootContext(t.Context()), &logical.Request{
+	resp, err = b.HandleRequest(t.Context(), &logical.Request{
 		Path:      "groups/nested/testgroup",
 		Operation: logical.UpdateOperation,
 		Storage:   storage,
@@ -65,7 +64,7 @@ func TestLdapAuthBackend_Listing(t *testing.T) {
 	}
 
 	// Create user "testuser"
-	resp, err = b.HandleRequest(namespace.RootContext(t.Context()), &logical.Request{
+	resp, err = b.HandleRequest(t.Context(), &logical.Request{
 		Path:      "users/testuser",
 		Operation: logical.UpdateOperation,
 		Storage:   storage,
@@ -79,7 +78,7 @@ func TestLdapAuthBackend_Listing(t *testing.T) {
 	}
 
 	// Create user "nested/testuser"
-	resp, err = b.HandleRequest(namespace.RootContext(t.Context()), &logical.Request{
+	resp, err = b.HandleRequest(t.Context(), &logical.Request{
 		Path:      "users/nested/testuser",
 		Operation: logical.UpdateOperation,
 		Storage:   storage,
@@ -93,7 +92,7 @@ func TestLdapAuthBackend_Listing(t *testing.T) {
 	}
 
 	// List users
-	resp, err = b.HandleRequest(namespace.RootContext(t.Context()), &logical.Request{
+	resp, err = b.HandleRequest(t.Context(), &logical.Request{
 		Path:      "users/",
 		Operation: logical.ListOperation,
 		Storage:   storage,
@@ -107,7 +106,7 @@ func TestLdapAuthBackend_Listing(t *testing.T) {
 	}
 
 	// List groups
-	resp, err = b.HandleRequest(namespace.RootContext(t.Context()), &logical.Request{
+	resp, err = b.HandleRequest(t.Context(), &logical.Request{
 		Path:      "groups/",
 		Operation: logical.ListOperation,
 		Storage:   storage,
@@ -466,7 +465,7 @@ func TestBackend_basic(t *testing.T) {
 	defer cleanup()
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrl(t, cfg),
 			// Map Admin_staff group (from LDAP server) with foo policy
@@ -496,7 +495,7 @@ func TestBackend_basic_noPolicies(t *testing.T) {
 	defer cleanup()
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrl(t, cfg),
 			// Create LDAP user
@@ -514,7 +513,7 @@ func TestBackend_basic_group_noPolicies(t *testing.T) {
 	defer cleanup()
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrl(t, cfg),
 			// Create engineers group with no policies
@@ -535,7 +534,7 @@ func TestBackend_basic_authbind(t *testing.T) {
 	defer cleanup()
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrlWithAuthBind(t, cfg),
 			testAccStepGroup(t, "admin_staff", "foo"),
@@ -554,7 +553,7 @@ func TestBackend_basic_authbind_userfilter(t *testing.T) {
 	// userattr not used in the userfilter should result in a warning in the response
 	cfg.UserFilter = "((mail={{.Username}}))"
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrlWarningCheck(t, cfg, logical.UpdateOperation, []string{userFilterWarning}),
 			testAccStepConfigUrlWarningCheck(t, cfg, logical.ReadOperation, []string{userFilterWarning}),
@@ -566,7 +565,7 @@ func TestBackend_basic_authbind_userfilter(t *testing.T) {
 	cfg.UPNDomain = "planetexpress.com"
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrlWarningCheck(t, cfg, logical.UpdateOperation, []string{userFilterWarning}),
 			testAccStepConfigUrlWarningCheck(t, cfg, logical.ReadOperation, []string{userFilterWarning}),
@@ -579,7 +578,7 @@ func TestBackend_basic_authbind_userfilter(t *testing.T) {
 	cfg.UserFilter = "(|({{.UserAttr}}={{.Username}})(mail={{.Username}}))"
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrl(t, cfg),
 			// Create engineers group with no policies
@@ -597,7 +596,7 @@ func TestBackend_basic_authbind_userfilter(t *testing.T) {
 	entity_id := ""
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrl(t, cfg),
 			// Create engineers group with no policies
@@ -616,7 +615,7 @@ func TestBackend_basic_authbind_userfilter(t *testing.T) {
 	cfg.UserFilter = "(|({{.UserAttr}}={{.Username}})(mail={{.Username}}))"
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrl(t, cfg),
 			// Authenticate with mail attribute will find DN but missing attribute means access denied
@@ -631,7 +630,7 @@ func TestBackend_basic_authbind_userfilter(t *testing.T) {
 	addUPNAttributeToLDAPSchemaAndUser(t, cfg, "cn=Hubert J. Farnsworth,ou=people,dc=planetexpress,dc=com", "professor@planetexpress.com")
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrlWithAuthBind(t, cfg),
 			testAccStepLoginNoAttachedPolicies(t, "professor", "professor"),
@@ -644,7 +643,7 @@ func TestBackend_basic_authbind_userfilter(t *testing.T) {
 	cfg.UserFilter = "(&({{.UserAttr}}={{.Username}})(!(employeeType=Bureaucrat)))"
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrl(t, cfg),
 			// Authenticate with cn attribute
@@ -655,7 +654,7 @@ func TestBackend_basic_authbind_userfilter(t *testing.T) {
 	// Login fails when multiple user match search filter (using an incorrect filter on purporse)
 	cfg.UserFilter = "(objectClass=*)"
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			// testAccStepConfigUrl(t, cfg),
 			testAccStepConfigUrlWithAuthBind(t, cfg),
@@ -670,7 +669,7 @@ func TestBackend_basic_authbind_userfilter(t *testing.T) {
 	cfg.UserFilter = "(cn={{.Username}})"
 	cfg.UsernameAsAlias = false
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrl(t, cfg),
 			testAccStepLoginFailure(t, "hermes conrad", "hermes"),
@@ -681,7 +680,7 @@ func TestBackend_basic_authbind_userfilter(t *testing.T) {
 	// about the alias returned by the LDAP server and always use the username
 	cfg.UsernameAsAlias = true
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrl(t, cfg),
 			testAccStepLoginNoAttachedPolicies(t, "hermes conrad", "hermes"),
@@ -700,7 +699,7 @@ func TestBackend_basic_authbind_metadata_name(t *testing.T) {
 	addUPNAttributeToLDAPSchemaAndUser(t, cfg, "cn=Hubert J. Farnsworth,ou=people,dc=planetexpress,dc=com", "professor@planetexpress.com")
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrlWithAuthBind(t, cfg),
 			testAccStepLoginAliasMetadataName(t, "professor", "professor"),
@@ -760,7 +759,7 @@ func TestBackend_basic_discover(t *testing.T) {
 	defer cleanup()
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrlWithDiscover(t, cfg),
 			testAccStepGroup(t, "admin_staff", "foo"),
@@ -777,7 +776,7 @@ func TestBackend_basic_nogroupdn(t *testing.T) {
 	defer cleanup()
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepConfigUrlNoGroupDN(t, cfg),
 			testAccStepGroup(t, "admin_staff", "foo"),
@@ -792,7 +791,7 @@ func TestBackend_groupCrud(t *testing.T) {
 	b := factory(t)
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepGroup(t, "g1", "foo"),
 			testAccStepReadGroup(t, "g1", "foo"),
@@ -809,7 +808,7 @@ func TestBackend_configDefaultsAfterUpdate(t *testing.T) {
 	b := factory(t)
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			{
 				Operation: logical.UpdateOperation,
@@ -1022,7 +1021,7 @@ func TestBackend_userCrud(t *testing.T) {
 	b := Backend()
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testAccStepUser(t, "g1", "bar"),
 			testAccStepReadUser(t, "g1", "bar"),
@@ -1084,7 +1083,6 @@ func testAccStepLogin(t *testing.T, user string, pass string) logicaltest.TestSt
 		Data: map[string]interface{}{
 			"password": pass,
 		},
-		Unauthenticated: true,
 
 		// Verifies user hermes conrad maps to groups via local group (engineers) as well as remote group (Scientists)
 		Check: logicaltest.TestCheckAuth([]string{"abc", "bar", "default", "foo", "xyz"}),
@@ -1098,7 +1096,6 @@ func testAccStepLoginReturnsSameEntity(t *testing.T, user string, pass string, e
 		Data: map[string]interface{}{
 			"password": pass,
 		},
-		Unauthenticated: true,
 
 		// Verifies user hermes conrad maps to groups via local group (engineers) as well as remote group (Scientists)
 		Check: logicaltest.TestCheckAuthEntityId(entity_id),
@@ -1112,7 +1109,6 @@ func testAccStepLoginNoAttachedPolicies(t *testing.T, user string, pass string) 
 		Data: map[string]interface{}{
 			"password": pass,
 		},
-		Unauthenticated: true,
 
 		// Verifies user hermes conrad maps to groups via local group (engineers) as well as remote group (Scientists)
 		Check: logicaltest.TestCheckAuth([]string{"abc", "default", "xyz"}),
@@ -1126,7 +1122,6 @@ func testAccStepLoginAliasMetadataName(t *testing.T, user string, pass string) l
 		Data: map[string]interface{}{
 			"password": pass,
 		},
-		Unauthenticated: true,
 
 		Check: logicaltest.TestCheckAuthEntityAliasMetadataName("name", user),
 	}
@@ -1139,7 +1134,6 @@ func testAccStepLoginFailure(t *testing.T, user string, pass string) logicaltest
 		Data: map[string]interface{}{
 			"password": pass,
 		},
-		Unauthenticated: true,
 
 		ErrorOk: true,
 	}
@@ -1152,7 +1146,6 @@ func testAccStepLoginNoGroupDN(t *testing.T, user string, pass string) logicalte
 		Data: map[string]interface{}{
 			"password": pass,
 		},
-		Unauthenticated: true,
 
 		// Verifies a search without defined GroupDN returns a warning rather than failing
 		Check: func(resp *logical.Response) error {
