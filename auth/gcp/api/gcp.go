@@ -74,7 +74,7 @@ func (a *GCPAuth) Login(ctx context.Context, client *api.Client) (*api.Secret, e
 		ctx = context.Background()
 	}
 
-	loginData := map[string]interface{}{
+	loginData := map[string]any{
 		"role": a.roleName,
 	}
 	switch a.authType {
