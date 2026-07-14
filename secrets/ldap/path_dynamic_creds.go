@@ -12,11 +12,11 @@ import (
 	"github.com/go-ldap/ldif"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/hashicorp/go-multierror"
-	"github.com/openbao/openbao/builtin/logical/openldap/client"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/helper/consts"
 	"github.com/openbao/openbao/sdk/v2/helper/template"
 	"github.com/openbao/openbao/sdk/v2/logical"
+	"github.com/openbao/openbao/v2/internal/builtin/logical/openldap/client"
 	"golang.org/x/text/encoding/unicode"
 )
 

@@ -11,8 +11,8 @@ import (
 	"github.com/openbao/openbao/sdk/v2/helper/ldaputil"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/openbao/openbao/builtin/logical/openldap/client"
-	"github.com/openbao/openbao/builtin/logical/openldap/ldapifc"
+	"github.com/openbao/openbao/v2/internal/builtin/logical/openldap/client"
+	"github.com/openbao/openbao/v2/internal/builtin/logical/openldap/ldapifc"
 )
 
 func GetTestClient(fake *ldapifc.FakeLDAPConnection) *Client {

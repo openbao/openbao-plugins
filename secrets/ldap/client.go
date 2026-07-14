@@ -10,7 +10,7 @@ import (
 	"github.com/go-ldap/ldif"
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/openbao/openbao/builtin/logical/openldap/client"
+	"github.com/openbao/openbao/v2/internal/builtin/logical/openldap/client"
 )
 
 type ldapClient interface {
