@@ -14,8 +14,8 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
+	"cloud.google.com/go/iam/credentials/apiv1/credentialspb"
 	"github.com/openbao/openbao/api/v2"
-	credentialspb "google.golang.org/genproto/googleapis/iam/credentials/v1"
 )
 
 type GCPAuth struct {
