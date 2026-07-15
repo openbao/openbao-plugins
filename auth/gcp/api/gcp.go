@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package gcp
+package api
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
-	"github.com/openbao/openbao/api"
+	"github.com/openbao/openbao/api/v2"
 	credentialspb "google.golang.org/genproto/googleapis/iam/credentials/v1"
 )
 
