@@ -63,6 +63,7 @@ require (
 	github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.3.0
 	github.com/openbao/go-kms-wrapping/wrappers/ovhcloudkms/v2 v2.0.0
 	github.com/openbao/go-kms-wrapping/wrappers/pkcs11/v2 v2.6.0
+	github.com/openbao/go-kms-wrapping/wrappers/scalewaykms/v2 v2.0.0
 	github.com/openbao/go-kms-wrapping/wrappers/tcloudpublickms/v2 v2.0.0
 	github.com/openbao/openbao/api/v2 v2.5.1
 	github.com/openbao/openbao/sdk/v2 v2.5.1
@@ -201,6 +202,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
+	github.com/scaleway/scaleway-sdk-go v1.0.0-beta.36 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/sony/gobreaker v0.5.0 // indirect
 	github.com/std-uritemplate/std-uritemplate/go/v2 v2.0.3 // indirect
