@@ -130,6 +130,17 @@ func Test(t *testing.T, c TestCase) {
 			t.Errorf("Response contained error at step %d: %s", i+1, resp.Error())
 			break
 		}
+
+		// Either the 'err' was nil or if an error was expected, it was set to nil.
+		// Call the 'Check' function if there is one.
+		//
+		// TODO: This works perfectly for now, but it would be better if 'Check'
+		// function takes in both the response object and the error, and decide on
+		// the action on its own.
+		if err == nil && s.Check != nil {
+			// Call the test method
+			err = s.Check(resp)
+		}
 	}
 
 	// Revoke any secrets we might have.
