@@ -43,7 +43,13 @@ func secretAccessKeys(b *backend) *framework.Secret {
 			},
 			"security_token": {
 				Type:        framework.TypeString,
-				Description: "Security Token",
+				Description: "Security Token. Deprecated: use session_token instead",
+				Deprecated:  true,
+
+			},
+			"session_token": {
+				Type:        framework.TypeString,
+				Description: "Session Token",
 			},
 		},
 
@@ -175,6 +181,7 @@ func (b *backend) getFederationToken(ctx context.Context, s logical.Storage,
 		"access_key":     *tokenResp.Credentials.AccessKeyId,
 		"secret_key":     *tokenResp.Credentials.SecretAccessKey,
 		"security_token": *tokenResp.Credentials.SessionToken,
+		"session_token":  *tokenResp.Credentials.SessionToken,
 		"ttl":            uint64(ttl.Seconds()),
 	}, map[string]interface{}{
 		"username": username,
@@ -273,6 +280,7 @@ func (b *backend) assumeRole(ctx context.Context, s logical.Storage,
 		"access_key":     *tokenResp.Credentials.AccessKeyId,
 		"secret_key":     *tokenResp.Credentials.SecretAccessKey,
 		"security_token": *tokenResp.Credentials.SessionToken,
+		"session_token":  *tokenResp.Credentials.SessionToken,
 		"arn":            *tokenResp.AssumedRoleUser.Arn,
 		"ttl":            uint64(ttl.Seconds()),
 	}, map[string]interface{}{
@@ -442,6 +450,7 @@ func (b *backend) secretAccessKeysCreate(
 		"access_key":     *keyResp.AccessKey.AccessKeyId,
 		"secret_key":     *keyResp.AccessKey.SecretAccessKey,
 		"security_token": nil,
+		"session_token":  nil,
 	}, map[string]interface{}{
 		"username": username,
 		"policy":   role,
