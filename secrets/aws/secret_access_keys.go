@@ -43,7 +43,9 @@ func secretAccessKeys(b *backend) *framework.Secret {
 			},
 			"security_token": {
 				Type:        framework.TypeString,
-				Description: "Security Token",
+				Description: "Security Token. Deprecated: use session_token instead",
+				Deprecated:  true,
+
 			},
 			"session_token": {
 				Type:        framework.TypeString,
