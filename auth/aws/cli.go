@@ -41,7 +41,12 @@ func (h *CLIHandler) Auth(c *api.Client, m map[string]string) (*api.Secret, erro
 	hlogger := hclog.Default()
 	hlogger.SetLevel(level)
 
-	creds, err := awsutil.RetrieveCreds(m["aws_access_key_id"], m["aws_secret_access_key"], m["aws_security_token"], hlogger)
+	awsSessionToken := m["aws_security_token"]
+	if m["aws_session_token"] != "" {
+		awsSessionToken = m["aws_session_token"]
+	}
+
+	creds, err := awsutil.RetrieveCreds(m["aws_access_key_id"], m["aws_secret_access_key"], awsSessionToken, hlogger)
 	if err != nil {
 		return nil, err
 	}
@@ -111,6 +116,10 @@ Configuration:
 
   aws_security_token=<string>
       Explicit AWS security token for temporary credentials
+			Deprecated: use aws_session_token instead
+
+  aws_session_token=<string>
+      Explicit AWS session token for temporary credentials
 
   header_value=<string>
       Value for the x-vault-aws-iam-server-id header in requests
