@@ -29,7 +29,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/go-ldap/ldap/v3 v3.4.12
 	github.com/go-test/deep v1.1.1
-	github.com/go-viper/mapstructure/v2 v2.4.0
+	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/uuid v1.6.0
@@ -54,17 +54,17 @@ require (
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.2.1
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/openbao/go-kms-wrapping/plugin/v2 v2.3.0
-	github.com/openbao/go-kms-wrapping/v2 v2.8.0
+	github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.0.0-20260811214001-9c76d07ba40a
+	github.com/openbao/go-kms-wrapping/plugin/v2 v2.3.1-0.20260811214001-9c76d07ba40a
+	github.com/openbao/go-kms-wrapping/v2 v2.8.1-0.20260811214001-9c76d07ba40a
 	github.com/openbao/go-kms-wrapping/wrappers/alicloudkms/v2 v2.3.0
 	github.com/openbao/go-kms-wrapping/wrappers/awskms/v2 v2.5.0
 	github.com/openbao/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.4.0
 	github.com/openbao/go-kms-wrapping/wrappers/gcpckms/v2 v2.3.0
 	github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.3.0
 	github.com/openbao/go-kms-wrapping/wrappers/ovhcloudkms/v2 v2.0.0
-	github.com/openbao/go-kms-wrapping/wrappers/pkcs11/v2 v2.6.0
 	github.com/openbao/go-kms-wrapping/wrappers/tcloudpublickms/v2 v2.0.0
-	github.com/openbao/openbao/api/v2 v2.5.1
+	github.com/openbao/openbao/api/v2 v2.6.0
 	github.com/openbao/openbao/sdk/v2 v2.5.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/satori/go.uuid v1.2.0
@@ -118,6 +118,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.25.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.29.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
@@ -127,7 +128,7 @@ require (
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
-	github.com/fatih/color v1.18.0 // indirect
+	github.com/fatih/color v1.19.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gammazero/deque v0.2.1 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.8-0.20250403174932-29230038a667 // indirect
@@ -163,8 +164,8 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
-	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-colorable v0.1.15 // indirect
+	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/microsoft/kiota-abstractions-go v1.9.2 // indirect
 	github.com/microsoft/kiota-authentication-azure-go v1.1.0 // indirect
 	github.com/microsoft/kiota-http-go v1.5.5 // indirect
@@ -173,7 +174,7 @@ require (
 	github.com/microsoft/kiota-serialization-multipart-go v1.0.0 // indirect
 	github.com/microsoft/kiota-serialization-text-go v1.0.0 // indirect
 	github.com/miekg/dns v1.1.63 // indirect
-	github.com/miekg/pkcs11 v1.1.2-0.20231115102856-9078ad6b9d4b // indirect
+	github.com/miekg/pkcs11 v1.1.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
