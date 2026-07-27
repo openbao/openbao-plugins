@@ -18,7 +18,7 @@ Prebuilt binaries for these plugins are available in the [Releases](https://gith
 
 ### Database Plugins
 
-_None available at this time._
+- **MongoDB** - Generate MongoDB database credentials.
 
 ### Secrets Plugins
 
@@ -28,6 +28,17 @@ _None available at this time._
 - **GCPKMS** - Encrypt data and manage keys via GCP KMS.
 - **Nomad** - Generate Nomad ACL tokens.
 - **Consul** - Generate Consul ACL tokens.
+
+### KMS (Key Management Service) Plugins
+
+- **AliCloud KMS** - Auto Unseal via AliCloud.
+- **AWS KMS** - Auto Unseal via AWS.
+- **Azure Key Vault** - Auto Unseal via Azure.
+- **Google Cloud KMS** - Auto Unseal via Google Cloud.
+- **OCI KMS** - Auto Unseal via Oracle Cloud.
+- **OVHcloud KMS** - Auto Unseal via OVHcloud.
+- **PKCS#11** - Auto Unseal via PKCS#11.
+- **T Cloud Public KMS** - Auto Unseal via T Cloud Public.
 
 ## Development
 
@@ -39,16 +50,18 @@ To contribute or build plugins from source, follow these steps:
    go build -o openbao-plugin-auth-aws ./auth/aws
    ```
 
-2. **Register the Plugin with Bao**
-   Follow the instructions at [OpenBao Plugin Management](https://openbao.org/docs/plugins/plugin-management/).
+2. **Register the Plugin with OpenBao**
+   See [OpenBao Plugin Configuration](https://openbao.org/docs/configuration/plugins).
 
-3. **Enable the Plugin**
+3. **Use the Plugin**
+
+   E.g., for auth plugins:
 
    ```sh
-   bao auth enable auth-aws
+   bao auth enable aws
    ```
 
-Replace `auth-aws` with the appropriate plugin name as needed.
+   Replace `auth-aws` with the appropriate plugin name as needed.
 
 ## Contributing
 
