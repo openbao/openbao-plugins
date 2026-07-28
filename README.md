@@ -5,7 +5,8 @@ This repository contains plugins for
 Vault. These plugins are maintained by the OpenBao project but are not included
 in the core OpenBao binary.
 
-Prebuilt binaries for these plugins are available in the [Releases](https://github.com/openbao/openbao-plugins/releases) section.
+To learn more about OpenBao plugins, please see the
+[plugin system](https://openbao.org/docs/plugins/) documentation.
 
 ## Plugins
 
@@ -40,28 +41,52 @@ Prebuilt binaries for these plugins are available in the [Releases](https://gith
 - **PKCS#11** - Auto Unseal via PKCS#11.
 - **T Cloud Public KMS** - Auto Unseal via T Cloud Public.
 
-## Development
+## Download
 
-To contribute or build plugins from source, follow these steps:
+Prebuilt binaries and their SHA-256 digests are available in the
+[Releases](https://github.com/openbao/openbao-plugins/releases) section.
+Prebuilt OCI artifacts are available on [ghcr.io](https://github.com/orgs/openbao/packages?repo_name=openbao-plugins).
 
-1. **Build the Plugin**
+## Installation
 
-   ```sh
-   go build -o openbao-plugin-auth-aws ./auth/aws
+1. **Declare the plugin** to download and register it.
+
+   ```hcl
+   plugin_directory = "/path/to/download/dir"
+
+   plugin_auto_download = true
+   plugin_auto_register = true
+
+   plugin "auth" "aws" {
+      image       = "ghcr.io/openbao/openbao-plugin-auth-aws"
+      version     = "v0.1.1"
+      binary_name = "openbao-plugin-auth-aws"
+      sha256sum   = "7a77057e62973c1aae6035f52110e3302605a47b622756d954915b7b55eca10c"
+   }
    ```
 
-2. **Register the Plugin with OpenBao**
-   See [OpenBao Plugin Configuration](https://openbao.org/docs/configuration/plugins).
+   See the [OpenBao Plugin Configuration](https://openbao.org/docs/configuration/plugins)
+   documentation for more details (such as manual plugin download).
 
-3. **Use the Plugin**
-
+2. **Enable the plugin.**
    E.g., for auth plugins:
 
    ```sh
    bao auth enable aws
    ```
 
-   Replace `auth-aws` with the appropriate plugin name as needed.
+## Development
+
+To contribute or build plugins from source, follow these steps:
+
+1. **Build the plugin**
+
+   ```sh
+   go build -o openbao-plugin-auth-aws ./auth/aws
+   ```
+
+2. Proceed as with a manually downloaded binary (place in `plugin_directory`,
+   register, enable).
 
 ## Contributing
 
