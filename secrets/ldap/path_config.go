@@ -12,7 +12,7 @@ import (
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/helper/ldaputil"
 	"github.com/openbao/openbao/sdk/v2/logical"
-	"github.com/openbao/openbao/v2/internal/builtin/logical/openldap/client"
+	"github.com/openbao/openbao-plugins/secrets/ldap/client"
 )
 
 const (

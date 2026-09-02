@@ -14,7 +14,7 @@ import (
 	"github.com/openbao/openbao/sdk/v2/helper/logging"
 	"github.com/openbao/openbao/sdk/v2/logical"
 	"github.com/openbao/openbao/sdk/v2/queue"
-	"github.com/openbao/openbao/v2/internal/builtin/logical/openldap/client"
+	"github.com/openbao/openbao-plugins/secrets/ldap/client"
 )
 
 var (
