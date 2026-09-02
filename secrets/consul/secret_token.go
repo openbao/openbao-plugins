@@ -1,0 +1,117 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+package consul
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/hashicorp/consul/api"
+	"github.com/openbao/openbao/sdk/v2/framework"
+	"github.com/openbao/openbao/sdk/v2/logical"
+)
+
+const (
+	SecretTokenType = "token"
+)
+
+func secretToken(b *backend) *framework.Secret {
+	return &framework.Secret{
+		Type: SecretTokenType,
+		Fields: map[string]*framework.FieldSchema{
+			"token": {
+				Type:        framework.TypeString,
+				Description: "Request token",
+			},
+		},
+
+		Renew:  b.secretTokenRenew,
+		Revoke: b.secretTokenRevoke,
+	}
+}
+
+func (b *backend) secretTokenRenew(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	resp := &logical.Response{Secret: req.Secret}
+	roleRaw, ok := req.Secret.InternalData["role"]
+	if !ok {
+		return resp, nil
+	}
+
+	role, ok := roleRaw.(string)
+	if !ok {
+		return resp, nil
+	}
+
+	entry, err := req.Storage.Get(ctx, "policy/"+role)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving role: %w", err)
+	}
+	if entry == nil {
+		return logical.ErrorResponse(fmt.Sprintf("issuing role %q not found", role)), nil
+	}
+
+	var result roleConfig
+	if err := entry.DecodeJSON(&result); err != nil {
+		return nil, err
+	}
+	resp.Secret.TTL = result.TTL
+	resp.Secret.MaxTTL = result.MaxTTL
+	return resp, nil
+}
+
+func (b *backend) secretTokenRevoke(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	c, userErr, intErr := b.client(ctx, req.Storage)
+	if intErr != nil {
+		return nil, intErr
+	}
+	if userErr != nil {
+		// Returning logical.ErrorResponse from revocation function is risky
+		return nil, userErr
+	}
+
+	tokenRaw, ok := req.Secret.InternalData["token"]
+	if !ok {
+		// We return nil here because this is a pre-0.5.3 problem and there is
+		// nothing we can do about it. We already can't revoke the lease
+		// properly if it has been renewed and this is documented pre-0.5.3
+		// behavior with a security bulletin about it.
+		return nil, nil //nolint:nilnil
+	}
+
+	// Extract Consul Namespace and Partition info from secret
+	var revokeWriteOptions *api.WriteOptions
+	var namespace, partition string
+
+	namespaceRaw, ok := req.Data["consul_namespace"]
+	if ok {
+		namespace = namespaceRaw.(string)
+	}
+	partitionRaw, ok := req.Data["partition"]
+	if ok {
+		partition = partitionRaw.(string)
+	}
+
+	revokeWriteOptions = &api.WriteOptions{
+		Namespace: namespace,
+		Partition: partition,
+	}
+
+	_, err := c.ACL().TokenDelete(tokenRaw.(string), revokeWriteOptions)
+	if err != nil {
+		statusError := api.StatusError{}
+
+		if errors.As(err, &statusError) &&
+			statusError.Code == 404 &&
+			// Don't just rely on the status code, a 404 could have many causes (e.g. load balancer has briefly no backend)
+			// So we additionally match the exact response body.
+			// This might break in future versions of Consul, but at least it's safe.
+			statusError.Body == "Cannot find token to delete" {
+			return nil, nil //nolint:nilnil
+		}
+		return nil, err
+	}
+
+	return nil, nil //nolint:nilnil
+}

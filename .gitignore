@@ -1,0 +1,6 @@
+# Added by goreleaser init:
+dist/
+**/bin/
+
+# test output
+*.test
