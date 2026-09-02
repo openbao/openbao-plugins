@@ -72,15 +72,25 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data
 		return nil, nil
 	}
 
-	configData := map[string]interface{}{
-		"ttl":                   int64(cfg.TTL / time.Second),
-		"max_ttl":               int64(cfg.MaxTTL / time.Second),
-		"service_account_email": cfg.ServiceAccountEmail,
+	resp := &logical.Response{
+		Data: map[string]interface{}{
+			"ttl":                   int64(cfg.TTL / time.Second),
+			"max_ttl":               int64(cfg.MaxTTL / time.Second),
+			"service_account_email": cfg.ServiceAccountEmail,
+			"private_key_id":        "",
+		},
 	}
 
-	return &logical.Response{
-		Data: configData,
-	}, nil
+	creds, err := gcputil.Credentials(cfg.CredentialsRaw)
+	if err != nil {
+		resp.Warnings = []string{
+			fmt.Sprintf("Failed to parse key private key ID: %v", err),
+		}
+	} else {
+		resp.Data["private_key_id"] = creds.PrivateKeyId
+	}
+
+	return resp, nil
 }
 
 func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
