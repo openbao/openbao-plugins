@@ -450,8 +450,8 @@ github.com/miekg/dns v1.1.26/go.mod h1:bPDLeHnStXmXAq1m/Ch/hvfNHr14JKNPMBo3VZKju
 github.com/miekg/dns v1.1.41/go.mod h1:p6aan82bvRIyn+zDIv9xYNUpwa73JcSh9BKwknJysuI=
 github.com/miekg/dns v1.1.63 h1:8M5aAw6OMZfFXTT7K5V0Eu5YiiL8l7nUAkyN6C9YwaY=
 github.com/miekg/dns v1.1.63/go.mod h1:6NGHfjhpmr5lt3XPLuyfDJi5AXbNIPM9PY6H6sF1Nfs=
-github.com/miekg/pkcs11 v1.1.2-0.20231115102856-9078ad6b9d4b h1:J/AzCvg5z0Hn1rqZUJjpbzALUmkKX0Zwbc/i4fw7Sfk=
-github.com/miekg/pkcs11 v1.1.2-0.20231115102856-9078ad6b9d4b/go.mod h1:XsNlhZGX73bx86s2hdc/FuaLm2CPZJemRLMA+WTFxgs=
+github.com/miekg/pkcs11 v1.1.2 h1:/VxmeAX5qU6Q3EwafypogwWbYryHFmF2RpkJmw3m4MQ=
+github.com/miekg/pkcs11 v1.1.2/go.mod h1:XsNlhZGX73bx86s2hdc/FuaLm2CPZJemRLMA+WTFxgs=
 github.com/mitchellh/cli v1.1.0/go.mod h1:xcISNoH86gajksDmfB23e/pu+B+GeFRMYmoHXxx3xhI=
 github.com/mitchellh/copystructure v1.2.0 h1:vpKXTN4ewci03Vljg/q9QvCGUDttBOGBIa15WveJJGw=
 github.com/mitchellh/copystructure v1.2.0/go.mod h1:qLl+cE2AmVv+CoeAwDPye/v+N2HKCj9FbZEVFJRxO9s=
@@ -498,10 +498,12 @@ github.com/oapi-codegen/runtime v1.4.1 h1:9nwLoI+KrWxzbBcp0jO/R8uXqbik/HUyCvPeU6
 github.com/oapi-codegen/runtime v1.4.1/go.mod h1:GwV7hC2hviaMzj+ITfHVRESK5J2W/GefVwIND/bMGvU=
 github.com/oklog/run v1.2.0 h1:O8x3yXwah4A73hJdlrwo/2X6J62gE5qTMusH0dvz60E=
 github.com/oklog/run v1.2.0/go.mod h1:mgDbKRSwPhJfesJ4PntqFUbKQRZ50NgmZTSPlFA0YFk=
-github.com/openbao/go-kms-wrapping/plugin/v2 v2.3.0 h1:LxZHcCv8S3888OSAKs2n0rPurDstKiisAkr0U5s/qg8=
-github.com/openbao/go-kms-wrapping/plugin/v2 v2.3.0/go.mod h1:BSu5AczP5Y/8a/VDoBv/+aIooj09axNPVg/XYq9u2AQ=
-github.com/openbao/go-kms-wrapping/v2 v2.8.0 h1:9gXkCmcMadJO2Ozf9TNTIInSqdOwAD6k3HhHMhIqzrs=
-github.com/openbao/go-kms-wrapping/v2 v2.8.0/go.mod h1:KyL1nfZM8SzLgMchvFU2F5jS/XlauD3TRCjmILLErh4=
+github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.0.0 h1:nlCf8k2bFN263AzxvcdvKTtVaEJNJWXGFCcaPoFnZxc=
+github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.0.0/go.mod h1:Oe/Eebdt1ttMF3AYlVEPpFPMe1wB8ibMBME/hki/+eg=
+github.com/openbao/go-kms-wrapping/plugin/v2 v2.4.0 h1:ET70ooZHXwSCoEuNryKJfa2PvUZXAb3/l9o8dwWDYho=
+github.com/openbao/go-kms-wrapping/plugin/v2 v2.4.0/go.mod h1:EkWWwSq44YgaFY7OHPQtoiKEuSnKlk2K1muib3lIVro=
+github.com/openbao/go-kms-wrapping/v2 v2.9.0 h1:LI7DwOi1v4zv7FqBTbiChUzGo5kav9ONmwMYwnxNhFc=
+github.com/openbao/go-kms-wrapping/v2 v2.9.0/go.mod h1:CcqEQD8O2fsOG40hlT/oR5RTkus0zvjfsnCrFkRNf48=
 github.com/openbao/go-kms-wrapping/wrappers/alicloudkms/v2 v2.3.0 h1:RhTCVY+QnUNP/URMKz4kWYHt+6ppAYEC1LbOgt8l8d0=
 github.com/openbao/go-kms-wrapping/wrappers/alicloudkms/v2 v2.3.0/go.mod h1:3GLoNvJvwsFgr3rnohIVfE9GbpICJVvSACO/z/B1IgE=
 github.com/openbao/go-kms-wrapping/wrappers/awskms/v2 v2.5.0 h1:Ez91i4H9PeuCJ9ASkWbt0sUItEkEVRkM7v97D5YaiEA=
@@ -514,8 +516,6 @@ github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.3.0 h1:91C1/ex/BIP5qbTN
 github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.3.0/go.mod h1:OsP3JqWnM4fXiV8rhDr2c64eBGbN6U54nAkBNcoxejw=
 github.com/openbao/go-kms-wrapping/wrappers/ovhcloudkms/v2 v2.0.0 h1:cx8e45QIr4VFTrnxuo4isqUjoN5MhH3YjadWEtqvv18=
 github.com/openbao/go-kms-wrapping/wrappers/ovhcloudkms/v2 v2.0.0/go.mod h1:A2oFUe1pm44eVzqI1GEcGvDZ+8H/WbBFiNEqfKwVp2I=
-github.com/openbao/go-kms-wrapping/wrappers/pkcs11/v2 v2.6.0 h1:N1wn2f6CJ5kb39csWK9Yt6YedLK2wM7aGR168WQHeLo=
-github.com/openbao/go-kms-wrapping/wrappers/pkcs11/v2 v2.6.0/go.mod h1:xPvAJyNNaeMzEW+FBq+r/Uv3PgQLEAhkVGOXrD8t79E=
 github.com/openbao/go-kms-wrapping/wrappers/tcloudpublickms/v2 v2.0.0 h1:YVh2auXJQqnZc/Oe1sUppD0JhxVDGRLAMx1JttDTTk8=
 github.com/openbao/go-kms-wrapping/wrappers/tcloudpublickms/v2 v2.0.0/go.mod h1:8HKyId6HFJiOekGBltanliJPlXc4CrhCO+uYafgziPU=
 github.com/openbao/openbao/api/v2 v2.6.0 h1:KvfspAaL9bab9hI8jFYkV2cgtSrwWtaG+k9AUTHWU4M=

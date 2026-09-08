@@ -54,15 +54,15 @@ require (
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.2.1
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/openbao/go-kms-wrapping/plugin/v2 v2.3.0
-	github.com/openbao/go-kms-wrapping/v2 v2.8.0
+	github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.0.0
+	github.com/openbao/go-kms-wrapping/plugin/v2 v2.4.0
+	github.com/openbao/go-kms-wrapping/v2 v2.9.0
 	github.com/openbao/go-kms-wrapping/wrappers/alicloudkms/v2 v2.3.0
 	github.com/openbao/go-kms-wrapping/wrappers/awskms/v2 v2.5.0
 	github.com/openbao/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.4.0
 	github.com/openbao/go-kms-wrapping/wrappers/gcpckms/v2 v2.3.0
 	github.com/openbao/go-kms-wrapping/wrappers/ocikms/v2 v2.3.0
 	github.com/openbao/go-kms-wrapping/wrappers/ovhcloudkms/v2 v2.0.0
-	github.com/openbao/go-kms-wrapping/wrappers/pkcs11/v2 v2.6.0
 	github.com/openbao/go-kms-wrapping/wrappers/tcloudpublickms/v2 v2.0.0
 	github.com/openbao/openbao/api/v2 v2.6.0
 	github.com/openbao/openbao/sdk/v2 v2.6.2
@@ -173,7 +173,7 @@ require (
 	github.com/microsoft/kiota-serialization-multipart-go v1.0.0 // indirect
 	github.com/microsoft/kiota-serialization-text-go v1.0.0 // indirect
 	github.com/miekg/dns v1.1.63 // indirect
-	github.com/miekg/pkcs11 v1.1.2-0.20231115102856-9078ad6b9d4b // indirect
+	github.com/miekg/pkcs11 v1.1.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.2-0.20210821155943-2d9075ca8770 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect

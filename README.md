@@ -38,7 +38,7 @@ To learn more about OpenBao plugins, please see the
 - **Google Cloud KMS** - Auto Unseal via Google Cloud.
 - **OCI KMS** - Auto Unseal via Oracle Cloud.
 - **OVHcloud KMS** - Auto Unseal via OVHcloud.
-- **PKCS#11** - Auto Unseal via PKCS#11.
+- **PKCS#11** - Auto Unseal and External Keys via PKCS#11.
 - **T Cloud Public KMS** - Auto Unseal via T Cloud Public.
 
 ## Download
