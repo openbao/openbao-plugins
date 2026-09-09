@@ -29,6 +29,7 @@ To learn more about OpenBao plugins, please see the
 - **GCPKMS** - Encrypt data and manage keys via GCP KMS.
 - **Nomad** - Generate Nomad ACL tokens.
 - **Consul** - Generate Consul ACL tokens.
+- **LDAP** - Generate and interact with LDAP credentials.
 
 ### KMS (Key Management Service) Plugins
 
