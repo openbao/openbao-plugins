@@ -178,10 +178,7 @@ func splitChallenge(x string) (timestamp int64, token string, hmac string, err e
 }
 
 func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	//	challenge, ok := data.GetOk("challenge")
-	//	if !ok {
-	//		return nil, errors.New("challenge is required")
-	//	}
+	// https://fidoalliance.org/specs/fidoserver/fido-server-v2.3-rd-20260226.html
 
 	response, ok := data.GetOk("assertion")
 	if !ok {
@@ -252,13 +249,31 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 
 	challenge = fmt.Sprintf("%s\x00%s", challenge, hmac)
 
+	publicKeyRequest := protocol.PublicKeyCredentialCreationOptions{
+		Challenge: protocol.URLEncodedBase64(challenge),
+		RelyingParty: protocol.RelyingPartyEntity{
+			ID: "localhost",
+			CredentialEntity: protocol.CredentialEntity{
+				Name: "OpenBao",
+			},
+		},
+		User: protocol.UserEntity{
+			DisplayName: "Jamie Doe",
+			CredentialEntity: protocol.CredentialEntity{
+				Name: "jamiedoe",
+			},
+			ID: protocol.URLEncodedBase64("asdf"), // TODO: entity id
+		},
+		// Attestation: protocol.PreferDirectAttestation, TODO: support this
+		Parameters: []protocol.CredentialParameter{{
+			Type:      protocol.PublicKeyCredentialType,
+			Algorithm: webauthncose.AlgES256,
+		}},
+	}
+
 	return &logical.Response{
 		Data: map[string]any{
-			"challenge": challenge,
-			"rp": map[string]any{
-				"id":   "localhost",
-				"name": "OpenBao",
-			},
+			"publicKey": publicKeyRequest,
 		},
 	}, nil
 }

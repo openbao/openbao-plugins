@@ -4,24 +4,16 @@ async function enroll() {
     `${baseURL}/internal/enroll/challenge?token=${token}`,
   );
   const respBody = await resp.json();
-  console.log(respBody);
 
-  const publicKey = {
-    challenge: Uint8Array.from(respBody.data.challenge, (c) => c.charCodeAt(0)),
-    rp: respBody.data.rp,
-    user: {
-      id: new Uint8Array([79, 252, 83, 72, 214, 7, 89, 26]),
-      name: "jamiedoe",
-      displayName: "Jamie Doe",
-    },
-    //attestation: "direct",
-    pubKeyCredParams: [{ type: "public-key", alg: -7 }],
-  };
+  const publicKey = respBody.data.publicKey;
+  publicKey.challenge = Uint8Array.fromBase64(publicKey.challenge, {
+    alphabet: "base64url",
+  });
+  publicKey.user.id = Uint8Array.fromBase64(publicKey.user.id, {
+    alphabet: "base64url",
+  });
 
   const enrollResult = await navigator.credentials.create({ publicKey });
-  console.log(enrollResult);
-  console.log(JSON.stringify(enrollResult));
-  console.log(JSON.stringify(enrollResult.toJSON()));
 
   const assertionResp = await fetch(`${baseURL}/internal/enroll/assertion`, {
     method: "PUT",
@@ -43,10 +35,8 @@ async function enroll() {
 }
 
 function init() {
-  console.log("init");
   const btnEnroll = document.getElementById("btn-enroll");
   btnEnroll.addEventListener("click", enroll);
 }
 
-console.log("register init callback");
 window.onload = init;
