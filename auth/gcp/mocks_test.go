@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 	time "time"
 
+	kms "github.com/openbao/go-kms-wrapping/v2/kms"
 	consts "github.com/openbao/openbao/sdk/v2/helper/consts"
 	pluginutil "github.com/openbao/openbao/sdk/v2/helper/pluginutil"
 	wrapping "github.com/openbao/openbao/sdk/v2/helper/wrapping"
@@ -116,6 +117,21 @@ func (m *MockSystemView) GeneratePasswordFromPolicy(ctx context.Context, policyN
 func (mr *MockSystemViewMockRecorder) GeneratePasswordFromPolicy(ctx, policyName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GeneratePasswordFromPolicy", reflect.TypeOf((*MockSystemView)(nil).GeneratePasswordFromPolicy), ctx, policyName)
+}
+
+// GetExternalKey mocks base method.
+func (m *MockSystemView) GetExternalKey(ctx context.Context, ref string) (kms.Key, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetExternalKey", ctx, ref)
+	ret0, _ := ret[0].(kms.Key)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetExternalKey indicates an expected call of GetExternalKey.
+func (mr *MockSystemViewMockRecorder) GetExternalKey(ctx, ref any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetExternalKey", reflect.TypeOf((*MockSystemView)(nil).GetExternalKey), ctx, ref)
 }
 
 // GroupsForEntity mocks base method.
@@ -333,74 +349,74 @@ func (m *MockStorage) EXPECT() *MockStorageMockRecorder {
 }
 
 // Delete mocks base method.
-func (m *MockStorage) Delete(arg0 context.Context, arg1 string) error {
+func (m *MockStorage) Delete(ctx context.Context, path string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Delete", arg0, arg1)
+	ret := m.ctrl.Call(m, "Delete", ctx, path)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MockStorageMockRecorder) Delete(arg0, arg1 any) *gomock.Call {
+func (mr *MockStorageMockRecorder) Delete(ctx, path any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockStorage)(nil).Delete), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockStorage)(nil).Delete), ctx, path)
 }
 
 // Get mocks base method.
-func (m *MockStorage) Get(arg0 context.Context, arg1 string) (*logical.StorageEntry, error) {
+func (m *MockStorage) Get(ctx context.Context, path string) (*logical.StorageEntry, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", arg0, arg1)
+	ret := m.ctrl.Call(m, "Get", ctx, path)
 	ret0, _ := ret[0].(*logical.StorageEntry)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockStorageMockRecorder) Get(arg0, arg1 any) *gomock.Call {
+func (mr *MockStorageMockRecorder) Get(ctx, path any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockStorage)(nil).Get), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockStorage)(nil).Get), ctx, path)
 }
 
 // List mocks base method.
-func (m *MockStorage) List(arg0 context.Context, arg1 string) ([]string, error) {
+func (m *MockStorage) List(ctx context.Context, prefix string) ([]string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", arg0, arg1)
+	ret := m.ctrl.Call(m, "List", ctx, prefix)
 	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockStorageMockRecorder) List(arg0, arg1 any) *gomock.Call {
+func (mr *MockStorageMockRecorder) List(ctx, prefix any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockStorage)(nil).List), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockStorage)(nil).List), ctx, prefix)
 }
 
 // ListPage mocks base method.
-func (m *MockStorage) ListPage(arg0 context.Context, arg1, arg2 string, arg3 int) ([]string, error) {
+func (m *MockStorage) ListPage(ctx context.Context, prefix, after string, limit int) ([]string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListPage", arg0, arg1, arg2, arg3)
+	ret := m.ctrl.Call(m, "ListPage", ctx, prefix, after, limit)
 	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListPage indicates an expected call of ListPage.
-func (mr *MockStorageMockRecorder) ListPage(arg0, arg1, arg2, arg3 any) *gomock.Call {
+func (mr *MockStorageMockRecorder) ListPage(ctx, prefix, after, limit any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPage", reflect.TypeOf((*MockStorage)(nil).ListPage), arg0, arg1, arg2, arg3)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListPage", reflect.TypeOf((*MockStorage)(nil).ListPage), ctx, prefix, after, limit)
 }
 
 // Put mocks base method.
-func (m *MockStorage) Put(arg0 context.Context, arg1 *logical.StorageEntry) error {
+func (m *MockStorage) Put(ctx context.Context, entry *logical.StorageEntry) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Put", arg0, arg1)
+	ret := m.ctrl.Call(m, "Put", ctx, entry)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Put indicates an expected call of Put.
-func (mr *MockStorageMockRecorder) Put(arg0, arg1 any) *gomock.Call {
+func (mr *MockStorageMockRecorder) Put(ctx, entry any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockStorage)(nil).Put), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Put", reflect.TypeOf((*MockStorage)(nil).Put), ctx, entry)
 }
