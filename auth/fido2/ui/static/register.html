@@ -1,11 +1,23 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-    <script src="./common.js"></script>
-    <script src="./register.js"></script>
-</head>
-<body>
-    Enrollment Token: <input id="token">
-    <button id="btn-enroll">Enroll Now</button>
-</body>
+    <head>
+        <script src="./common.js"></script>
+        <script src="./register.js"></script>
+        <link rel="stylesheet" href="./style.css" />
+    </head>
+    <body>
+        <div class="card">
+            Enrollment Token <input id="token" />
+            <button class="button-primary" id="btn-enroll">Enroll Now</button>
+        </div>
+
+        <div class="card">
+            Client Token
+            <input type="password" id="client-token" disabled="true" />
+            <button id="btn-toggle-client-token">Show Client Token</button>
+            <button class="button-primary" id="btn-copy-client-token">
+                Copy Client Token
+            </button>
+        </div>
+    </body>
 </html>

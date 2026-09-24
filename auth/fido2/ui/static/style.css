@@ -1,0 +1,61 @@
+body {
+    font-family: system-ui;
+    background-color: #336d5c;
+    color: rgb(55, 58, 66);
+}
+
+div.card {
+    border: solid;
+    border-radius: 6px;
+    border-color: #091a28;
+    border-width: 1px;
+    padding: 12px;
+    margin: 12px;
+    background-color: #fdfccf;
+
+    max-width: 768px;
+
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+button {
+    cursor: pointer;
+    background-color: #bac1cc;
+
+    height: 2.5rem;
+    line-height: 1.6;
+    min-width: 6rem;
+    padding: 0.5rem 0.8;
+    text-align: center;
+    text-decoration: none;
+
+    border-width: 1px;
+    border-style: solid;
+    border-color: #bac1cc;
+    border-radius: 2px;
+}
+
+button.button-primary {
+    border-color: #004be1;
+    background-color: #004be1;
+    color: #fff;
+    font-weight: 700;
+}
+
+
+input {
+    flex-grow: 1;
+    height: 2.5rem;
+    font-size: 1rem;
+    padding: 0 0.5rem;
+
+    transition-property: border-color;
+    transition-duration: 1s;
+}
+
+input:focus{
+    border-color: #004be1;
+
+}
