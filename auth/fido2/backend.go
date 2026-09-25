@@ -347,6 +347,16 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 
 	challenge = fmt.Sprintf("%s\x00%s", challenge, hmac)
 
+	_, aliasName, err := splitToken(token.(string))
+	if err != nil {
+		return nil, logical.CodedError(http.StatusBadRequest, "invalid token: %w", err)
+	}
+
+	existingCredentials, err := findCredentialsForAlias(ctx, req.Storage, aliasName)
+	if err != nil {
+		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
+	}
+
 	publicKeyRequest := protocol.PublicKeyCredentialCreationOptions{
 		Challenge: protocol.URLEncodedBase64(challenge),
 		RelyingParty: protocol.RelyingPartyEntity{
@@ -362,6 +372,7 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 			},
 			ID: protocol.URLEncodedBase64("asdf"), // TODO: entity id
 		},
+		CredentialExcludeList: existingCredentials,
 		// Attestation: protocol.PreferDirectAttestation, TODO: support this
 		Parameters: []protocol.CredentialParameter{{
 			Type:      protocol.PublicKeyCredentialType,

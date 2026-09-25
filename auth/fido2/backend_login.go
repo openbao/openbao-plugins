@@ -18,22 +18,16 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 )
 
-func (b *backend) pathInternalLoginChallengeRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	aliasName, ok := data.GetOk("alias")
-	if !ok {
-		return nil, logical.CodedError(http.StatusBadRequest, "alias is required")
-	}
-
-	var allowedCredentials []protocol.CredentialDescriptor
-
-	err := logical.WithTransaction(ctx, req.Storage, func(s logical.Storage) error {
-		basePath := path.Join("v1", "credentials", aliasName.(string)) + "/"
+func findCredentialsForAlias(ctx context.Context, s logical.Storage, aliasName string) ([]protocol.CredentialDescriptor, error) {
+	var credentials []protocol.CredentialDescriptor
+	err := logical.WithTransaction(ctx, s, func(s logical.Storage) error {
+		basePath := path.Join("v1", "credentials", aliasName) + "/"
 		list, err := s.List(ctx, basePath)
 		if err != nil {
 			return err
 		}
 
-		allowedCredentials = make([]protocol.CredentialDescriptor, 0, len(list))
+		credentials = make([]protocol.CredentialDescriptor, 0, len(list))
 
 		for _, id := range list {
 			entryPath := path.Join(basePath, id)
@@ -52,7 +46,7 @@ func (b *backend) pathInternalLoginChallengeRead(ctx context.Context, req *logic
 				return fmt.Errorf("invalid entry %q: %w", entryPath, err)
 			}
 
-			allowedCredentials = append(allowedCredentials, protocol.CredentialDescriptor{
+			credentials = append(credentials, protocol.CredentialDescriptor{
 				Type:         protocol.CredentialType(data.CredentialType),
 				CredentialID: data.CredentialId,
 			})
@@ -60,6 +54,17 @@ func (b *backend) pathInternalLoginChallengeRead(ctx context.Context, req *logic
 
 		return nil
 	})
+
+	return credentials, err
+}
+
+func (b *backend) pathInternalLoginChallengeRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+	aliasName, ok := data.GetOk("alias")
+	if !ok {
+		return nil, logical.CodedError(http.StatusBadRequest, "alias is required")
+	}
+
+	allowedCredentials, err := findCredentialsForAlias(ctx, req.Storage, aliasName.(string))
 	if err != nil {
 		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
 	}

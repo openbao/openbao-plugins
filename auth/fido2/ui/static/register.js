@@ -12,6 +12,12 @@ async function enroll() {
   publicKey.user.id = Uint8Array.fromBase64(publicKey.user.id, {
     alphabet: "base64url",
   });
+  publicKey.excludeCredentials.forEach((credential) => {
+    credential.id = Uint8Array.fromBase64(credential.id, {
+      alphabet: "base64url",
+    });
+  });
+
 
   const enrollResult = await navigator.credentials.create({ publicKey });
 
