@@ -3,7 +3,7 @@ const TOKEN_PREFIX = 'vault-';
 let lastAuth = null;
 
 function findAPI() {
-  let parts = window.location.href.split("/");
+  let parts = window.location.pathname.split("/");
   
   while (parts[parts.length-1] != "internal" && parts.length > 3) {
     parts.pop();
@@ -15,6 +15,10 @@ function findAPI() {
 }
 
 const baseURL = findAPI();
+
+function localStorageKey(name) {
+  return `fido2-auth-plugin@${baseURL} ${name}`;
+}
 
 function toggleClientToken() {
   let fieldClientToken = document.getElementById("client-token");

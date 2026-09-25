@@ -3,6 +3,8 @@ async function login() {
   const resp = await fetch(`${baseURL}/internal/login/challenge?entity_id=${entityId}`);
   const respBody = await resp.json();
 
+  localStorage.setItem(localStorageKey("entity_id"), entityId);
+
   const publicKey = respBody.data.publicKey;
   publicKey.challenge = Uint8Array.fromBase64(publicKey.challenge, {
     alphabet: "base64url",
@@ -46,6 +48,12 @@ async function login() {
 function init() {
   const btnEnroll = document.getElementById("btn-login");
   btnEnroll.addEventListener("click", login);
+
+  let entityId = localStorage.getItem(localStorageKey("entity_id"));
+  if (entityId) {
+    document.getElementById("entity-id").value = entityId;
+  }
+
 
   initCommon();
 }

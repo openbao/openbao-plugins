@@ -36,6 +36,8 @@ async function enroll() {
   let fieldClientToken = document.getElementById("client-token");
   fieldClientToken.value = authToken;
 
+  localStorage.setItem(localStorageKey("entity_id"), auth.auth.entity_id);
+
   lastAuth = auth;
 }
 
