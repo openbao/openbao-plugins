@@ -51,6 +51,8 @@ func Backend() *backend {
 		PathsSpecial: &logical.Paths{
 			Unauthenticated: []string{
 				"login",
+				"internal/login/challenge",
+				"internal/login/finish",
 				"internal/enroll/challenge",
 				"internal/enroll/assertion",
 				"internal/ui/*",
@@ -60,6 +62,41 @@ func Backend() *backend {
 			},
 		},
 		Paths: []*framework.Path{{
+			Pattern:      "internal/login/challenge",
+			HelpSynopsis: "Warning: this API is not stable and only meant for consumption via the bundled UI",
+			Fields: map[string]*framework.FieldSchema{
+				"entity_id": {
+					Type:     framework.TypeString,
+					Required: true,
+					Query:    true,
+				},
+			},
+			Operations: map[logical.Operation]framework.OperationHandler{
+				logical.ReadOperation: &framework.PathOperation{
+					Unpublished: true,
+					Callback:    b.pathInternalLoginChallengeRead,
+				},
+			},
+		}, {
+			Pattern:      "internal/login/finish",
+			HelpSynopsis: "Warning: this API is not stable and only meant for consumption via the bundled UI",
+			Fields: map[string]*framework.FieldSchema{
+				"assertion": {
+					Type:     framework.TypeString,
+					Required: true,
+				},
+				"entity_id": {
+					Type:     framework.TypeString,
+					Required: true,
+				},
+			},
+			Operations: map[logical.Operation]framework.OperationHandler{
+				logical.UpdateOperation: &framework.PathOperation{
+					Unpublished: true,
+					Callback:    b.pathInternalLoginFinish,
+				},
+			},
+		}, {
 			Pattern:      "internal/enroll/challenge",
 			HelpSynopsis: "Warning: this API is not stable and only meant for consumption via the bundled UI",
 			Fields: map[string]*framework.FieldSchema{
@@ -109,7 +146,9 @@ func Backend() *backend {
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.ReadOperation: &framework.PathOperation{
-					Callback: ui.PathGet,
+					Callback: func(ctx context.Context, r *logical.Request, fd *framework.FieldData) (*logical.Response, error) {
+						return ui.PathGet(ctx, r, fd, b.Logger().Named("ui"))
+					},
 				},
 			},
 		}},
@@ -231,7 +270,9 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 		Alias: &logical.Alias{
 			Name: aliasName,
 			Metadata: map[string]string{
-				metadataKeyCredentialID: assertion.ID,
+				metadataKeyCredentialID:    assertion.ID,
+				metadataKeyCredentialType:  assertion.Type,
+				metadataKeyCredentialBytes: protocol.URLEncodedBase64(assertion.Response.AttestationObject.AuthData.AttData.CredentialPublicKey).String(),
 			},
 		},
 	}}, nil
@@ -279,13 +320,18 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 }
 
 const (
-	metadataKeyCredentialID = "fido2_credential_id"
+	metadataKeyCredentialID    = "fido2_credential_id"
+	metadataKeyCredentialType  = "fido2_credential_type"
+	metadataKeyCredentialBytes = "fido2_credential_bytes"
 )
 
 func (b *backend) pathSelfService(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	entity, err := b.System().EntityInfo(req.EntityID)
 	if err != nil {
 		return nil, err
+	}
+	if entity == nil {
+		return nil, logical.CodedError(http.StatusNotFound, "entity not found")
 	}
 
 	var alias *logical.Alias
@@ -297,7 +343,6 @@ func (b *backend) pathSelfService(ctx context.Context, req *logical.Request, dat
 		if ok {
 			continue // alias has already been enrolled
 		}
-
 	}
 
 	if alias == nil {
@@ -323,12 +368,4 @@ func (b *backend) pathSelfService(ctx context.Context, req *logical.Request, dat
 }
 
 const backendHelp = `
-The GCP auth method allows machines to authenticate Google Cloud Platform
-entities. It supports two modes of authentication:
-
-- IAM service accounts: provides a signed JSON Web Token for a given
-  service account key
-
-- GCE VM metadata: provides a signed JSON Web Token using instance metadata
-  obtained from the GCE instance metadata server
-`
+TODO`

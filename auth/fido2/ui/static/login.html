@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+    <head>
+        <script src="./common.js"></script>
+        <script src="./login.js"></script>
+        <link rel="stylesheet" href="./style.css" />
+    </head>
+    <body>
+        <div class="card">
+            Entity ID <input id="entity-id" />
+            <button class="button-primary" id="btn-login">Login</button>
+        </div>
+
+        <div class="card">
+            Client Token
+            <input type="password" id="client-token" disabled="true" />
+            <button id="btn-toggle-client-token">Show Token</button>
+            <button id="btn-copy-client-token">Copy Token</button>
+            <button id="btn-open-ui" class="button-primary">Open UI</button>
+        </div>
+    </body>
+</html>

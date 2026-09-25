@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
@@ -47,11 +48,12 @@ func getContentType(x string) string {
 	}
 }
 
-func PathGet(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func PathGet(ctx context.Context, req *logical.Request, data *framework.FieldData, logger hclog.Logger) (*logical.Response, error) {
 	path := data.Get("path").(string)
 
 	body, err := fs.ReadFile(webFs, path)
 	if err != nil {
+		logger.Trace("ui path not found", "fs", webFs, "path", path)
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, logical.CodedError(http.StatusNotFound, "path %q could not be found", path)
 		}
