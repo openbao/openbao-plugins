@@ -29,7 +29,8 @@ var pluginVersion string
 type backend struct {
 	*framework.Backend
 
-	challengeSalt *salt.Salt
+	enrollChallengeSalt *salt.Salt
+	loginChallengeSalt  *salt.Salt
 }
 
 // Factory returns a new backend as logical.Backend.
@@ -161,14 +162,21 @@ func Backend() *backend {
 }
 
 func (b *backend) initialize(ctx context.Context, req *logical.InitializationRequest) error {
-	s, err := salt.NewSalt(ctx, req.Storage, &salt.Config{
-		Location: "config/challenge-salt",
+	var err error
+	b.loginChallengeSalt, err = salt.NewSalt(ctx, req.Storage, &salt.Config{
+		Location: "config/login-challenge-salt",
 	})
 	if err != nil {
 		return err
 	}
 
-	b.challengeSalt = s
+	b.enrollChallengeSalt, err = salt.NewSalt(ctx, req.Storage, &salt.Config{
+		Location: "config/enroll-challenge-salt",
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -250,7 +258,7 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 		return nil, logical.CodedError(http.StatusBadRequest, "challenge expired")
 	}
 
-	expectedHmac := b.challengeSalt.GetHMAC(fmt.Sprintf("%d\x00%s", timestamp, token))
+	expectedHmac := b.enrollChallengeSalt.GetHMAC(fmt.Sprintf("%d\x00%s", timestamp, token))
 	if subtle.ConstantTimeCompare([]byte(expectedHmac), []byte(hmac)) == 0 {
 		return nil, logical.CodedError(http.StatusBadRequest, "invalid challenge")
 	}
@@ -286,7 +294,7 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 
 	challenge := fmt.Sprintf("%d\x00%s", time.Now().Unix(), token.(string))
 
-	hmac := b.challengeSalt.GetHMAC(challenge)
+	hmac := b.enrollChallengeSalt.GetHMAC(challenge)
 
 	challenge = fmt.Sprintf("%s\x00%s", challenge, hmac)
 

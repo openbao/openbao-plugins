@@ -5,9 +5,11 @@ package fido2
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/helper/roottoken"
@@ -65,9 +67,9 @@ func (b *backend) pathInternalLoginChallengeRead(ctx context.Context, req *logic
 		return nil, err
 	}
 
-	hmac := b.challengeSalt.GetHMAC(otp) // TODO: use two salts for login and register
+	hmac := b.loginChallengeSalt.GetHMAC(otp)
 
-	challenge := fmt.Sprintf("%s\x00%s", otp, hmac)
+	challenge := fmt.Sprintf("%s\x00%s", otp, hmac) // TODO: bind the challenge to a user
 
 	publicKeyRequest := protocol.PublicKeyCredentialRequestOptions{
 		Challenge:          protocol.URLEncodedBase64(challenge),
@@ -91,6 +93,11 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 	resp, err := protocol.ParseCredentialRequestResponseBytes([]byte(response.(string)))
 	if err != nil {
 		return nil, err
+	}
+
+	otp, actualHmac, ok := strings.CutLast(resp.Response.CollectedClientData.Challenge, "\x00")
+	if ok && subtle.ConstantTimeCompare([]byte(b.loginChallengeSalt.GetHMAC(otp)), []byte(actualHmac)) == 0 {
+		return nil, logical.CodedError(http.StatusBadRequest, "invalid challenge")
 	}
 
 	entityID, ok := data.GetOk("entity_id")
@@ -133,8 +140,6 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 	if err != nil {
 		return nil, logical.CodedError(http.StatusInternalServerError, "invalid alias metadata: %v", err)
 	}
-
-	b.Logger().Info(string(credentialBytes))
 
 	err = resp.Verify(resp.Response.CollectedClientData.Challenge, "localhost", "", []string{"http://localhost:8200"}, nil, nil, protocol.TopOriginAutoVerificationMode, false, false, false, credentialBytesRaw, protocol.SignaturePolicy{})
 	if err != nil {
