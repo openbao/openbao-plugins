@@ -43,34 +43,11 @@ async function login() {
   lastAuth = auth;
 }
 
-function toggleClientToken() {
-  let fieldClientToken = document.getElementById("client-token");
-  if (fieldClientToken.type === "password") {
-    fieldClientToken.type = "text";
-    fieldClientToken.innerText = "Hide Client Token";
-  } else {
-    fieldClientToken.type = "password";
-    fieldClientToken.innerText = "Show Client Token";
-  }
-}
-
-function copyClientToken() {
-  let fieldClientToken = document.getElementById("client-token");
-  navigator.clipboard.writeText(fieldClientToken.value);
-}
-
 function init() {
   const btnEnroll = document.getElementById("btn-login");
   btnEnroll.addEventListener("click", login);
 
-  const btnShowClientToken = document.getElementById("btn-toggle-client-token");
-  btnShowClientToken.addEventListener("click", toggleClientToken);
-
-  const btnCopyClientToken = document.getElementById("btn-copy-client-token");
-  btnCopyClientToken.addEventListener("click", copyClientToken);
-
-  const btnOpenUI = document.getElementById("btn-open-ui");
-  btnOpenUI.addEventListener("click", openUI);
+  initCommon();
 }
 
 window.onload = init;

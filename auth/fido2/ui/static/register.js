@@ -35,33 +35,15 @@ async function enroll() {
 
   let fieldClientToken = document.getElementById("client-token");
   fieldClientToken.value = authToken;
-}
 
-function toggleClientToken() {
-  let fieldClientToken = document.getElementById("client-token");
-  if (fieldClientToken.type === "password") {
-    fieldClientToken.type = "text";
-    fieldClientToken.innerText = "Hide Client Token";
-  } else {
-    fieldClientToken.type = "password";
-    fieldClientToken.innerText = "Show Client Token";
-  }
-}
-
-function copyClientToken() {
-  let fieldClientToken = document.getElementById("client-token");
-  navigator.clipboard.writeText(fieldClientToken.value);
+  lastAuth = auth;
 }
 
 function init() {
   const btnEnroll = document.getElementById("btn-enroll");
   btnEnroll.addEventListener("click", enroll);
 
-  const btnShowClientToken = document.getElementById("btn-toggle-client-token");
-  btnShowClientToken.addEventListener("click", toggleClientToken);
-
-  const btnCopyClientToken = document.getElementById("btn-copy-client-token");
-  btnCopyClientToken.addEventListener("click", copyClientToken);
+  initCommon();
 }
 
 window.onload = init;
