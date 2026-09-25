@@ -43,7 +43,7 @@ async function enroll() {
 
   let fieldClientToken = document.getElementById("client-token");
   fieldClientToken.value = authToken;
-  document.getElementById("client-token-card").style.display = ""
+  document.getElementById("client-token-card").style.display = "";
 
   localStorage.setItem(localStorageKey("alias"), auth.data.alias);
 
