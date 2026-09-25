@@ -6,9 +6,9 @@ package fido2
 import (
 	"context"
 	"crypto/subtle"
-	"encoding/base64"
 	"fmt"
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/openbao/openbao/sdk/v2/framework"
@@ -19,52 +19,58 @@ import (
 )
 
 func (b *backend) pathInternalLoginChallengeRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	entityID, ok := data.GetOk("entity_id")
+	aliasName, ok := data.GetOk("alias")
 	if !ok {
-		return nil, logical.CodedError(http.StatusBadRequest, "entity_id is required")
+		return nil, logical.CodedError(http.StatusBadRequest, "alias is required")
 	}
 
-	entity, err := b.System().EntityInfo(entityID.(string))
-	if err != nil {
-		return nil, err
-	}
-	if entity == nil {
-		return nil, logical.CodedError(http.StatusNotFound, "entity not found")
-	}
+	var allowedCredentials []protocol.CredentialDescriptor
 
-	allowedCredentials := []protocol.CredentialDescriptor{}
-	var alias *logical.Alias
-	for _, alias = range entity.Aliases {
-		if alias.MountAccessor == req.MountAccessor {
-			continue
-		}
-		id, ok := alias.Metadata[metadataKeyCredentialID]
-		if !ok {
-			continue
-		}
-		credType, ok := alias.Metadata[metadataKeyCredentialType]
-		if !ok {
-			continue
-		}
-
-		rawId, err := base64.RawURLEncoding.DecodeString(id)
+	err := logical.WithTransaction(ctx, req.Storage, func(s logical.Storage) error {
+		basePath := path.Join("v1", "credentials", aliasName.(string)) + "/"
+		list, err := s.List(ctx, basePath)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		allowedCredentials = append(allowedCredentials, protocol.CredentialDescriptor{
-			CredentialID: protocol.URLEncodedBase64(rawId),
-			Type:         protocol.CredentialType(credType),
-		})
+		allowedCredentials = make([]protocol.CredentialDescriptor, 0, len(list))
+
+		for _, id := range list {
+			entryPath := path.Join(basePath, id)
+			entry, err := s.Get(ctx, entryPath)
+			if err != nil {
+				return err
+			}
+
+			if entry == nil {
+				return fmt.Errorf("missing entry %q", entryPath)
+			}
+
+			data := credentialStorageEntry{}
+			entry.DecodeJSON(&data)
+			if err != nil {
+				return fmt.Errorf("invalid entry %q: %w", entryPath, err)
+			}
+
+			allowedCredentials = append(allowedCredentials, protocol.CredentialDescriptor{
+				Type:         protocol.CredentialType(data.CredentialType),
+				CredentialID: data.CredentialId,
+			})
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
 	}
 
-	if alias == nil {
-		return nil, fmt.Errorf("no alias available for self-service, please ask your authentication admin to create a fresh alias for mount-accessor %q and entity %q", req.MountAccessor, req.EntityID)
+	if len(allowedCredentials) == 0 {
+		return nil, fmt.Errorf("no credential enrolled for this alias")
 	}
 
 	otp, err := roottoken.GenerateOTP(0)
 	if err != nil {
-		return nil, err
+		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
 	}
 
 	hmac := b.loginChallengeSalt.GetHMAC(otp)
@@ -100,53 +106,34 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 		return nil, logical.CodedError(http.StatusBadRequest, "invalid challenge")
 	}
 
-	entityID, ok := data.GetOk("entity_id")
+	aliasName, ok := data.GetOk("alias")
 	if !ok {
-		return nil, logical.CodedError(http.StatusBadRequest, "entity_id is required")
+		return nil, logical.CodedError(http.StatusBadRequest, "alias is required")
 	}
 
-	entity, err := b.System().EntityInfo(entityID.(string))
+	entry, err := req.Storage.Get(ctx, path.Join("v1", "credentials", aliasName.(string), resp.ID))
 	if err != nil {
-		return nil, err
-	}
-	if entity == nil {
-		return nil, logical.CodedError(http.StatusNotFound, "entity not found")
+		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
 	}
 
-	var alias *logical.Alias
-	for _, alias = range entity.Aliases {
-		if alias.MountAccessor == req.MountAccessor {
-			continue
-		}
-		id, ok := alias.Metadata[metadataKeyCredentialID]
-		if !ok {
-			continue
-		}
-		if id == resp.ID {
-			break
-		}
-	}
-
-	if alias == nil {
+	if entry == nil {
 		return nil, logical.CodedError(http.StatusUnauthorized, "key not allowed")
 	}
 
-	credentialBytes, ok := alias.Metadata[metadataKeyCredentialBytes]
-	if !ok {
-		return nil, logical.CodedError(http.StatusInternalServerError, "invalid alias metadata")
-	}
-
-	credentialBytesRaw, err := base64.RawURLEncoding.DecodeString(credentialBytes)
+	decodedEntry := credentialStorageEntry{}
+	err = entry.DecodeJSON(&decodedEntry)
 	if err != nil {
-		return nil, logical.CodedError(http.StatusInternalServerError, "invalid alias metadata: %v", err)
+		return nil, logical.CodedError(http.StatusInternalServerError, "invalid entry %q: %v", resp.ID, err)
 	}
 
-	err = resp.Verify(resp.Response.CollectedClientData.Challenge, "localhost", "", []string{"http://localhost:8200"}, nil, nil, protocol.TopOriginAutoVerificationMode, false, false, false, credentialBytesRaw, protocol.SignaturePolicy{})
+	err = resp.Verify(resp.Response.CollectedClientData.Challenge, "localhost", "", []string{"http://localhost:8200"}, nil, nil, protocol.TopOriginAutoVerificationMode, false, false, false, decodedEntry.CredentialBytes, protocol.SignaturePolicy{})
 	if err != nil {
 		return nil, logical.CodedError(http.StatusUnauthorized, err.Error())
 	}
 
 	return &logical.Response{Auth: &logical.Auth{
-		Alias: alias,
+		Alias: &logical.Alias{
+			Name: aliasName.(string),
+		},
 	}}, nil
 }

@@ -1,9 +1,9 @@
 async function login() {
-  const entityId = document.getElementById("entity-id").value;
-  const resp = await fetch(`${baseURL}/internal/login/challenge?entity_id=${entityId}`);
+  const alias = document.getElementById("alias").value;
+  const resp = await fetch(`${baseURL}/internal/login/challenge?alias=${alias}`);
   const respBody = await resp.json();
 
-  localStorage.setItem(localStorageKey("entity_id"), entityId);
+  localStorage.setItem(localStorageKey("alias"), alias);
 
   const publicKey = respBody.data.publicKey;
   publicKey.challenge = Uint8Array.fromBase64(publicKey.challenge, {
@@ -27,7 +27,7 @@ async function login() {
     },
     body: JSON.stringify({
       assertion: JSON.stringify(result),
-      entity_id: entityId,
+      alias: alias,
     }),
   });
 
@@ -49,9 +49,9 @@ function init() {
   const btnEnroll = document.getElementById("btn-login");
   btnEnroll.addEventListener("click", login);
 
-  let entityId = localStorage.getItem(localStorageKey("entity_id"));
-  if (entityId) {
-    document.getElementById("entity-id").value = entityId;
+  let alias = localStorage.getItem(localStorageKey("alias"));
+  if (alias) {
+    document.getElementById("alias").value = alias;
   }
 
 

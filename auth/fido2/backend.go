@@ -7,9 +7,11 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -66,7 +68,7 @@ func Backend() *backend {
 			Pattern:      "internal/login/challenge",
 			HelpSynopsis: "Warning: this API is not stable and only meant for consumption via the bundled UI",
 			Fields: map[string]*framework.FieldSchema{
-				"entity_id": {
+				"alias": {
 					Type:     framework.TypeString,
 					Required: true,
 					Query:    true,
@@ -86,7 +88,7 @@ func Backend() *backend {
 					Type:     framework.TypeString,
 					Required: true,
 				},
-				"entity_id": {
+				"alias": {
 					Type:     framework.TypeString,
 					Required: true,
 				},
@@ -224,6 +226,13 @@ func splitChallenge(x string) (timestamp int64, token string, hmac string, err e
 	return
 }
 
+type credentialStorageEntry struct {
+	CredentialId    protocol.URLEncodedBase64
+	CredentialType  string
+	CredentialBytes protocol.URLEncodedBase64
+	Raw             string
+}
+
 func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	// https://fidoalliance.org/specs/fidoserver/fido-server-v2.3-rd-20260226.html
 
@@ -269,21 +278,61 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 		return nil, logical.CodedError(http.StatusBadRequest, "invalid assertion: %w", err)
 	}
 
-	_, aliasName, err := splitToken(token)
+	otp, aliasName, err := splitToken(token)
 	if err != nil {
 		return nil, logical.CodedError(http.StatusBadRequest, "invalid token: %w", err)
 	}
 
-	return &logical.Response{Auth: &logical.Auth{
-		Alias: &logical.Alias{
-			Name: aliasName,
-			Metadata: map[string]string{
-				metadataKeyCredentialID:    assertion.ID,
-				metadataKeyCredentialType:  assertion.Type,
-				metadataKeyCredentialBytes: protocol.URLEncodedBase64(assertion.Response.AttestationObject.AuthData.AttData.CredentialPublicKey).String(),
+	storageEntryValue, err := json.Marshal(credentialStorageEntry{
+		CredentialId:    assertion.RawID,
+		CredentialType:  assertion.Type,
+		CredentialBytes: assertion.Response.AttestationObject.AuthData.AttData.CredentialPublicKey,
+		Raw:             response.(string),
+	})
+	if err != nil {
+		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
+	}
+
+	err = logical.WithTransaction(ctx, req.Storage, func(s logical.Storage) error {
+		otpPath := path.Join("v1", "tokens", aliasName, otp)
+		val, err := s.Get(ctx, otpPath)
+		if err != nil {
+			return err
+		}
+		if val != nil {
+			return logical.CodedError(http.StatusForbidden, "token reuse detected")
+		}
+
+		err = s.Put(ctx, &logical.StorageEntry{
+			Key:   otpPath,
+			Value: []byte("{}"),
+		})
+		if err != nil {
+			return err
+		}
+
+		return s.Put(ctx, &logical.StorageEntry{
+			Key:   path.Join("v1", "credentials", aliasName, assertion.ID),
+			Value: storageEntryValue,
+		})
+	})
+	if err != nil {
+		if _, ok := errors.AsType[logical.HTTPCodedError](err); ok {
+			return nil, err
+		}
+		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
+	}
+
+	return &logical.Response{
+		Auth: &logical.Auth{
+			Alias: &logical.Alias{
+				Name: aliasName,
 			},
 		},
-	}}, nil
+		Data: map[string]any{
+			"alias": aliasName,
+		},
+	}, nil
 }
 
 func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
@@ -327,12 +376,6 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 	}, nil
 }
 
-const (
-	metadataKeyCredentialID    = "fido2_credential_id"
-	metadataKeyCredentialType  = "fido2_credential_type"
-	metadataKeyCredentialBytes = "fido2_credential_bytes"
-)
-
 func (b *backend) pathSelfService(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	entity, err := b.System().EntityInfo(req.EntityID)
 	if err != nil {
@@ -347,14 +390,10 @@ func (b *backend) pathSelfService(ctx context.Context, req *logical.Request, dat
 		if alias.MountAccessor == req.MountAccessor {
 			continue
 		}
-		_, ok := alias.Metadata[metadataKeyCredentialID]
-		if ok {
-			continue // alias has already been enrolled
-		}
 	}
 
 	if alias == nil {
-		return nil, fmt.Errorf("no alias available for self-service, please ask your authentication admin to create a fresh alias for mount-accessor %q and entity %q", req.MountAccessor, req.EntityID)
+		return nil, fmt.Errorf("no alias available for self-service, please ask your authentication admin to create an alias for mount-accessor %q and entity %q", req.MountAccessor, req.EntityID)
 	}
 
 	otp, err := roottoken.GenerateOTP(0)
