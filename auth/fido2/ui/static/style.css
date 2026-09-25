@@ -2,6 +2,10 @@ body {
     font-family: system-ui;
     background-color: #336d5c;
     color: rgb(55, 58, 66);
+
+    flex-direction: column;
+    display: flex;
+    align-items: center;
 }
 
 div.card {
@@ -11,11 +15,14 @@ div.card {
     border-width: 1px;
     padding: 12px;
     margin: 12px;
+
     background-color: #fdfccf;
 
     max-width: 768px;
+    width: 100%;
 
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 16px;
 }
@@ -35,6 +42,8 @@ button {
     border-style: solid;
     border-color: #bac1cc;
     border-radius: 2px;
+
+    flex-grow: 1;
 }
 
 button.button-primary {
@@ -44,9 +53,8 @@ button.button-primary {
     font-weight: 700;
 }
 
-
 input {
-    flex-grow: 1;
+    flex-grow: 5;
     height: 2.5rem;
     font-size: 1rem;
     padding: 0 0.5rem;
@@ -55,7 +63,6 @@ input {
     transition-duration: 1s;
 }
 
-input:focus{
+input:focus {
     border-color: #004be1;
-
 }
