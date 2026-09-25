@@ -41,6 +41,7 @@ async function login() {
 
   let fieldClientToken = document.getElementById("client-token");
   fieldClientToken.value = authToken;
+  document.getElementById("client-token-card").style.display = "";
 
   lastAuth = auth;
 }
