@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 
 	"github.com/hashicorp/errwrap"
 	"github.com/openbao/openbao/sdk/v2/framework"
@@ -131,6 +132,7 @@ func (b *backend) pathStaticAccountRead(ctx context.Context, req *logical.Reques
 	}
 	if acct.TokenGen != nil && acct.SecretType == SecretTypeAccessToken {
 		data["token_scopes"] = acct.TokenGen.Scopes
+		data["private_key_id"] = path.Base(acct.TokenGen.KeyName)
 	}
 
 	return &logical.Response{

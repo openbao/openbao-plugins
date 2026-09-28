@@ -32,6 +32,7 @@ func TestConfig(t *testing.T) {
 		"ttl":                   int64(0),
 		"max_ttl":               int64(0),
 		"service_account_email": "",
+		"private_key_id":        "privateKey123",
 	}
 
 	testConfigRead(t, b, reqStorage, expected)
