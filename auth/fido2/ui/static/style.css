@@ -27,6 +27,18 @@ div.card {
     gap: 16px;
 }
 
+h1 {
+    text-shadow: 2px 2px 4px white;
+    font-size: 3rem;
+    font-weight: bold;  text-transform: uppercase;
+}
+
+div.card > h2{
+    width: 100%;
+    margin-top: .1em;
+    margin-bottom: .1em;
+}
+
 button {
     cursor: pointer;
     background-color: #bac1cc;
@@ -65,4 +77,8 @@ input {
 
 input:focus {
     border-color: #004be1;
+}
+
+div#error-card {
+    background-color: #ff6666;
 }

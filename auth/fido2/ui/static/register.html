@@ -1,22 +1,39 @@
 <!doctype html>
 <html>
     <head>
+        <meta charset="utf-8">
         <script src="./common.js"></script>
         <script src="./register.js"></script>
         <link rel="stylesheet" href="./style.css" />
+        <title>Passkey Registration</title>
     </head>
     <body>
-        <div class="card">
-            Enrollment Token <input id="token" />
-            <button class="button-primary" id="btn-enroll">Enroll Now</button>
-        </div>
+        <h1>Passkey Registration</h1>
 
         <div id="client-token-card" class="card" style="display: none">
+            <h2>Success!</h2>
             Client Token
             <input type="password" id="client-token" disabled="true" />
             <button id="btn-toggle-client-token">Show Token</button>
             <button id="btn-copy-client-token">Copy Token</button>
             <button id="btn-open-ui" class="button-primary">Open UI</button>
+        </div>
+
+        <div id="error-card" class="card" style="display: none">
+            <h2>Error</h2>
+            <span id="error-text"></span>
+        </div>
+
+        <div id="self-service" class="card">
+            <h2>Self-Enrollment</h2>
+            <span id="self-service-user"></span>
+            <button id="btn-self-service-enroll" class="button-primary" style="display: none">Enroll Now</button>
+        </div>
+
+        <div class="card">
+            <h2>Enroll via Token</h2>
+            Enrollment Token <input id="token" />
+            <button class="button-primary" id="btn-token-enroll">Enroll Now</button>
         </div>
     </body>
 </html>

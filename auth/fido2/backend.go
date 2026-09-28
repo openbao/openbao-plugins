@@ -131,11 +131,11 @@ func Backend() *backend {
 				},
 			},
 		}, {
-			Pattern:      "enroll/self-serivce/enroll",
+			Pattern:      "self-service-enroll",
 			HelpSynopsis: "Get an enrollment token for the current identity",
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.UpdateOperation: &framework.PathOperation{
-					Callback: b.pathSelfService,
+					Callback: b.pathSelfServiceEnroll,
 				},
 			},
 		}, {
@@ -275,12 +275,12 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 	_, err = assertion.Verify(assertion.Response.CollectedClientData.Challenge, // Bypass the challenge validation: we already validated it above
 		"localhost", []string{"http://localhost:8200"}, nil, nil, protocol.TopOriginAutoVerificationMode, false, false, false, nil, []protocol.CredentialParameter{{Type: protocol.PublicKeyCredentialType, Algorithm: webauthncose.AlgES256}}, protocol.AttestationPolicy{}, protocol.SignaturePolicy{})
 	if err != nil {
-		return nil, logical.CodedError(http.StatusBadRequest, "invalid assertion: %w", err)
+		return nil, logical.CodedError(http.StatusBadRequest, "invalid assertion: %v", err)
 	}
 
 	otp, aliasName, err := splitToken(token)
 	if err != nil {
-		return nil, logical.CodedError(http.StatusBadRequest, "invalid token: %w", err)
+		return nil, logical.CodedError(http.StatusBadRequest, err.Error())
 	}
 
 	storageEntryValue, err := json.Marshal(credentialStorageEntry{
@@ -349,7 +349,7 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 
 	_, aliasName, err := splitToken(token.(string))
 	if err != nil {
-		return nil, logical.CodedError(http.StatusBadRequest, "invalid token: %w", err)
+		return nil, logical.CodedError(http.StatusBadRequest, err.Error())
 	}
 
 	existingCredentials, err := findCredentialsForAlias(ctx, req.Storage, aliasName)
@@ -387,7 +387,7 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 	}, nil
 }
 
-func (b *backend) pathSelfService(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
+func (b *backend) pathSelfServiceEnroll(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
 	entity, err := b.System().EntityInfo(req.EntityID)
 	if err != nil {
 		return nil, err
@@ -407,7 +407,7 @@ func (b *backend) pathSelfService(ctx context.Context, req *logical.Request, dat
 		return nil, fmt.Errorf("no alias available for self-service, please ask your authentication admin to create an alias for mount-accessor %q and entity %q", req.MountAccessor, req.EntityID)
 	}
 
-	otp, err := roottoken.GenerateOTP(0)
+	otp, err := roottoken.GenerateOTP(16)
 	if err != nil {
 		return nil, err
 	}

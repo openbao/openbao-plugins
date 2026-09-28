@@ -1,22 +1,32 @@
 <!doctype html>
 <html>
     <head>
+        <meta charset="utf-8">
         <script src="./common.js"></script>
         <script src="./login.js"></script>
         <link rel="stylesheet" href="./style.css" />
+        <title>Passkey Login</title>
     </head>
     <body>
-        <div class="card">
-            Alias <input id="alias" />
-            <button class="button-primary" id="btn-login">Login</button>
-        </div>
+        <h1>Passkey Login</h1>
 
         <div id="client-token-card" class="card" style="display: none">
+            <h2>Success!</h2>
             Client Token
             <input type="password" id="client-token" disabled="true" />
             <button id="btn-toggle-client-token">Show Token</button>
             <button id="btn-copy-client-token">Copy Token</button>
             <button id="btn-open-ui" class="button-primary">Open UI</button>
+        </div>
+
+        <div id="error-card" class="card" style="display: none">
+            <h2>Error</h2>
+            <span id="error-text"></span>
+        </div>
+
+        <div class="card">
+            Alias <input id="alias" />
+            <button class="button-primary" id="btn-login">Login</button>
         </div>
     </body>
 </html>

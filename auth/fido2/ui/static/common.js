@@ -62,3 +62,35 @@ function initCommon() {
   const btnOpenUI = document.getElementById("btn-open-ui");
   btnOpenUI.addEventListener("click", openUI);
 }
+
+async function checkedFetch() {
+  const resp = await fetch(...arguments);
+  if (!resp.ok) {
+    const j = await resp.json();
+    if (!j.errors || !j.errors.length || j.errors.length === 0) {
+      throw new Error(`Unexpected HTTP status ${resp.status}`);
+    }
+    if (j.errors.length > 1) {
+      throw new Error(`Got multiple errors: ${j.errors.join(", ")}`);
+    }
+    throw new Error(j.errors[0]);
+  }
+  return resp;
+}
+
+function errorWrap(f) {
+  return async function () {
+    const divErrorCard = document.getElementById("error-card");
+    const spanErrorText = document.getElementById("error-text");
+    divErrorCard.style.display = "none";
+    document.getElementById("client-token-card").style.display = "none";
+
+    try {
+      return await f(...arguments);
+    } catch (e) {
+      console.error("caught error", e);
+      spanErrorText.innerText = e.message;
+      divErrorCard.style.display = "";
+    }
+  }
+}

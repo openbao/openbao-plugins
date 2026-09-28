@@ -48,7 +48,7 @@ async function login() {
 
 function init() {
   const btnEnroll = document.getElementById("btn-login");
-  btnEnroll.addEventListener("click", login);
+  btnEnroll.addEventListener("click", errorWrap(login));
 
   let alias = localStorage.getItem(localStorageKey("alias"));
   if (alias) {
