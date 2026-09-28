@@ -56,13 +56,9 @@ Prebuilt OCI artifacts are available on [ghcr.io](https://github.com/orgs/openba
    plugin_directory = "/path/to/download/dir"
 
    plugin_auto_download = true
-   plugin_auto_register = true
 
    plugin "auth" "aws" {
-      image       = "ghcr.io/openbao/openbao-plugin-auth-aws"
-      version     = "v0.1.1"
-      binary_name = "openbao-plugin-auth-aws"
-      sha256sum   = "7a77057e62973c1aae6035f52110e3302605a47b622756d954915b7b55eca10c"
+      image = "ghcr.io/openbao/openbao-plugin-auth-aws:v0.1.1@sha256:d6c92d1bbfa986ac2ebd510f36eb4e6fc21bbe99622d97e1a0a3645e6029de03"
    }
    ```
 
