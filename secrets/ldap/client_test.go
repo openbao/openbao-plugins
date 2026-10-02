@@ -23,8 +23,8 @@ func GetTestClient(fake *ldapifc.FakeLDAPConnection) *Client {
 	return &Client{ldap: ldapClient}
 }
 
-// UpdateDNPassword when the UserAttr is "userPrincipalName"
-func Test_UpdateDNPassword_AD_UserPrincipalName(t *testing.T) {
+// UpdateBindPassword when a UPNDomain is configured
+func Test_UpdateBindPassword_AD_UserPrincipalName(t *testing.T) {
 	newPassword := "newpassword"
 	conn := &ldapifc.FakeLDAPConnection{
 		ModifyRequestToExpect: &ldap.ModifyRequest{
@@ -50,8 +50,7 @@ func Test_UpdateDNPassword_AD_UserPrincipalName(t *testing.T) {
 			Url:          "ldaps://ldap:386",
 			UserDN:       "cn=users",
 			UPNDomain:    "example.net",
-			UserAttr:     "userPrincipalName",
-			BindDN:       "username",
+			BindDN:       "bob",
 			BindPassword: "password",
 		},
 		Schema: client.SchemaAD,
@@ -64,7 +63,7 @@ func Test_UpdateDNPassword_AD_UserPrincipalName(t *testing.T) {
 		conn.ModifyRequestToExpect.Replace(k.String(), v)
 	}
 
-	err = c.UpdateDNPassword(config, "bob", newPassword)
+	err = c.UpdateBindPassword(config, newPassword)
 	assert.NoError(t, err)
 }
 
