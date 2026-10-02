@@ -5,6 +5,8 @@
 CODEOWNERS @openbao/openbao-org-maintainers
 LICENSE    @openbao/openbao-org-maintainers
 
-# Changes to the consul plugin can additionally be approved by the Consol Plugin Comitters
+# Changes to the consul plugin can additionally be approved by the Consul Plugin Committers
 secrets/consul/ @openbao/openbao-org-maintainers @openbao/openbao-plugins-committers @openbao/plugins-secrets-consul-committers
 
+# Changes to the securosys plugin can additionally be approved by the Securosys Committers
+kms/securosys/ @openbao/openbao-org-maintainers @openbao/go-kms-wrappings-securosys
