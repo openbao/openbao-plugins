@@ -16,6 +16,9 @@ To learn more about OpenBao plugins, please see the
 - **Azure** - Authenticate using Microsoft Azure credentials.
 - **GCP** - Authenticate using Google Cloud Platform credentials.
 - **GitHub** - Authenticate using GitHub credentials.
+- **Kerberos** - Authenticate using Kerberos credentials.
+- **LDAP** - Authenticate using LDAP credentials.
+- **RADIUS** - Authenticate using RADIUS.
 
 ### Database Plugins
 
