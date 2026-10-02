@@ -40,6 +40,7 @@ To learn more about OpenBao plugins, please see the
 - **OCI KMS** - Auto Unseal via Oracle Cloud.
 - **OVHcloud KMS** - Auto Unseal via OVHcloud.
 - **PKCS#11** - Auto Unseal and External Keys via PKCS#11.
+- **Securosys** - Auto Unseal and External Keys via Securosys Primus HSM
 - **T Cloud Public KMS** - Auto Unseal via T Cloud Public.
 
 ## Download
