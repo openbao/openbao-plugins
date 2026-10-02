@@ -66,7 +66,7 @@ func (b *backend) pathConfigIdentity() *framework.Path {
 			"iam_alias": {
 				Type:        framework.TypeString,
 				Default:     identityAliasIAMUniqueID,
-				Description: fmt.Sprintf("Configure how the AWS auth method generates entity aliases when using IAM auth. Valid values are %q, %q, and %q. Defaults to %q.", identityAliasRoleID, identityAliasIAMUniqueID, identityAliasIAMFullArn, identityAliasRoleID),
+				Description: fmt.Sprintf("Configure how the AWS auth method generates entity aliases when using IAM auth. Valid values are %q, %q, %q and %q. Defaults to %q.", identityAliasRoleID, identityAliasIAMUniqueID, identityAliasIAMFullArn, identityAliasIAMCanonicalArn, identityAliasRoleID),
 			},
 			iamAuthMetadataFields.FieldName: authmetadata.FieldSchema(iamAuthMetadataFields),
 			"ec2_alias": {
@@ -150,7 +150,7 @@ func pathConfigIdentityUpdate(ctx context.Context, req *logical.Request, data *f
 	iamAliasRaw, ok := data.GetOk("iam_alias")
 	if ok {
 		iamAlias := iamAliasRaw.(string)
-		allowedIAMAliasValues := []string{identityAliasRoleID, identityAliasIAMUniqueID, identityAliasIAMFullArn}
+		allowedIAMAliasValues := []string{identityAliasRoleID, identityAliasIAMUniqueID, identityAliasIAMFullArn , identityAliasIAMCanonicalArn}
 		if !strutil.StrListContains(allowedIAMAliasValues, iamAlias) {
 			return logical.ErrorResponse(fmt.Sprintf("iam_alias of %q not in set of allowed values: %v", iamAlias, allowedIAMAliasValues)), nil
 		}
@@ -196,6 +196,7 @@ type identityConfig struct {
 const (
 	identityAliasIAMUniqueID   = "unique_id"
 	identityAliasIAMFullArn    = "full_arn"
+	identityAliasIAMCanonicalArn = "canonical_arn"
 	identityAliasEC2InstanceID = "instance_id"
 	identityAliasEC2ImageID    = "image_id"
 	identityAliasRoleID        = "role_id"
@@ -218,4 +219,10 @@ You can set the iam_alias parameter to one of the following values:
    This is useful where you have an identity provder that sets role_session_name
    to a known value of a person, such as a username or email address, and allows
    you to map those roles back to entries in your identity store.
+* 'canonical_arn': This maps the canonical ARN to the identity alias, e.g.,
+   "arn:aws:iam::<account_id>:user/<user_name>"
+   This is useful where you have an identity provider that sets the user name
+   to a known value of a person, such as a username or email address, and allows
+   you to map those users back to entries in your identity store.
+
 `
