@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/openbao/openbao/api/v2"
 	"github.com/openbao/openbao/sdk/v2/plugin"
-	kerberosauth "github.com/openbao/openbao/v2/internal/builtin/credential/kerberos"
+	kerberosauth "github.com/openbao/openbao-plugins/auth/kerberos"
 )
 
 func main() {
