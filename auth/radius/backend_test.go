@@ -13,9 +13,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openbao/openbao-plugins/internal/logicaltest"
 	"github.com/openbao/openbao/sdk/v2/helper/docker"
 	"github.com/openbao/openbao/sdk/v2/logical"
-	logicaltest "github.com/openbao/openbao/v2/internal/helper/testhelpers/logical"
 )
 
 const (
@@ -152,7 +152,7 @@ func TestBackend_Config(t *testing.T) {
 	logicaltest.Test(t, logicaltest.TestCase{
 		AcceptanceTest: false,
 		// PreCheck:       func() { testAccPreCheck(t) },
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testConfigWrite(t, configDataBasic, false),
 			testConfigWrite(t, configDataMissingRequired, true),
@@ -175,7 +175,7 @@ func TestBackend_users(t *testing.T) {
 		t.Fatalf("Unable to create backend: %s", err)
 	}
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
+		Backend: b,
 		Steps: []logicaltest.TestStep{
 			testStepUpdateUser(t, "web", "foo"),
 			testStepUpdateUser(t, "web2", "foo"),
@@ -221,6 +221,7 @@ func TestBackend_acceptance(t *testing.T) {
 		"port":                       strconv.Itoa(port),
 		"secret":                     secret,
 		"unregistered_user_policies": "policy1,policy2",
+		"read_timeout":               1,
 	}
 	if configDataAcceptanceAllowUnreg["port"] == "" {
 		configDataAcceptanceAllowUnreg["port"] = "1812"
@@ -231,6 +232,7 @@ func TestBackend_acceptance(t *testing.T) {
 		"port":                       strconv.Itoa(port),
 		"secret":                     secret,
 		"unregistered_user_policies": "",
+		"read_timeout":               1,
 	}
 	if configDataAcceptanceNoAllowUnreg["port"] == "" {
 		configDataAcceptanceNoAllowUnreg["port"] = "1812"
@@ -245,8 +247,8 @@ func TestBackend_acceptance(t *testing.T) {
 	}
 
 	logicaltest.Test(t, logicaltest.TestCase{
-		CredentialBackend: b,
-		PreCheck:          testAccPreCheck(t, host, port),
+		Backend:  b,
+		PreCheck: testAccPreCheck(t, host, port),
 		Steps: []logicaltest.TestStep{
 			// Login with valid but unknown user will fail because unregistered_user_policies is empty
 			testConfigWrite(t, configDataAcceptanceNoAllowUnreg, false),
@@ -334,21 +336,19 @@ func testStepUpdateUser(
 
 func testAccUserLogin(t *testing.T, user string, data map[string]any, expectError bool) logicaltest.TestStep {
 	return logicaltest.TestStep{
-		Operation:       logical.UpdateOperation,
-		Path:            "login/" + user,
-		Data:            data,
-		ErrorOk:         expectError,
-		Unauthenticated: true,
+		Operation: logical.UpdateOperation,
+		Path:      "login/" + user,
+		Data:      data,
+		ErrorOk:   expectError,
 	}
 }
 
 func testAccUserLoginPolicy(t *testing.T, user string, data map[string]any, policies []string, expectError bool) logicaltest.TestStep {
 	return logicaltest.TestStep{
-		Operation:       logical.UpdateOperation,
-		Path:            "login/" + user,
-		Data:            data,
-		ErrorOk:         expectError,
-		Unauthenticated: true,
+		Operation: logical.UpdateOperation,
+		Path:      "login/" + user,
+		Data:      data,
+		ErrorOk:   expectError,
 		// Check:           logicaltest.TestCheckAuth(policies),
 		Check: func(resp *logical.Response) error {
 			res := logicaltest.TestCheckAuth(policies)(resp)
