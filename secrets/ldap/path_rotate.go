@@ -93,7 +93,7 @@ func (b *backend) pathRotateRootCredentialsUpdate(ctx context.Context, req *logi
 	defer b.Unlock()
 
 	// Update the password remotely.
-	if err := b.client.UpdateDNPassword(config.LDAP, config.LDAP.BindDN, newPassword); err != nil {
+	if err := b.client.UpdateBindPassword(config.LDAP, newPassword); err != nil {
 		return nil, err
 	}
 	config.LDAP.BindPassword = newPassword
@@ -194,7 +194,7 @@ func (b *backend) rollBackPassword(ctx context.Context, config *config, oldPassw
 			// Outer environment is closing.
 			return errors.New("unable to roll back password because enclosing environment is shutting down")
 		}
-		if err = b.client.UpdateDNPassword(config.LDAP, config.LDAP.BindDN, oldPassword); err == nil {
+		if err = b.client.UpdateBindPassword(config.LDAP, oldPassword); err == nil {
 			// Success.
 			return nil
 		}
