@@ -94,3 +94,27 @@ function errorWrap(f) {
     }
   }
 }
+
+function fidoToJSON(x) {
+  b64 = (a) => {
+    return new Uint8Array(a).toBase64({
+      alphabet: "base64url",
+      omitPadding: true,
+    });
+  };
+  return {
+      "authenticatorAttachment": x.authenticatorAttachment,
+      "clientExtensionResults": {},
+      "id": x.id,
+      "rawId": x.id,
+      "response": {
+          "attestationObject": b64(x.response.attestationObject),
+          "authenticatorData": b64(x.response.getAuthenticatorData()),
+          "clientDataJSON": b64(x.response.clientDataJSON),
+          "publicKey": b64(x.response.getPublicKey()),
+          "publicKeyAlgorithm": x.response.getPublicKeyAlgorithm(),
+          "transports": x.response.getTransports(),
+      },
+      "type": x.type,
+  }
+}

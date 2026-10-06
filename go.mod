@@ -59,6 +59,7 @@ require (
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.2.1
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/mitchellh/mapstructure v1.5.0
+	github.com/mxschmitt/playwright-go v0.6201.1
 	github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.2.0
 	github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0
 	github.com/openbao/go-kms-wrapping/plugin/v2 v2.4.0
@@ -133,6 +134,7 @@ require (
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
+	github.com/deckarep/golang-set/v2 v2.8.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
@@ -144,6 +146,7 @@ require (
 	github.com/go-asn1-ber/asn1-ber v1.5.8 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/go-webauthn/x v0.3.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
