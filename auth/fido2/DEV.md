@@ -52,6 +52,12 @@ Open the browser at <http://localhost:8200/> and login as alice (password
 In a new session, go to
 <http://localhost:8200/v1/auth/passkey/internal/ui/login.html> and login.
 
+## How to run the browser based tests
+
+```bash
+make auth-fido2 --always-make && go test ./auth/fido2/integration/ -v -count=1
+```
+
 ## Helpful Links
 
 - [https://ctap.dev/](ctap.dev) An online "Passkey Playground"
