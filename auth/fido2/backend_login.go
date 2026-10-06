@@ -131,7 +131,21 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 		return nil, logical.CodedError(http.StatusInternalServerError, "invalid entry %q: %v", resp.ID, err)
 	}
 
-	err = resp.Verify(resp.Response.CollectedClientData.Challenge, "localhost", "", []string{"http://localhost:8200"}, nil, nil, protocol.TopOriginAutoVerificationMode, false, false, false, decodedEntry.CredentialBytes, protocol.SignaturePolicy{})
+	config := b.config.Load()
+	err = resp.Verify(
+		resp.Response.CollectedClientData.Challenge,
+		config.RelyingPartyId,
+		"",
+		config.RelyingPartyOrigins,
+		nil,
+		nil,
+		protocol.TopOriginAutoVerificationMode,
+		false,
+		false,
+		false,
+		decodedEntry.CredentialBytes,
+		protocol.SignaturePolicy{},
+	)
 	if err != nil {
 		return nil, logical.CodedError(http.StatusUnauthorized, err.Error())
 	}

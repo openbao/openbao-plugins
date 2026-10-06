@@ -14,6 +14,8 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/openbao/openbao-plugins/auth/fido2/ui"
@@ -30,6 +32,9 @@ var pluginVersion string
 
 type backend struct {
 	*framework.Backend
+
+	configLock sync.Mutex // protects against concurrent write/patch operations, reads are protected using atomics
+	config     atomic.Pointer[config]
 
 	enrollChallengeSalt *salt.Salt
 	loginChallengeSalt  *salt.Salt
@@ -65,6 +70,27 @@ func Backend() *backend {
 			},
 		},
 		Paths: []*framework.Path{{
+			Pattern:      "config",
+			HelpSynopsis: "configuration of the auth method (e.g relying party ID)",
+			Fields: map[string]*framework.FieldSchema{
+				"relying_party_id": {
+					Type:     framework.TypeString,
+					Required: true,
+				},
+				"relying_party_origins": {
+					Type:     framework.TypeCommaStringSlice,
+					Required: true,
+				},
+			},
+			Operations: map[logical.Operation]framework.OperationHandler{
+				logical.ReadOperation: &framework.PathOperation{
+					Callback: b.pathConfigRead,
+				},
+				logical.UpdateOperation: &framework.PathOperation{
+					Callback: b.pathConfigWrite,
+				},
+			},
+		}, {
 			Pattern:      "internal/login/challenge",
 			HelpSynopsis: "Warning: this API is not stable and only meant for consumption via the bundled UI",
 			Fields: map[string]*framework.FieldSchema{
@@ -179,6 +205,11 @@ func (b *backend) initialize(ctx context.Context, req *logical.InitializationReq
 		return err
 	}
 
+	err = b.loadConfig(ctx, req.Storage)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -242,11 +273,9 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 	}
 
 	assertion, err := protocol.ParseCredentialCreationResponseBytes([]byte(response.(string)))
-	//assertion, err := webauthn.ParseAssertion(strings.NewReader(response.(string)))
 	if err != nil {
-		return nil, fmt.Errorf("invalid assertion: %w", err)
+		return nil, logical.CodedError(http.StatusBadRequest, "invalid assertion: %v", err)
 	}
-	//webauthn.VerifyAttestation(assertion)
 
 	challenge, err := base64.RawURLEncoding.DecodeString(assertion.Response.CollectedClientData.Challenge)
 	if err != nil {
@@ -272,9 +301,26 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 		return nil, logical.CodedError(http.StatusBadRequest, "invalid challenge")
 	}
 
-	_, err = assertion.Verify(assertion.Response.CollectedClientData.Challenge, // Bypass the challenge validation: we already validated it above
-		"localhost", []string{"http://localhost:8200"}, nil, nil, protocol.TopOriginAutoVerificationMode, false, false, false, nil, []protocol.CredentialParameter{{Type: protocol.PublicKeyCredentialType, Algorithm: webauthncose.AlgES256}}, protocol.AttestationPolicy{}, protocol.SignaturePolicy{})
+	config := b.config.Load()
+	_, err = assertion.Verify(
+		assertion.Response.CollectedClientData.Challenge, // Bypass the challenge validation: we already validated it above
+		config.RelyingPartyId,
+		config.RelyingPartyOrigins,
+		nil,
+		nil,
+		protocol.TopOriginAutoVerificationMode,
+		false,
+		false,
+		false,
+		nil,
+		[]protocol.CredentialParameter{{Type: protocol.PublicKeyCredentialType, Algorithm: webauthncose.AlgES256}},
+		protocol.AttestationPolicy{},
+		protocol.SignaturePolicy{},
+	)
 	if err != nil {
+		if err, ok := errors.AsType[*protocol.Error](err); ok {
+			b.Logger().Debug("protocol error", "type", err.Type, "details", err.Details, "dev_info", err.DevInfo)
+		}
 		return nil, logical.CodedError(http.StatusBadRequest, "invalid assertion: %v", err)
 	}
 
@@ -357,10 +403,11 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
 	}
 
+	config := b.config.Load()
 	publicKeyRequest := protocol.PublicKeyCredentialCreationOptions{
 		Challenge: protocol.URLEncodedBase64(challenge),
 		RelyingParty: protocol.RelyingPartyEntity{
-			ID: "localhost",
+			ID: config.RelyingPartyId,
 			CredentialEntity: protocol.CredentialEntity{
 				Name: "OpenBao",
 			},
