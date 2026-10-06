@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -443,14 +444,11 @@ func (b *backend) pathSelfServiceEnroll(ctx context.Context, req *logical.Reques
 		return nil, logical.CodedError(http.StatusNotFound, "entity not found")
 	}
 
-	var alias *logical.Alias
-	for _, alias = range entity.Aliases {
-		if alias.MountAccessor == req.MountAccessor {
-			continue
-		}
-	}
+	aliasIdx := slices.IndexFunc(entity.Aliases, func(alias *logical.Alias) bool {
+		return alias.MountAccessor == req.MountAccessor
+	})
 
-	if alias == nil {
+	if aliasIdx == -1 {
 		return nil, fmt.Errorf("no alias available for self-service, please ask your authentication admin to create an alias for mount-accessor %q and entity %q", req.MountAccessor, req.EntityID)
 	}
 
@@ -459,7 +457,7 @@ func (b *backend) pathSelfServiceEnroll(ctx context.Context, req *logical.Reques
 		return nil, err
 	}
 
-	token := fmt.Sprintf("v1.%s.%s", otp, alias.Name)
+	token := fmt.Sprintf("v1.%s.%s", otp, entity.Aliases[aliasIdx].Name)
 
 	// TODO: persist
 

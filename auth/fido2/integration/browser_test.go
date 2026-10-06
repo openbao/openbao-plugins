@@ -127,6 +127,13 @@ func testBrowser(t *testing.T, browserType string) {
 
 	step(t, page, page.GetByText("Secrets Engines").First().WaitFor())
 
+	// create alias for self-enrollment
+	client.Logical().Write("identity/entity-alias", map[string]any{
+		"canonical_id":   lookupEntityId(t, client, lookupAccessor(t, client, "auth/userpass"), "alice"),
+		"mount_accessor": lookupAccessor(t, client, "auth/passkey"),
+		"name":           "alice",
+	})
+
 	// self-enroll
 	_, err = page.Goto(client.Address() + "/v1/auth/passkey/internal/ui/register.html")
 	require.NoError(t, err)
@@ -188,4 +195,21 @@ func step(t *testing.T, page playwright.Page, err error) {
 	}
 	t.Helper()
 	require.NoError(t, err)
+}
+
+func lookupAccessor(t *testing.T, client *api.Client, mountPath string) string {
+	info, err := client.Sys().MountInfo(mountPath)
+	require.NoError(t, err)
+	return info.Accessor
+}
+
+func lookupEntityId(t *testing.T, client *api.Client, accessor, aliasName string) string {
+	resp, err := client.Logical().Write("identity/lookup/entity", map[string]any{
+		"alias_mount_accessor": accessor,
+		"alias_name":           aliasName,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	return resp.Data["id"].(string)
 }
