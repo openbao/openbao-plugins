@@ -1,4 +1,17 @@
-# How to onboard a new users
+# FIDO2 Auth Plugin
+
+## Configure
+
+```bash
+bao write auth/passkey/config \
+    relying_party_id=example.com \
+    relying_party_origins=https://login.example.com
+```
+
+## How to onboard a new users
+
+For onboarding the are three different options, the following chart will help
+you find the right one for your org. Details on each mode can be found below.
 
 ```mermaid
 flowchart TD
@@ -10,7 +23,6 @@ flowchart TD
     ONLY -- yes --> SELF
     ONLY -- no --> TOKEN
 
-
     P(Provision and new user)
     ORG_BYOD{"Does the user have an organization provided hardware / software or 'Bring your own device' (BYOD)?"}
     ORG[Use attestation]
@@ -18,12 +30,13 @@ flowchart TD
     ONLY{Does the user already have another auth method?}
 
     SELF[Use self-service]
-    TOKEN[Use <a target="_top" href="#provision-token">token based approach</a>]
-
-    click SELF "#provision-self-service"
+    TOKEN[Use token based approach]
 ```
 
-## Self-Service <a name="provision-self-service"></a>
+### Self-Service <a name="provision-self-service"></a>
+
+> [!WARNING]
+> Implementation is work-in-progress
 
 To allow self-service, an identity admin needs to:
 
@@ -48,4 +61,16 @@ bao write identity/entity-alias \
     name=alice
 ```
 
-## Single use tokens  <a name="provision-token"></a>
+### Single use tokens <a name="provision-token"></a>
+
+> [!CAUTION]
+> Not yet implemented!
+
+### Attestation <a name="provision-attestation"></a>
+
+> [!CAUTION]
+> Not yet implemented!
+
+## Dev Setup
+
+See [DEV.md](./DEV.md)
