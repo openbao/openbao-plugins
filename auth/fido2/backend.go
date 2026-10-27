@@ -51,6 +51,10 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 	return b, nil
 }
 
+const (
+	SecretTypeEnrollmentToken = "enrollment_token"
+)
+
 func Backend() *backend {
 	b := &backend{}
 
@@ -172,6 +176,16 @@ func Backend() *backend {
 					},
 				},
 			},
+		}},
+		Secrets: []*framework.Secret{{
+			Type: SecretTypeEnrollmentToken,
+			Fields: map[string]*framework.FieldSchema{
+				"token": {
+					Type:        framework.TypeString,
+					Description: "enrollment token",
+				},
+			},
+			Revoke: b.revokeEnrollmentToken,
 		}},
 		InitializeFunc: b.initialize,
 		Invalidate:     b.invalidate,
@@ -474,18 +488,21 @@ func (b *backend) pathSelfServiceEnroll(ctx context.Context, req *logical.Reques
 	}
 
 	token := fmt.Sprintf("v1.%s.%s", otp, entity.Aliases[aliasIdx].Name)
+	tokenStoragePath := escapedPathJoin("v1", "credentials", entity.Aliases[aliasIdx].Name, token)
 	req.Storage.Put(ctx, &logical.StorageEntry{
-		Key:   escapedPathJoin("v1", "credentials", entity.Aliases[aliasIdx].Name, token),
+		Key:   tokenStoragePath,
 		Value: []byte{},
 	})
 
-	// TODO: we might want to generate a lease here: gives us revoke handling (manual or time based) for free
+	resp := b.Secret(SecretTypeEnrollmentToken).Response(map[string]any{
+		"token": token,
+	}, map[string]any{
+		"storage_path": tokenStoragePath,
+	})
+	resp.Secret.Renewable = false
+	resp.Secret.TTL = 60 * time.Second
 
-	return &logical.Response{
-		Data: map[string]any{
-			"token": token,
-		},
-	}, nil
+	return resp, nil
 }
 
 var pathReplacer = strings.NewReplacer(
@@ -500,6 +517,11 @@ func escapedPathJoin(parts ...string) string {
 		encodedParts[i] = pathReplacer.Replace(parts[i])
 	}
 	return path.Join(encodedParts...)
+}
+
+func (b *backend) revokeEnrollmentToken(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	path := req.Secret.InternalData["storage_path"].(string)
+	return nil, req.Storage.Delete(ctx, path)
 }
 
 const backendHelp = `
