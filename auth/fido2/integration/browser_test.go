@@ -128,8 +128,9 @@ func testBrowser(t *testing.T, browserType string) {
 	step(t, page, page.GetByText("Secrets Engines").First().WaitFor())
 
 	// create alias for self-enrollment
+	aliceEntityId := lookupEntityId(t, client, lookupAccessor(t, client, "auth/userpass"), "alice")
 	client.Logical().Write("identity/entity-alias", map[string]any{
-		"canonical_id":   lookupEntityId(t, client, lookupAccessor(t, client, "auth/userpass"), "alice"),
+		"canonical_id":   aliceEntityId,
 		"mount_accessor": lookupAccessor(t, client, "auth/passkey"),
 		"name":           "alice",
 	})
@@ -146,6 +147,7 @@ func testBrowser(t *testing.T, browserType string) {
 	step(t, page, err)
 
 	t.Log("token", token)
+	testToken(t, client, token, aliceEntityId)
 
 	// login
 	_, err = page.Goto(client.Address() + "/v1/auth/passkey/internal/ui/login.html")
@@ -159,6 +161,7 @@ func testBrowser(t *testing.T, browserType string) {
 	step(t, page, err)
 
 	t.Log("token", token)
+	testToken(t, client, token, aliceEntityId)
 }
 
 func startBrowser(t *testing.T, browserType string) playwright.Page {
@@ -225,4 +228,15 @@ func lookupEntityId(t *testing.T, client *api.Client, accessor, aliasName string
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	return resp.Data["id"].(string)
+}
+
+func testToken(t *testing.T, client *api.Client, token, entityId string) {
+	client, err := client.Clone()
+	require.NoError(t, err)
+
+	client.SetToken(token)
+	data, err := client.Auth().Token().LookupSelf()
+	require.NoError(t, err)
+	require.Contains(t, data.Data, "entity_id")
+	require.Contains(t, entityId, data.Data["entity_id"])
 }
