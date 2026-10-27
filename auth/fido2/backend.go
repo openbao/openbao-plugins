@@ -387,6 +387,25 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 		return nil, logical.CodedError(http.StatusBadRequest, err.Error())
 	}
 
+	rollback, err := logical.StartTxStorage(ctx, req)
+	if err != nil {
+		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
+	}
+	defer rollback()
+
+	tokenStoragePath := escapedPathJoin("v1", "credentials", aliasName, token.(string))
+	tokenEntry, err := req.Storage.Get(ctx, tokenStoragePath)
+	if err != nil {
+		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
+	}
+	if tokenEntry == nil {
+		return nil, logical.CodedError(http.StatusNotFound, "token not found")
+	}
+	err = req.Storage.Delete(ctx, tokenStoragePath)
+	if err != nil {
+		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
+	}
+
 	existingCredentials, err := findCredentialsForAlias(ctx, req.Storage, aliasName)
 	if err != nil {
 		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
@@ -420,6 +439,11 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 		},
 	}
 
+	err = logical.EndTxStorage(ctx, req)
+	if err != nil {
+		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
+	}
+
 	return &logical.Response{
 		Data: map[string]any{
 			"publicKey": publicKeyRequest,
@@ -450,8 +474,10 @@ func (b *backend) pathSelfServiceEnroll(ctx context.Context, req *logical.Reques
 	}
 
 	token := fmt.Sprintf("v1.%s.%s", otp, entity.Aliases[aliasIdx].Name)
-
-	// TODO: persist
+	req.Storage.Put(ctx, &logical.StorageEntry{
+		Key:   escapedPathJoin("v1", "credentials", entity.Aliases[aliasIdx].Name, token),
+		Value: []byte{},
+	})
 
 	// TODO: we might want to generate a lease here: gives us revoke handling (manual or time based) for free
 
