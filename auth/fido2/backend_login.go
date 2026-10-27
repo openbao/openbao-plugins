@@ -21,7 +21,7 @@ import (
 func findCredentialsForAlias(ctx context.Context, s logical.Storage, aliasName string) ([]protocol.CredentialDescriptor, error) {
 	var credentials []protocol.CredentialDescriptor
 	err := logical.WithTransaction(ctx, s, func(s logical.Storage) error {
-		basePath := path.Join("v1", "credentials", aliasName) + "/"
+		basePath := escapedPathJoin("v1", "credentials", aliasName) + "/"
 		list, err := s.List(ctx, basePath)
 		if err != nil {
 			return err
@@ -97,7 +97,7 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 	}
 
 	aliasName := string(resp.Response.UserHandle)
-	entry, err := req.Storage.Get(ctx, path.Join("v1", "credentials", aliasName, resp.ID))
+	entry, err := req.Storage.Get(ctx, escapedPathJoin("v1", "credentials", aliasName, resp.ID))
 	if err != nil {
 		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
 	}

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"path"
 	"slices"
 	"strconv"
@@ -331,7 +332,7 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 	}
 
 	err = logical.WithTransaction(ctx, req.Storage, func(s logical.Storage) error {
-		otpPath := path.Join("v1", "tokens", aliasName, otp)
+		otpPath := escapedPathJoin("v1", "tokens", aliasName, otp)
 		val, err := s.Get(ctx, otpPath)
 		if err != nil {
 			return err
@@ -349,7 +350,7 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 		}
 
 		return s.Put(ctx, &logical.StorageEntry{
-			Key:   path.Join("v1", "credentials", aliasName, assertion.ID),
+			Key:   escapedPathJoin("v1", "credentials", aliasName, assertion.ID), // the ID might be 1023 bytes long + base64 overhead https://www.w3.org/TR/webauthn-3/#credential-id TODO: is this a problem
 			Value: storageEntryValue,
 		})
 	})
@@ -459,6 +460,20 @@ func (b *backend) pathSelfServiceEnroll(ctx context.Context, req *logical.Reques
 			"token": token,
 		},
 	}, nil
+}
+
+var pathReplacer = strings.NewReplacer(
+	"/", url.PathEscape("/"),
+	"%", url.PathEscape("%"),
+	".", url.PathEscape("."),
+)
+
+func escapedPathJoin(parts ...string) string {
+	encodedParts := make([]string, len(parts))
+	for i := range parts {
+		encodedParts[i] = pathReplacer.Replace(parts[i])
+	}
+	return path.Join(encodedParts...)
 }
 
 const backendHelp = `
