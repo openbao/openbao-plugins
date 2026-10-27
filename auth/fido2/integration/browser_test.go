@@ -146,6 +146,19 @@ func testBrowser(t *testing.T, browserType string) {
 	step(t, page, err)
 
 	t.Log("token", token)
+
+	// login
+	_, err = page.Goto(client.Address() + "/v1/auth/passkey/internal/ui/login.html")
+	require.NoError(t, err)
+
+	step(t, page, page.Locator("button", playwright.PageLocatorOptions{HasText: "login"}).Click())
+
+	step(t, page, assertions.Locator(page.GetByText("Success!")).ToBeVisible())
+
+	token, err = page.Locator("#client-token").InputValue()
+	step(t, page, err)
+
+	t.Log("token", token)
 }
 
 func startBrowser(t *testing.T, browserType string) playwright.Page {

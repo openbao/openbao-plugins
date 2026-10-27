@@ -32,7 +32,7 @@ async function enrollCommon(token) {
     body: JSON.stringify({
       // fidoToJSON is needed, because of this bug: https://github.com/microsoft/playwright/issues/43093
       // should be fixed in the next release of playwright
-      assertion: JSON.stringify(fidoToJSON(enrollResult)),
+      assertion: JSON.stringify(fidoToJSON(enrollResult, "create")),
     }),
   });
 

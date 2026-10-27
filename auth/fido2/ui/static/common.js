@@ -95,26 +95,43 @@ function errorWrap(f) {
   }
 }
 
-function fidoToJSON(x) {
+function fidoToJSON(x, getOrCreate) {
   b64 = (a) => {
     return new Uint8Array(a).toBase64({
       alphabet: "base64url",
       omitPadding: true,
     });
   };
+
+  let response ={
+    "authenticatorData": b64(x.response.authenticatorData),
+    "clientDataJSON": b64(x.response.clientDataJSON),
+  }
+
+  switch (getOrCreate) {
+    case "get":
+        response["signature"]= b64(x.response.signature);
+        response["userHandle"]= b64(x.response.userHandle);
+          break;
+
+    case "create":
+      response["attestationObject"] = b64(x.response.attestationObject);
+      response["clientDataJSON"] = b64(x.response.clientDataJSON);
+      response["publicKey"] = b64(x.response.getPublicKey());
+      response["publicKeyAlgorithm"] = x.response.getPublicKeyAlgorithm();
+      response["transports"] = x.response.getTransports();
+      break;
+
+    default:
+      throw new Error(`expected "get" or "create" got "${getOrCreate}"`);
+  }
+
   return {
       "authenticatorAttachment": x.authenticatorAttachment,
       "clientExtensionResults": {},
       "id": x.id,
       "rawId": x.id,
-      "response": {
-          "attestationObject": b64(x.response.attestationObject),
-          "authenticatorData": b64(x.response.getAuthenticatorData()),
-          "clientDataJSON": b64(x.response.clientDataJSON),
-          "publicKey": b64(x.response.getPublicKey()),
-          "publicKeyAlgorithm": x.response.getPublicKeyAlgorithm(),
-          "transports": x.response.getTransports(),
-      },
+      "response": response,
       "type": x.type,
   }
 }
