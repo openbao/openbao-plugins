@@ -1,19 +1,18 @@
 async function login() {
-  const alias = document.getElementById("alias").value;
-  const resp = await fetch(`${baseURL}/internal/login/challenge?alias=${alias}`);
+  const resp = await fetch(`${baseURL}/internal/login/challenge`);
   const respBody = await resp.json();
-
-  localStorage.setItem(localStorageKey("alias"), alias);
 
   const publicKey = respBody.data.publicKey;
   publicKey.challenge = Uint8Array.fromBase64(publicKey.challenge, {
     alphabet: "base64url",
   });
-  publicKey.allowCredentials.forEach((credential) => {
-    credential.id = Uint8Array.fromBase64(credential.id, {
-      alphabet: "base64url",
+  if (publicKey.allowCredentials) {
+    publicKey.allowCredentials.forEach((credential) => {
+      credential.id = Uint8Array.fromBase64(credential.id, {
+        alphabet: "base64url",
+      });
     });
-  });
+  }
 
   console.log(publicKey);
 
@@ -27,7 +26,6 @@ async function login() {
     },
     body: JSON.stringify({
       assertion: JSON.stringify(result),
-      alias: alias,
     }),
   });
 
@@ -37,6 +35,13 @@ async function login() {
     console.log(`success`, authToken);
   } else {
     console.error("failed", authToken, auth);
+    if (!auth.errors && auth.errors.length > 0) {
+      throw new Error("unknown error");
+    }
+    if (auth.errors.length == 1) {
+      throw new Error(auth.errors[0]);
+    }
+    throw new Error("Multiple Errors:\n  - " + auth.errors.join("\n  - "));
   }
 
   let fieldClientToken = document.getElementById("client-token");
@@ -49,12 +54,6 @@ async function login() {
 function init() {
   const btnEnroll = document.getElementById("btn-login");
   btnEnroll.addEventListener("click", errorWrap(login));
-
-  let alias = localStorage.getItem(localStorageKey("alias"));
-  if (alias) {
-    document.getElementById("alias").value = alias;
-  }
-
 
   initCommon();
 }

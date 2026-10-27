@@ -94,13 +94,7 @@ func Backend() *backend {
 		}, {
 			Pattern:      "internal/login/challenge",
 			HelpSynopsis: "Warning: this API is not stable and only meant for consumption via the bundled UI",
-			Fields: map[string]*framework.FieldSchema{
-				"alias": {
-					Type:     framework.TypeString,
-					Required: true,
-					Query:    true,
-				},
-			},
+			Fields:       map[string]*framework.FieldSchema{},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.ReadOperation: &framework.PathOperation{
 					Unpublished: true,
@@ -112,10 +106,6 @@ func Backend() *backend {
 			HelpSynopsis: "Warning: this API is not stable and only meant for consumption via the bundled UI",
 			Fields: map[string]*framework.FieldSchema{
 				"assertion": {
-					Type:     framework.TypeString,
-					Required: true,
-				},
-				"alias": {
 					Type:     framework.TypeString,
 					Required: true,
 				},
@@ -376,9 +366,6 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 				Name: aliasName,
 			},
 		},
-		Data: map[string]any{
-			"alias": aliasName,
-		},
 	}, nil
 }
 
@@ -414,18 +401,22 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 			},
 		},
 		User: protocol.UserEntity{
-			DisplayName: "Jamie Doe",
-			CredentialEntity: protocol.CredentialEntity{
-				Name: "jamiedoe",
-			},
-			ID: protocol.URLEncodedBase64("asdf"), // TODO: entity id
+			DisplayName: aliasName,
+			Name:        aliasName, // TODO: alias@clustername?
+			ID:          protocol.URLEncodedBase64(aliasName),
 		},
-		CredentialExcludeList: existingCredentials,
+		CredentialExcludeList: existingCredentials, // TODO: this is not needed for Passkeys, we might want to support non-discoverable credentials in the future, so lets keep it for now
 		// Attestation: protocol.PreferDirectAttestation, TODO: support this
 		Parameters: []protocol.CredentialParameter{{
 			Type:      protocol.PublicKeyCredentialType,
 			Algorithm: webauthncose.AlgES256,
 		}},
+		AuthenticatorSelection: protocol.AuthenticatorSelection{
+			// Passkeys are "discoverable" (f.k.a "resident") credentials
+			// https://www.w3.org/TR/webauthn-3/#discoverable-credential
+			ResidentKey:        "required",
+			RequireResidentKey: new(true),
+		},
 	}
 
 	return &logical.Response{

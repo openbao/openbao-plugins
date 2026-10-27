@@ -48,8 +48,6 @@ async function enrollCommon(token) {
   fieldClientToken.value = authToken;
   document.getElementById("client-token-card").style.display = "";
 
-  localStorage.setItem(localStorageKey("alias"), auth.data.alias);
-
   lastAuth = auth;
 }
 

@@ -44,8 +44,8 @@ bao write identity/entity-alias \
     name=alice
 ```
 
-Open the browser at <http://localhost:8200/> and login as alice (password
-"bob4ever"). Now go to
+Open the browser at <http://localhost:8200/?with=userpass> and login as alice
+(password "bob4ever"). Now go to
 <http://localhost:8200/v1/auth/passkey/internal/ui/register.html> and select
 "Enroll Now" in the "Self-Enrollment" section.
 

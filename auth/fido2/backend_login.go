@@ -59,20 +59,6 @@ func findCredentialsForAlias(ctx context.Context, s logical.Storage, aliasName s
 }
 
 func (b *backend) pathInternalLoginChallengeRead(ctx context.Context, req *logical.Request, data *framework.FieldData) (*logical.Response, error) {
-	aliasName, ok := data.GetOk("alias")
-	if !ok {
-		return nil, logical.CodedError(http.StatusBadRequest, "alias is required")
-	}
-
-	allowedCredentials, err := findCredentialsForAlias(ctx, req.Storage, aliasName.(string))
-	if err != nil {
-		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
-	}
-
-	if len(allowedCredentials) == 0 {
-		return nil, fmt.Errorf("no credential enrolled for this alias")
-	}
-
 	otp, err := roottoken.GenerateOTP(0)
 	if err != nil {
 		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
@@ -83,9 +69,8 @@ func (b *backend) pathInternalLoginChallengeRead(ctx context.Context, req *logic
 	challenge := fmt.Sprintf("%s\x00%s", otp, hmac) // TODO: bind the challenge to a user
 
 	publicKeyRequest := protocol.PublicKeyCredentialRequestOptions{
-		Challenge:          protocol.URLEncodedBase64(challenge),
-		AllowedCredentials: allowedCredentials,
-		RelyingPartyID:     "localhost",
+		Challenge:      protocol.URLEncodedBase64(challenge),
+		RelyingPartyID: "localhost",
 	}
 
 	return &logical.Response{
@@ -111,12 +96,8 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 		return nil, logical.CodedError(http.StatusBadRequest, "invalid challenge")
 	}
 
-	aliasName, ok := data.GetOk("alias")
-	if !ok {
-		return nil, logical.CodedError(http.StatusBadRequest, "alias is required")
-	}
-
-	entry, err := req.Storage.Get(ctx, path.Join("v1", "credentials", aliasName.(string), resp.ID))
+	aliasName := string(resp.Response.UserHandle)
+	entry, err := req.Storage.Get(ctx, path.Join("v1", "credentials", aliasName, resp.ID))
 	if err != nil {
 		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
 	}
@@ -152,7 +133,7 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 
 	return &logical.Response{Auth: &logical.Auth{
 		Alias: &logical.Alias{
-			Name: aliasName.(string),
+			Name: aliasName,
 		},
 	}}, nil
 }
