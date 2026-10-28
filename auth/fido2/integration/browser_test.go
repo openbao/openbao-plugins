@@ -80,8 +80,9 @@ func startBao(t *testing.T) *api.Client {
 
 	// configure plugin
 	_, err = client.Logical().Write("auth/passkey/config", map[string]any{
-		"relying_party_id":      "localhost",
-		"relying_party_origins": conf.Address,
+		"relying_party_id":         "localhost",
+		"relying_party_origins":    conf.Address,
+		"recommend_hardware_token": true,
 	})
 	require.NoError(t, err)
 
@@ -140,6 +141,8 @@ func testBrowser(t *testing.T, browserType string) {
 	require.NoError(t, err)
 
 	step(t, page, page.Locator("div", playwright.PageLocatorOptions{Has: page.GetByText("Self-Enrollment")}).GetByText("Enroll Now").Click())
+
+	step(t, page, page.Locator("button", playwright.PageLocatorOptions{HasText: "Continue anyway"}).Click()) // software token warning
 
 	step(t, page, assertions.Locator(page.GetByText("Success!")).ToBeVisible())
 

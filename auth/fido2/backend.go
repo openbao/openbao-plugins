@@ -87,6 +87,12 @@ func Backend() *backend {
 					Type:     framework.TypeCommaStringSlice,
 					Required: true,
 				},
+				"recommend_hardware_token": {
+					Type:        framework.TypeBool,
+					Description: "Whether or not the users should be warned when trying to enroll a software token. Notice: this will not enforce the use of hardware tokens.",
+					Default:     false,
+					Required:    false,
+				},
 			},
 			Operations: map[logical.Operation]framework.OperationHandler{
 				logical.ReadOperation: &framework.PathOperation{
@@ -453,6 +459,13 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 		},
 	}
 
+	if config.RecommendHardwareToken {
+		// as of today, these values seem to be largely ignored by browsers
+		// we implement our own checks in JavaScript (no enforcement, just recommendation)
+		publicKeyRequest.Hints = append(publicKeyRequest.Hints, protocol.PublicKeyCredentialHintSecurityKey)
+		publicKeyRequest.AuthenticatorSelection.AuthenticatorAttachment = protocol.CrossPlatform
+	}
+
 	err = logical.EndTxStorage(ctx, req)
 	if err != nil {
 		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
@@ -460,7 +473,8 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 
 	return &logical.Response{
 		Data: map[string]any{
-			"publicKey": publicKeyRequest,
+			"publicKey":                publicKeyRequest,
+			"recommend_hardware_token": config.RecommendHardwareToken,
 		},
 	}, nil
 }

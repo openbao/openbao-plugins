@@ -35,5 +35,18 @@
             Enrollment Token <input id="token" />
             <button class="button-primary" id="btn-token-enroll">Enroll Now</button>
         </div>
+
+        <dialog id="dialog" class="card">
+            <h2>Enroll Blocked</h2>
+
+            <span>
+            Your Admin recommends using a <b>hardware key</b> to store your Passkeys.
+            The Passkey you are trying to enroll is a <b>software key</b>.
+            </span>
+
+            <button type="button" id="dialog--abort">Abort</button>
+            <button type="button" id="dialog--continue">Continue Anyway</button>
+            <button type="button" id="dialog--enroll-other" class="button-primary">Enroll Another Authenticator</button>
+        </dialog>
     </body>
 </html>

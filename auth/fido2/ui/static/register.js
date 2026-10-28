@@ -22,7 +22,34 @@ async function enrollCommon(token) {
     });
   }
 
-  const enrollResult = await navigator.credentials.create({ publicKey });
+  let enrollResult;
+  let tryAgain = true;
+
+  while (tryAgain) {
+    tryAgain = false;
+    enrollResult = await navigator.credentials.create({ publicKey });
+
+    if (!respBody.data.recommend_hardware_token) {
+      break;
+    }
+
+    const transports = enrollResult.response.getTransports();
+    console.debug("key transports:", transports);
+    if (transports.find(x => ["internal", "hybrid"].includes(x))) {
+      switch (await hardwareKeyDialog()) {
+        case "abort":
+          removeKey(publicKey, enrollResult);
+          return;
+        case "continue":
+          tryAgain = false;
+          break;
+        case "enroll-other":
+          removeKey(publicKey, enrollResult);
+          tryAgain = true;
+          break;
+      }
+    }
+  }
 
   const assertionResp = await checkedFetch(`${baseURL}/internal/enroll/assertion`, {
     method: "PUT",
@@ -163,4 +190,36 @@ function getSelfServiceInfo() {
   }
 
   return JSON.parse(dataJSON);
+}
+
+function hardwareKeyDialog() {
+  return new Promise((resolve, _reject) => {
+    let dialog = document.getElementById("dialog");
+    dialog.showModal();
+    ["abort", "continue", "enroll-other"].forEach((action) => {
+      document.getElementById(`dialog--${action}`).onclick = () => {
+        resolve(action);
+        dialog.close();
+      };
+    });
+
+    dialog.oncancel = () => {
+      resolve("abort");
+    };
+  });
+}
+
+function removeKey(publicKey, enrollResult) {
+  if (!PublicKeyCredential.signalUnknownCredential) {
+    console.warn("could not remove key: browser does not implement signalUnknownCredential");
+    return;
+  }
+  PublicKeyCredential.signalUnknownCredential({
+    rpId: publicKey.rp.id,
+    credentialId: enrollResult.id,
+  }).then(res => {
+    console.debug("key removal requested:", enrollResult.id, res);
+  }).catch(e => {
+    console.warn("could not remove key:", e);
+  });
 }

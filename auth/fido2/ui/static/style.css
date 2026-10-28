@@ -8,23 +8,36 @@ body {
     align-items: center;
 }
 
-div.card {
+.card {
     border: solid;
     border-radius: 6px;
     border-color: #091a28;
     border-width: 1px;
     padding: 12px;
-    margin: 12px;
 
     background-color: #fdfccf;
 
     max-width: 768px;
     width: 100%;
 
-    display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 16px;
+}
+
+div.card {
+    margin: 12px;
+    display: flex;
+}
+
+dialog:open {
+    display: flex;
+    width: calc(100% - 48px);
+}
+
+dialog::backdrop {
+    background-color: #ff000066;
+    backdrop-filter: blur(2.5px);
 }
 
 h1 {
@@ -33,7 +46,7 @@ h1 {
     font-weight: bold;  text-transform: uppercase;
 }
 
-div.card > h2{
+.card > h2{
     width: 100%;
     margin-top: .1em;
     margin-bottom: .1em;

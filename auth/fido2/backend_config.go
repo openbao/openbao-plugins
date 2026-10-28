@@ -12,8 +12,9 @@ import (
 )
 
 type config struct {
-	RelyingPartyId      string
-	RelyingPartyOrigins []string
+	RelyingPartyId         string
+	RelyingPartyOrigins    []string
+	RecommendHardwareToken bool
 }
 
 func (b *backend) loadConfig(ctx context.Context, storage logical.Storage) error {
@@ -53,8 +54,9 @@ func (b *backend) pathConfigWrite(ctx context.Context, req *logical.Request, dat
 	defer b.configLock.Unlock()
 
 	newConfig := &config{
-		RelyingPartyId:      relyingPartyId.(string),
-		RelyingPartyOrigins: relyingPartyOrigins.([]string),
+		RelyingPartyId:         relyingPartyId.(string),
+		RelyingPartyOrigins:    relyingPartyOrigins.([]string),
+		RecommendHardwareToken: data.Get("recommend_hardware_token").(bool),
 	}
 
 	entry, err := logical.StorageEntryJSON("config", newConfig)
@@ -81,8 +83,9 @@ func (b *backend) pathConfigRead(ctx context.Context, req *logical.Request, data
 
 	return &logical.Response{
 		Data: map[string]any{
-			"relying_party_id":      currentConfig.RelyingPartyId,
-			"relying_party_origins": currentConfig.RelyingPartyOrigins,
+			"relying_party_id":         currentConfig.RelyingPartyId,
+			"relying_party_origins":    currentConfig.RelyingPartyOrigins,
+			"recommend_hardware_token": currentConfig.RecommendHardwareToken,
 		},
 	}, nil
 }
