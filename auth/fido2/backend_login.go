@@ -5,11 +5,9 @@ package fido2
 
 import (
 	"context"
-	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"path"
-	"strings"
 
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/helper/roottoken"
@@ -64,12 +62,8 @@ func (b *backend) pathInternalLoginChallengeRead(ctx context.Context, req *logic
 		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
 	}
 
-	hmac := b.loginChallengeSalt.GetHMAC(otp)
-
-	challenge := fmt.Sprintf("%s\x00%s", otp, hmac)
-
 	publicKeyRequest := protocol.PublicKeyCredentialRequestOptions{
-		Challenge:      protocol.URLEncodedBase64(challenge),
+		Challenge:      wrapChallenge(b.loginChallengeSalt, otp),
 		RelyingPartyID: "localhost",
 	}
 
@@ -91,9 +85,9 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 		return nil, err
 	}
 
-	otp, actualHmac, ok := strings.CutLast(resp.Response.CollectedClientData.Challenge, "\x00")
-	if ok && subtle.ConstantTimeCompare([]byte(b.loginChallengeSalt.GetHMAC(otp)), []byte(actualHmac)) == 0 {
-		return nil, logical.CodedError(http.StatusBadRequest, "invalid challenge")
+	_, err = unwrapChallenge(b.loginChallengeSalt, resp.Response.CollectedClientData.Challenge)
+	if err != nil {
+		return nil, err
 	}
 
 	aliasName := string(resp.Response.UserHandle)

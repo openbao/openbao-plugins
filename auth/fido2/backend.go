@@ -5,8 +5,6 @@ package fido2
 
 import (
 	"context"
-	"crypto/subtle"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +12,6 @@ import (
 	"net/url"
 	"path"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -255,20 +252,6 @@ func splitToken(x string) (otp string, aliasName string, err error) {
 	return
 }
 
-func splitChallenge(x string) (timestamp int64, token string, hmac string, err error) {
-	parts := strings.Split(x, "\x00")
-	if len(parts) != 3 {
-		err = fmt.Errorf("invalid challenge: expected 3 parts, got %d", len(parts))
-		return
-	}
-
-	timestamp, err = strconv.ParseInt(parts[0], 10, 64)
-	token = parts[1]
-	hmac = parts[2]
-
-	return
-}
-
 type credentialStorageEntry struct {
 	CredentialId    protocol.URLEncodedBase64
 	CredentialType  string
@@ -289,28 +272,9 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 		return nil, logical.CodedError(http.StatusBadRequest, "invalid assertion: %v", err)
 	}
 
-	challenge, err := base64.RawURLEncoding.DecodeString(assertion.Response.CollectedClientData.Challenge)
+	token, err := unwrapChallenge(b.enrollChallengeSalt, assertion.Response.CollectedClientData.Challenge)
 	if err != nil {
-		if cie, ok := errors.AsType[base64.CorruptInputError](err); ok {
-			err := assertion.Response.CollectedClientData.Challenge + "\n" + strings.Repeat(" ", int(cie-1)) + "^"
-			return nil, logical.CodedError(http.StatusBadRequest, err)
-
-		}
-		return nil, logical.CodedError(http.StatusBadRequest, "invalid challenge: %v / %q", err, assertion.Response.CollectedClientData.Challenge)
-	}
-
-	timestamp, token, hmac, err := splitChallenge(string(challenge))
-	if err != nil {
-		return nil, logical.CodedError(http.StatusBadRequest, err.Error())
-	}
-
-	if time.Now().Sub(time.Unix(timestamp, 0)) > 10*time.Minute {
-		return nil, logical.CodedError(http.StatusBadRequest, "challenge expired")
-	}
-
-	expectedHmac := b.enrollChallengeSalt.GetHMAC(fmt.Sprintf("%d\x00%s", timestamp, token))
-	if subtle.ConstantTimeCompare([]byte(expectedHmac), []byte(hmac)) == 0 {
-		return nil, logical.CodedError(http.StatusBadRequest, "invalid challenge")
+		return nil, err
 	}
 
 	config := b.config.Load()
@@ -396,12 +360,6 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 		return nil, logical.CodedError(http.StatusBadRequest, "token is required")
 	}
 
-	challenge := fmt.Sprintf("%d\x00%s", time.Now().Unix(), token.(string))
-
-	hmac := b.enrollChallengeSalt.GetHMAC(challenge)
-
-	challenge = fmt.Sprintf("%s\x00%s", challenge, hmac)
-
 	_, aliasName, err := splitToken(token.(string))
 	if err != nil {
 		return nil, logical.CodedError(http.StatusBadRequest, err.Error())
@@ -433,7 +391,7 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 
 	config := b.config.Load()
 	publicKeyRequest := protocol.PublicKeyCredentialCreationOptions{
-		Challenge: protocol.URLEncodedBase64(challenge),
+		Challenge: wrapChallenge(b.enrollChallengeSalt, token.(string)),
 		RelyingParty: protocol.RelyingPartyEntity{
 			ID: config.RelyingPartyId,
 			CredentialEntity: protocol.CredentialEntity{
