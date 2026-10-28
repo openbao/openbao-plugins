@@ -445,7 +445,7 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 			Name:        aliasName, // TODO: alias@clustername?
 			ID:          protocol.URLEncodedBase64(aliasName),
 		},
-		CredentialExcludeList: existingCredentials, // TODO: this is not needed for Passkeys, we might want to support non-discoverable credentials in the future, so lets keep it for now
+		CredentialExcludeList: existingCredentials,
 		// Attestation: protocol.PreferDirectAttestation, TODO: support this
 		Parameters: []protocol.CredentialParameter{{
 			Type:      protocol.PublicKeyCredentialType,

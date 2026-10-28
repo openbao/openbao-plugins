@@ -66,7 +66,7 @@ func (b *backend) pathInternalLoginChallengeRead(ctx context.Context, req *logic
 
 	hmac := b.loginChallengeSalt.GetHMAC(otp)
 
-	challenge := fmt.Sprintf("%s\x00%s", otp, hmac) // TODO: bind the challenge to a user
+	challenge := fmt.Sprintf("%s\x00%s", otp, hmac)
 
 	publicKeyRequest := protocol.PublicKeyCredentialRequestOptions{
 		Challenge:      protocol.URLEncodedBase64(challenge),
