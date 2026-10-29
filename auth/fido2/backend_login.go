@@ -5,6 +5,7 @@ package fido2
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"path"
@@ -85,9 +86,17 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 		return nil, err
 	}
 
-	_, err = unwrapChallenge(b.loginChallengeSalt, resp.Response.CollectedClientData.Challenge)
+	_, challenge, err := unwrapChallenge(b.loginChallengeSalt, resp.Response.CollectedClientData.Challenge)
 	if err != nil {
 		return nil, err
+	}
+
+	err = consumeChallenge(ctx, req.Storage, challenge)
+	if err != nil {
+		if _, ok := errors.AsType[logical.HTTPCodedError](err); ok {
+			return nil, err
+		}
+		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
 	}
 
 	aliasName := string(resp.Response.UserHandle)

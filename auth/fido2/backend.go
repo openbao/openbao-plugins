@@ -192,6 +192,8 @@ func Backend() *backend {
 		}},
 		InitializeFunc: b.initialize,
 		Invalidate:     b.invalidate,
+		PeriodicFunc:   b.periodic,
+
 		RunningVersion: pluginVersion,
 	}
 
@@ -220,6 +222,10 @@ func (b *backend) initialize(ctx context.Context, req *logical.InitializationReq
 	}
 
 	return nil
+}
+
+func (b *backend) periodic(ctx context.Context, req *logical.Request) error {
+	return cleanupExpiredConsumedChallenges(ctx, b.Logger().Named("cleanupExpiredConsumedChallenges"), req.Storage)
 }
 
 // ClearCaches deletes all cached clients and credentials.
@@ -272,7 +278,7 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 		return nil, logical.CodedError(http.StatusBadRequest, "invalid assertion: %v", err)
 	}
 
-	token, err := unwrapChallenge(b.enrollChallengeSalt, assertion.Response.CollectedClientData.Challenge)
+	token, challenge, err := unwrapChallenge(b.enrollChallengeSalt, assertion.Response.CollectedClientData.Challenge)
 	if err != nil {
 		return nil, err
 	}
@@ -300,7 +306,7 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 		return nil, logical.CodedError(http.StatusBadRequest, "invalid assertion: %v", err)
 	}
 
-	otp, aliasName, err := splitToken(token)
+	_, aliasName, err := splitToken(token)
 	if err != nil {
 		return nil, logical.CodedError(http.StatusBadRequest, err.Error())
 	}
@@ -316,19 +322,7 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 	}
 
 	err = logical.WithTransaction(ctx, req.Storage, func(s logical.Storage) error {
-		otpPath := escapedPathJoin("v1", "tokens", aliasName, otp)
-		val, err := s.Get(ctx, otpPath)
-		if err != nil {
-			return err
-		}
-		if val != nil {
-			return logical.CodedError(http.StatusForbidden, "token reuse detected")
-		}
-
-		err = s.Put(ctx, &logical.StorageEntry{
-			Key:   otpPath,
-			Value: []byte("{}"),
-		})
+		err := consumeChallenge(ctx, s, challenge)
 		if err != nil {
 			return err
 		}

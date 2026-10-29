@@ -24,6 +24,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.16
 	github.com/aws/smithy-go v1.24.2
 	github.com/coreos/go-oidc/v3 v3.12.0
+	github.com/descope/virtualwebauthn v1.0.5
 	github.com/fatih/structs v1.1.0
 	github.com/gammazero/workerpool v1.1.3
 	github.com/go-jose/go-jose/v4 v4.1.4
