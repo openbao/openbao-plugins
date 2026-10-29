@@ -27,6 +27,10 @@ type TestCase struct {
 	// Backend is the backend that will be tested against.
 	Backend logical.Backend
 
+	// Storage is the storage that will be tested against. If empty, a temporary
+	// storage will be created.
+	Storage logical.Storage
+
 	// Steps are the set of operations that are run for this test case.
 	Steps []TestStep
 
@@ -55,6 +59,11 @@ type TestStep struct {
 	// step executed successfully. If not set, the next step will be called.
 	Check func(*logical.Response) error
 
+	// ErrCheck is called after this step is executed, if `ErrorOk` or
+	// `ErrorRequired` are set and the request returned an error. If not set,
+	// the next step will be called.
+	ErrCheck func(*logical.Response, error) error
+
 	// PreFlight is called directly before execution of the request, allowing
 	// modification of the request parameters (e.g., Path) with dynamic values.
 	PreFlight func(*logical.Request) error
@@ -62,6 +71,10 @@ type TestStep struct {
 	// ErrorOk, if true, will not fail the test if the request handler responds
 	// with an error.
 	ErrorOk bool
+
+	// ErrorRequired, if true, the test will fail if the request handler
+	// responds with success.
+	ErrorRequired bool
 }
 
 // Test performs a series of tests on a backend with the given test case.
@@ -86,7 +99,10 @@ func Test(t *testing.T, c TestCase) {
 	}
 
 	ctx := t.Context()
-	storage := &logical.InmemStorage{}
+	storage := c.Storage
+	if storage == nil {
+		storage = &logical.InmemStorage{}
+	}
 
 	// Make requests.
 	var revoke []*logical.Request
@@ -119,27 +135,34 @@ func Test(t *testing.T, c TestCase) {
 			})
 		}
 
+		if err == nil {
+			err = resp.Error()
+		}
+
 		// Direct error from request handler.
-		if err != nil && !s.ErrorOk {
+		if err != nil && !(s.ErrorOk || s.ErrorRequired) {
 			t.Errorf("Failed step %d: %s", i+1, err)
 			break
 		}
 
-		// Error in response.
-		if resp.IsError() && !s.ErrorOk {
-			t.Errorf("Response contained error at step %d: %s", i+1, resp.Error())
+		if err == nil && s.ErrorRequired {
+			t.Errorf("Failed step %d: an error was expected", i+1)
 			break
 		}
 
-		// Either the 'err' was nil or if an error was expected, it was set to nil.
-		// Call the 'Check' function if there is one.
-		//
-		// TODO: This works perfectly for now, but it would be better if 'Check'
-		// function takes in both the response object and the error, and decide on
-		// the action on its own.
 		if err == nil && s.Check != nil {
 			// Call the test method
 			err = s.Check(resp)
+			if err != nil {
+				t.Errorf("Failed step %d: Check returned an error: %s", i+1, err)
+			}
+		}
+		if err != nil && s.ErrCheck != nil {
+			// Call the test method
+			err = s.ErrCheck(resp, err)
+			if err != nil {
+				t.Errorf("Failed step %d: ErrCheck returned an error: %s", i+1, err)
+			}
 		}
 	}
 
