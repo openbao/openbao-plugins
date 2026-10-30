@@ -292,8 +292,8 @@ func (b *backend) pathInternalEnrollResponseWrite(ctx context.Context, req *logi
 		nil,
 		protocol.TopOriginAutoVerificationMode,
 		false,
-		false,
-		false,
+		true,
+		true,
 		nil,
 		[]protocol.CredentialParameter{{Type: protocol.PublicKeyCredentialType, Algorithm: webauthncose.AlgES256}},
 		protocol.AttestationPolicy{},
@@ -408,6 +408,8 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 			// https://www.w3.org/TR/webauthn-3/#discoverable-credential
 			ResidentKey:        "required",
 			RequireResidentKey: new(true),
+			// To make it two-factor, UserVerification is required
+			UserVerification: protocol.VerificationRequired,
 		},
 	}
 

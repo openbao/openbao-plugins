@@ -66,6 +66,8 @@ func (b *backend) pathInternalLoginChallengeRead(ctx context.Context, req *logic
 	publicKeyRequest := protocol.PublicKeyCredentialRequestOptions{
 		Challenge:      wrapChallenge(b.loginChallengeSalt, otp),
 		RelyingPartyID: "localhost",
+		// To make it two-factor, UserVerification is required
+		UserVerification: protocol.VerificationRequired,
 	}
 
 	return &logical.Response{
@@ -125,8 +127,8 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 		nil,
 		protocol.TopOriginAutoVerificationMode,
 		false,
-		false,
-		false,
+		true,
+		true,
 		decodedEntry.CredentialBytes,
 		protocol.SignaturePolicy{},
 	)
