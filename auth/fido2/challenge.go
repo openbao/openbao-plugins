@@ -19,14 +19,16 @@ import (
 	"github.com/openbao/openbao/sdk/v2/logical"
 )
 
+const challengeSeparator = "|"
+
 func wrapChallenge(salt *salt.Salt, rawChallenge string) protocol.URLEncodedBase64 {
 	expiry := time.Now().Add(5 * time.Minute).Unix() // https://www.w3.org/TR/webauthn-3/#sctn-timeout-recommended-range
 
-	otpWithExpiry := fmt.Sprintf("%016x\x00%s", expiry, rawChallenge) // we use %016x for the timestamp so that alphabetical sorting gives use timestamp sorting
+	otpWithExpiry := fmt.Sprintf("%016x%s%s", expiry, challengeSeparator, rawChallenge) // we use %016x for the timestamp so that alphabetical sorting gives use timestamp sorting
 
 	hmac := salt.GetHMAC(otpWithExpiry)
 
-	challenge := fmt.Sprintf("%s\x00%s", otpWithExpiry, hmac)
+	challenge := fmt.Sprintf("%s%s%s", otpWithExpiry, challengeSeparator, hmac)
 	return protocol.URLEncodedBase64(challenge)
 }
 
@@ -36,12 +38,12 @@ func unwrapChallenge(salt *salt.Salt, encodedChallenge string) (string, string, 
 		return "", "", logical.CodedError(http.StatusBadRequest, "invalid challenge: "+err.Error())
 	}
 
-	rawWithExpiry, actualHmac, ok := strings.CutLast(string(challenge), "\x00")
+	rawWithExpiry, actualHmac, ok := strings.CutLast(string(challenge), challengeSeparator)
 	if !ok || subtle.ConstantTimeCompare([]byte(salt.GetHMAC(rawWithExpiry)), []byte(actualHmac)) == 0 {
 		return "", "", logical.CodedError(http.StatusBadRequest, "invalid challenge")
 	}
 
-	expiryStr, raw, ok := strings.Cut(rawWithExpiry, "\x00")
+	expiryStr, raw, ok := strings.Cut(rawWithExpiry, challengeSeparator)
 	if !ok {
 		return "", "", logical.CodedError(http.StatusBadRequest, "invalid challenge")
 	}
@@ -80,7 +82,7 @@ func cleanupExpiredConsumedChallenges(ctx context.Context, logger hclog.Logger, 
 	view := logical.NewStorageView(storage, prefix)
 
 	return logical.ScanViewPaginated(ctx, view, logger, logical.DefaultScanViewPageLimit, func(page, index int, entry string) (cont bool, err error) {
-		expiryStr, _, ok := strings.Cut(entry, "\x00")
+		expiryStr, _, ok := strings.Cut(entry, challengeSeparator)
 		if ok {
 			expiry, err := strconv.ParseInt(expiryStr, 16, 64)
 			if err == nil {
@@ -94,7 +96,7 @@ func cleanupExpiredConsumedChallenges(ctx context.Context, logger hclog.Logger, 
 				logger.Warn("deleting invalid entry: timestamp invalid", "error", err, "path", view.ExpandKey(entry))
 			}
 		} else {
-			logger.Warn("deleting invalid entry: missing null byte", "path", view.ExpandKey(entry))
+			logger.Warn("deleting invalid entry: missing separator", "path", view.ExpandKey(entry))
 		}
 
 		err = view.Delete(ctx, entry)
