@@ -93,6 +93,10 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 		return nil, err
 	}
 
+	if len(resp.Response.UserHandle) == 0 {
+		return nil, logical.CodedError(http.StatusBadRequest, "assertion does not contain userHandle") // Must be present in Passkeys: https://www.w3.org/TR/webauthn/#user-handle
+	}
+
 	aliasName := string(resp.Response.UserHandle)
 	entry, err := req.Storage.Get(ctx, escapedPathJoin("v1", "credentials", aliasName, resp.ID))
 	if err != nil {
