@@ -60,7 +60,6 @@ func Backend() *backend {
 		Help:        backendHelp,
 		PathsSpecial: &logical.Paths{
 			Unauthenticated: []string{
-				"login",
 				"internal/login/challenge",
 				"internal/login/finish",
 				"internal/enroll/challenge",
@@ -364,7 +363,7 @@ func (b *backend) pathInternalEnrollChallengeRead(ctx context.Context, req *logi
 	}
 	defer rollback()
 
-	tokenStoragePath := escapedPathJoin("v1", "credentials", aliasName, token.(string))
+	tokenStoragePath := escapedPathJoin("v1", "enrollment-tokens", aliasName, token.(string))
 	tokenEntry, err := req.Storage.Get(ctx, tokenStoragePath)
 	if err != nil {
 		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
@@ -455,11 +454,14 @@ func (b *backend) pathSelfServiceEnroll(ctx context.Context, req *logical.Reques
 	}
 
 	token := fmt.Sprintf("v1.%s.%s", otp, entity.Aliases[aliasIdx].Name)
-	tokenStoragePath := escapedPathJoin("v1", "credentials", entity.Aliases[aliasIdx].Name, token)
-	req.Storage.Put(ctx, &logical.StorageEntry{
+	tokenStoragePath := escapedPathJoin("v1", "enrollment-tokens", entity.Aliases[aliasIdx].Name, token)
+	err = req.Storage.Put(ctx, &logical.StorageEntry{
 		Key:   tokenStoragePath,
 		Value: []byte{},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	resp := b.Secret(SecretTypeEnrollmentToken).Response(map[string]any{
 		"token": token,

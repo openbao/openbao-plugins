@@ -40,7 +40,7 @@ func findCredentialsForAlias(ctx context.Context, s logical.Storage, aliasName s
 			}
 
 			data := credentialStorageEntry{}
-			entry.DecodeJSON(&data)
+			err = entry.DecodeJSON(&data)
 			if err != nil {
 				return fmt.Errorf("invalid entry %q: %w", entryPath, err)
 			}
@@ -65,7 +65,7 @@ func (b *backend) pathInternalLoginChallengeRead(ctx context.Context, req *logic
 
 	publicKeyRequest := protocol.PublicKeyCredentialRequestOptions{
 		Challenge:      wrapChallenge(b.loginChallengeSalt, otp),
-		RelyingPartyID: "localhost",
+		RelyingPartyID: b.config.Load().RelyingPartyId,
 		// To make it two-factor, UserVerification is required
 		UserVerification: protocol.VerificationRequired,
 	}

@@ -3,7 +3,7 @@ async function enrollToken() {
 }
 async function enrollCommon(token) {
   const resp = await checkedFetch(
-    `${baseURL}/internal/enroll/challenge?token=${token}`,
+    `${baseURL}/internal/enroll/challenge?token=${encodeURIComponent(token)}`,
   );
   const respBody = await resp.json();
 
