@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"path"
 	"slices"
 	"strings"
@@ -474,9 +473,9 @@ func (b *backend) pathSelfServiceEnroll(ctx context.Context, req *logical.Reques
 }
 
 var pathReplacer = strings.NewReplacer(
-	"/", url.PathEscape("/"),
-	"%", url.PathEscape("%"),
-	".", url.PathEscape("."),
+	"%", "%25",
+	".", "%2E",
+	"/", "%2F",
 )
 
 func escapedPathJoin(parts ...string) string {

@@ -23,14 +23,17 @@ import (
 )
 
 func TestPathJoin(t *testing.T) {
-	parts := []string{"a", "b", "c/d", "x/../y", "%", "5%20d"}
+	parts := []string{"a", "b", "c/d", "..", "x/../y", "%", "5%20d"}
 	joined := escapedPathJoin(parts...)
+
+	require.NotContains(t, joined, ".")
 
 	for i, part := range parts {
 		var head string
 		head, joined, _ = strings.Cut(joined, "/")
-		assert.Equal(t, url.PathEscape(part), head, "part %d", i) // this should not be true in the general case (as e.g. + will not be encoded), see case below
-		t.Logf("%d expect %q == %q // remaining %q %v", i, head, part, joined, parts)
+		unescapedHead, err := url.PathUnescape(head)
+		require.NoError(t, err)
+		assert.Equal(t, part, unescapedHead, "part %d", i)
 	}
 
 	assert.Empty(t, joined)
