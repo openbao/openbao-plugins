@@ -93,14 +93,6 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 		return nil, err
 	}
 
-	err = consumeChallenge(ctx, req.Storage, challenge)
-	if err != nil {
-		if _, ok := errors.AsType[logical.HTTPCodedError](err); ok {
-			return nil, err
-		}
-		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
-	}
-
 	aliasName := string(resp.Response.UserHandle)
 	entry, err := req.Storage.Get(ctx, escapedPathJoin("v1", "credentials", aliasName, resp.ID))
 	if err != nil {
@@ -134,6 +126,14 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 	)
 	if err != nil {
 		return nil, logical.CodedError(http.StatusUnauthorized, err.Error())
+	}
+
+	err = consumeChallenge(ctx, req.Storage, challenge)
+	if err != nil {
+		if _, ok := errors.AsType[logical.HTTPCodedError](err); ok {
+			return nil, err
+		}
+		return nil, logical.CodedError(http.StatusInternalServerError, err.Error())
 	}
 
 	return &logical.Response{Auth: &logical.Auth{
