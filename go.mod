@@ -59,7 +59,7 @@ require (
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.0.1
-	github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0-20261002123419-3f454bac6a05
+	github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0
 	github.com/openbao/go-kms-wrapping/plugin/v2 v2.4.0
 	github.com/openbao/go-kms-wrapping/v2 v2.9.0
 	github.com/openbao/go-kms-wrapping/wrappers/alicloudkms/v2 v2.3.0

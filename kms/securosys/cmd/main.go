@@ -19,6 +19,9 @@ func main() {
 		WrapperFactoryFunc: func() wrapping.Wrapper {
 			return securosyshsm.NewWrapper()
 		},
-		Metadata: plugin.Metadata{},
+		Metadata: plugin.Metadata{
+			SensitiveKMSFields: securosyshsm.SensitiveKMSFields,
+			SensitiveKeyFields: securosyshsm.SensitiveKeyFields,
+		},
 	})
 }
