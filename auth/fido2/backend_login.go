@@ -85,7 +85,7 @@ func (b *backend) pathInternalLoginFinish(ctx context.Context, req *logical.Requ
 
 	resp, err := protocol.ParseCredentialRequestResponseBytes([]byte(response.(string)))
 	if err != nil {
-		return nil, err
+		return nil, logical.CodedError(http.StatusBadRequest, "could not parse assertion: %v", err)
 	}
 
 	_, challenge, err := unwrapChallenge(b.loginChallengeSalt, resp.Response.CollectedClientData.Challenge)
