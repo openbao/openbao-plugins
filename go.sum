@@ -484,8 +484,8 @@ github.com/oapi-codegen/runtime v1.4.1 h1:9nwLoI+KrWxzbBcp0jO/R8uXqbik/HUyCvPeU6
 github.com/oapi-codegen/runtime v1.4.1/go.mod h1:GwV7hC2hviaMzj+ITfHVRESK5J2W/GefVwIND/bMGvU=
 github.com/oklog/run v1.2.0 h1:O8x3yXwah4A73hJdlrwo/2X6J62gE5qTMusH0dvz60E=
 github.com/oklog/run v1.2.0/go.mod h1:mgDbKRSwPhJfesJ4PntqFUbKQRZ50NgmZTSPlFA0YFk=
-github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.0.1 h1:T40erunerYHw8pe2rQa6gOv/dRWy+Nsf6H71MdKvTzI=
-github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.0.1/go.mod h1:Oe/Eebdt1ttMF3AYlVEPpFPMe1wB8ibMBME/hki/+eg=
+github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.2.0 h1:ZKeNbB8tPxthoACvMDcV+feV80VHAq1zKdnDatDvx7Q=
+github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.2.0/go.mod h1:m6cXACk0nhUHENi5ruSYwrgj6DaZ2e/7GhXjuWnCuG4=
 github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0 h1:3F67dRGawzMB64mnFSP/Z5Hrd8Drlvuxuvs8RJ7y8MA=
 github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0/go.mod h1:k4EpuRthKi+I9A8bhrFjTybjB+6FHDZe5aiyYxCs2og=
 github.com/openbao/go-kms-wrapping/plugin/v2 v2.4.0 h1:ET70ooZHXwSCoEuNryKJfa2PvUZXAb3/l9o8dwWDYho=
