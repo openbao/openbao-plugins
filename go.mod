@@ -58,7 +58,7 @@ require (
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.2.1
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.0.1
+	github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.2.0
 	github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0
 	github.com/openbao/go-kms-wrapping/plugin/v2 v2.4.0
 	github.com/openbao/go-kms-wrapping/v2 v2.9.0
