@@ -150,7 +150,7 @@ func pathConfigIdentityUpdate(ctx context.Context, req *logical.Request, data *f
 	iamAliasRaw, ok := data.GetOk("iam_alias")
 	if ok {
 		iamAlias := iamAliasRaw.(string)
-		allowedIAMAliasValues := []string{identityAliasRoleID, identityAliasIAMUniqueID, identityAliasIAMFullArn , identityAliasIAMCanonicalArn}
+		allowedIAMAliasValues := []string{identityAliasRoleID, identityAliasIAMUniqueID, identityAliasIAMFullArn, identityAliasIAMCanonicalArn}
 		if !strutil.StrListContains(allowedIAMAliasValues, iamAlias) {
 			return logical.ErrorResponse(fmt.Sprintf("iam_alias of %q not in set of allowed values: %v", iamAlias, allowedIAMAliasValues)), nil
 		}
@@ -194,12 +194,12 @@ type identityConfig struct {
 }
 
 const (
-	identityAliasIAMUniqueID   = "unique_id"
-	identityAliasIAMFullArn    = "full_arn"
+	identityAliasIAMUniqueID     = "unique_id"
+	identityAliasIAMFullArn      = "full_arn"
 	identityAliasIAMCanonicalArn = "canonical_arn"
-	identityAliasEC2InstanceID = "instance_id"
-	identityAliasEC2ImageID    = "image_id"
-	identityAliasRoleID        = "role_id"
+	identityAliasEC2InstanceID   = "instance_id"
+	identityAliasEC2ImageID      = "image_id"
+	identityAliasRoleID          = "role_id"
 )
 
 const pathConfigIdentityHelpSyn = `
