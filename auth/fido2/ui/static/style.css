@@ -1,0 +1,97 @@
+body {
+    font-family: system-ui;
+    background-color: #336d5c;
+    color: rgb(55, 58, 66);
+
+    flex-direction: column;
+    display: flex;
+    align-items: center;
+}
+
+.card {
+    border: solid;
+    border-radius: 6px;
+    border-color: #091a28;
+    border-width: 1px;
+    padding: 12px;
+
+    background-color: #fdfccf;
+
+    max-width: 768px;
+    width: 100%;
+
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+}
+
+div.card {
+    margin: 12px;
+    display: flex;
+}
+
+dialog:open {
+    display: flex;
+    width: calc(100% - 48px);
+}
+
+dialog::backdrop {
+    background-color: #ff000066;
+    backdrop-filter: blur(2.5px);
+}
+
+h1 {
+    text-shadow: 2px 2px 4px white;
+    font-size: 3rem;
+    font-weight: bold;  text-transform: uppercase;
+}
+
+.card > h2{
+    width: 100%;
+    margin-top: .1em;
+    margin-bottom: .1em;
+}
+
+button {
+    cursor: pointer;
+    background-color: #bac1cc;
+
+    height: 2.5rem;
+    line-height: 1.6;
+    min-width: 6rem;
+    padding: 0.5rem 0.8;
+    text-align: center;
+    text-decoration: none;
+
+    border-width: 1px;
+    border-style: solid;
+    border-color: #bac1cc;
+    border-radius: 2px;
+
+    flex-grow: 1;
+}
+
+button.button-primary {
+    border-color: #004be1;
+    background-color: #004be1;
+    color: #fff;
+    font-weight: 700;
+}
+
+input {
+    flex-grow: 5;
+    height: 2.5rem;
+    font-size: 1rem;
+    padding: 0 0.5rem;
+
+    transition-property: border-color;
+    transition-duration: 1s;
+}
+
+input:focus {
+    border-color: #004be1;
+}
+
+div#error-card {
+    background-color: #ff6666;
+}
