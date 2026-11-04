@@ -6,6 +6,7 @@ package gcp
 import (
 	"context"
 	"fmt"
+	"path"
 
 	"github.com/openbao/openbao/sdk/v2/framework"
 	"github.com/openbao/openbao/sdk/v2/logical"
@@ -108,7 +109,12 @@ func (b *backend) pathStaticAccountRotateKey(ctx context.Context, req *logical.R
 		}
 		b.tryDeleteWALs(ctx, req.Storage, oldWalId)
 	}
-	return nil, nil
+
+	return &logical.Response{
+		Data: map[string]interface{}{
+			"private_key_id": path.Base(acct.TokenGen.KeyName),
+		},
+	}, nil
 }
 
 const pathStaticAccountRotateKeyHelpSyn = `Rotate the key used to generate access tokens for a static account`
