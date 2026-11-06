@@ -87,6 +87,14 @@ func (f *fakeLdapClient) UpdateDNPassword(_ *client.Config, _ string, _ string) 
 	return err
 }
 
+func (f *fakeLdapClient) UpdateBindPassword(_ *client.Config, _ string) error {
+	var err error
+	if f.throwErrs {
+		err = errors.New("forced error")
+	}
+	return err
+}
+
 func (f *fakeLdapClient) Execute(_ *client.Config, _ []*ldif.Entry, _ bool) (err error) {
 	return errors.New("not implemented")
 }

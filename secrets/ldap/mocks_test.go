@@ -23,6 +23,11 @@ func (m *mockLDAPClient) UpdateDNPassword(conf *client.Config, dn string, newPas
 	return args.Error(0)
 }
 
+func (m *mockLDAPClient) UpdateBindPassword(conf *client.Config, newPassword string) error {
+	args := m.Called(conf, newPassword)
+	return args.Error(0)
+}
+
 func (m *mockLDAPClient) UpdateUserPassword(conf *client.Config, user string, newPassword string) error {
 	args := m.Called(conf, user, newPassword)
 	return args.Error(0)
