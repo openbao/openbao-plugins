@@ -14,6 +14,7 @@ To learn more about OpenBao plugins, please see the
 
 - **AWS** - Authenticate using AWS IAM credentials.
 - **Azure** - Authenticate using Microsoft Azure credentials.
+- **FIDO2** - Authenticate using Passkey credentials.
 - **GCP** - Authenticate using Google Cloud Platform credentials.
 - **GitHub** - Authenticate using GitHub credentials.
 - **Kerberos** - Authenticate using Kerberos credentials.
@@ -100,4 +101,3 @@ submit issues, improvements, or new plugins.
 This project is licensed under the [Mozilla Public License 2.0
 (MPL-2.0)](LICENSE). Individual plugins may have different licenses, which will
 be specified in their respective plugin directories.
-
