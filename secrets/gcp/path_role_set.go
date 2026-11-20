@@ -6,6 +6,7 @@ package gcp
 import (
 	"context"
 	"fmt"
+	"path"
 
 	"github.com/hashicorp/errwrap"
 	"github.com/openbao/openbao-plugins/secrets/gcp/util"
@@ -179,6 +180,7 @@ func (b *backend) pathRoleSetRead(ctx context.Context, req *logical.Request, d *
 
 	if rs.TokenGen != nil && rs.SecretType == SecretTypeAccessToken {
 		data["token_scopes"] = rs.TokenGen.Scopes
+		data["private_key_id"] = path.Base(rs.TokenGen.KeyName)
 	}
 
 	return &logical.Response{
@@ -419,7 +421,12 @@ func (b *backend) pathRoleSetRotateKey(ctx context.Context, req *logical.Request
 	if warn != "" {
 		return &logical.Response{Warnings: []string{warn}}, nil
 	}
-	return nil, nil
+
+	return &logical.Response{
+		Data: map[string]interface{}{
+			"private_key_id": path.Base(rs.TokenGen.KeyName),
+		},
+	}, nil
 }
 
 func getRoleSet(name string, ctx context.Context, s logical.Storage) (*RoleSet, error) {
