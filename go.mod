@@ -58,7 +58,7 @@ require (
 	github.com/microsoftgraph/msgraph-sdk-go-core v1.2.1
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.2.0
+	github.com/openbao/go-kms-wrapping/kms/pkcs11/v2 v2.3.0
 	github.com/openbao/go-kms-wrapping/kms/securosyshsm/v2 v2.0.0
 	github.com/openbao/go-kms-wrapping/plugin/v2 v2.4.0
 	github.com/openbao/go-kms-wrapping/v2 v2.9.0
@@ -247,6 +247,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260807164820-c8921c73eeea // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	zgo.at/zcache/v2 v2.4.1 // indirect
 )
 
 tool go.uber.org/mock/mockgen
